@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme is applied before Compose takes over; keep it minimal and
+         edge-to-edge friendly. Actual colors live in the Compose theme. -->
+    <style name="Theme.BankrollEdge" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/felt_900</item>
+    </style>
+</resources>
