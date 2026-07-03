@@ -1,0 +1,103 @@
+# BankrollEdge
+
+A poker **bankroll tracker** for Android — log your cash-game and tournament
+sessions, watch your bankroll graph climb, and dig into the stats that tell you
+whether you're actually winning. Inspired by apps like Poker Bankroll Tracker,
+Pokerbase and Poker Mania, built from scratch with a modern Android stack.
+
+> Status: v1 (core MVP). Everything below works today; the roadmap lists what's
+> planned next.
+
+## Features
+
+- **Session logging** for both cash games and tournaments in one flow:
+  - Cash: stakes (blinds), buy-in, additional buy-ins, cash-out, tips, duration.
+  - Tournaments: buy-in (entry + fee), rebuys/add-ons/re-entries, prize won,
+    finish position, field size, tips, duration.
+  - Game variant (NLH, PLO, 5-card PLO, Limit Hold'em, Stud, Mixed, Other),
+    venue, date & time, and free-form notes.
+  - Live **net-result preview** as you type.
+- **Dashboard** with your current bankroll (starting balance + all-time profit),
+  a cumulative-profit line chart, headline stats, and recent sessions.
+- **Statistics** screen: profit, hourly rate, ROI, win rate, average per
+  session, biggest win/loss, hours played, cash-vs-tournament split with
+  in-the-money %, plus profit breakdowns **by game type, venue and stakes**.
+- **Filtering** on the Sessions and Stats screens by session type, game,
+  venue and date range (this month / last 30 days / this year / all time).
+- **CSV export** of all sessions via the Android share sheet.
+- **Starting bankroll** and **default currency** settings (10 currencies).
+- Material 3 UI with a poker-felt theme, light & dark mode, edge-to-edge.
+- 100% offline, local-only data (Room / SQLite). No account, no network.
+
+## Tech stack
+
+| Layer      | Choice                                             |
+|------------|----------------------------------------------------|
+| Language   | Kotlin                                             |
+| UI         | Jetpack Compose + Material 3                       |
+| Charts     | Custom Compose `Canvas` (no third-party chart lib) |
+| Data       | Room (SQLite), SharedPreferences for settings      |
+| Async      | Coroutines + `Flow` / `StateFlow`                  |
+| Arch       | MVVM, unidirectional state, manual DI container    |
+| Navigation | Navigation-Compose (bottom bar + detail screen)    |
+| Min / Target SDK | 26 / 35                                      |
+
+## Project structure
+
+```
+app/src/main/java/com/bankrolledge/app/
+├── BankrollEdgeApplication.kt    # builds the AppContainer (manual DI)
+├── MainActivity.kt               # sets the Compose content
+├── data/
+│   ├── AppContainer.kt           # wires DB + repositories
+│   ├── local/                    # Room database, DAO, SessionEntity
+│   ├── model/                    # SessionType / GameType enums
+│   └── repository/               # SessionRepository, SettingsRepository
+├── domain/
+│   └── Statistics.kt             # StatsCalculator: all derived metrics
+├── ui/
+│   ├── BankrollViewModel.kt      # shared state for dashboard/sessions/stats
+│   ├── SessionFilter.kt          # filter model + apply logic
+│   ├── components/               # charts, stat tiles, session row, breakdowns
+│   ├── dashboard/ sessions/ stats/ settings/ editor/   # screens + editor VM
+│   ├── navigation/               # routes + Scaffold with bottom nav
+│   └── theme/                    # colors, type, Material 3 theme
+└── util/                         # Formatters, DateTimeUtils, CsvExporter
+```
+
+## Building
+
+Open the project in **Android Studio** (Ladybug or newer) and press Run, or from
+the command line:
+
+```bash
+# Point the build at your Android SDK (or add sdk.dir to local.properties)
+export ANDROID_HOME=/path/to/Android/sdk
+
+./gradlew assembleDebug        # builds app/build/outputs/apk/debug/app-debug.apk
+./gradlew installDebug         # install onto a connected device/emulator
+```
+
+Requirements: JDK 17+, Android SDK Platform 35 and Build-Tools 35.
+
+## Data model
+
+A single `SessionEntity` row covers both session types; unused fields stay at
+zero. Profit is always `cashOut - (buyIn + rebuysAddons) - tips`, so cash and
+tournament results roll up into the same bankroll and graph. Your **current
+bankroll** is `startingBankroll + sum(profit)`.
+
+## Roadmap
+
+Natural next steps beyond this MVP:
+
+- Live session timer (start/stop a running session).
+- Multiple bankrolls / accounts and casino balances.
+- Multi-currency normalization with exchange rates.
+- CSV/JSON import and cloud backup.
+- More charts (profit by weekday/hour, variance, bankroll simulations).
+- Poker tools: ICM/deal calculator, odds calculator.
+
+## License
+
+Personal project — no license specified yet.
