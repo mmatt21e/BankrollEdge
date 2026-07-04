@@ -17,6 +17,9 @@ Pokerbase and Poker Mania, built from scratch with a modern Android stack.
   - Game variant (NLH, PLO, 5-card PLO, Limit Hold'em, Stud, Mixed, Other),
     venue, date & time, and free-form notes.
   - Live **net-result preview** as you type.
+- **Live session timer** on the dashboard: start a timer when you sit down,
+  and when you stop it the new-session form opens with the start time and
+  duration already filled in (survives app restarts).
 - **Dashboard** with your current bankroll (starting balance + all-time profit),
   a cumulative-profit line chart, headline stats, and recent sessions.
 - **Statistics** screen: profit, hourly rate, ROI, win rate, average per

@@ -14,9 +14,13 @@ object Routes {
     const val SETTINGS = "settings"
     const val EDITOR = "editor"
     const val EDITOR_ARG_ID = "sessionId"
-    const val EDITOR_ROUTE = "$EDITOR/{$EDITOR_ARG_ID}"
+    const val EDITOR_ARG_START = "startMillis"
+    const val EDITOR_ARG_DURATION = "durationMinutes"
+    const val EDITOR_ROUTE =
+        "$EDITOR/{$EDITOR_ARG_ID}?$EDITOR_ARG_START={$EDITOR_ARG_START}&$EDITOR_ARG_DURATION={$EDITOR_ARG_DURATION}"
 
-    fun editor(sessionId: Long): String = "$EDITOR/$sessionId"
+    fun editor(sessionId: Long, startMillis: Long = 0L, durationMinutes: Int = 0): String =
+        "$EDITOR/$sessionId?$EDITOR_ARG_START=$startMillis&$EDITOR_ARG_DURATION=$durationMinutes"
 }
 
 /** The four bottom-navigation destinations. */

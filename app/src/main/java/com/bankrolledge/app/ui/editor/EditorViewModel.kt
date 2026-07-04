@@ -21,6 +21,10 @@ class EditorViewModel(
     private val sessionId: Long,
     private val sessionRepository: SessionRepository,
     private val settingsRepository: SettingsRepository,
+    /** For a new session started from the live timer: when it began (0 = none). */
+    private val prefillStartMillis: Long = 0L,
+    /** For a new session started from the live timer: elapsed minutes (0 = none). */
+    private val prefillDurationMinutes: Int = 0,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EditorFormState())
@@ -34,13 +38,15 @@ class EditorViewModel(
             if (isEditing) {
                 sessionRepository.getById(sessionId)?.let { s -> _state.value = s.toFormState() }
             } else {
-                val now = System.currentTimeMillis()
+                val start = if (prefillStartMillis > 0L) prefillStartMillis else System.currentTimeMillis()
                 _state.update {
                     it.copy(
                         currency = currency,
-                        date = DateTimeUtils.localDate(now),
-                        startHour = DateTimeUtils.hourOf(now),
-                        startMinute = DateTimeUtils.minuteOf(now),
+                        date = DateTimeUtils.localDate(start),
+                        startHour = DateTimeUtils.hourOf(start),
+                        startMinute = DateTimeUtils.minuteOf(start),
+                        durationHours = if (prefillDurationMinutes > 0) (prefillDurationMinutes / 60).toString() else "",
+                        durationMinutesText = if (prefillDurationMinutes > 0) (prefillDurationMinutes % 60).toString() else "",
                     )
                 }
             }

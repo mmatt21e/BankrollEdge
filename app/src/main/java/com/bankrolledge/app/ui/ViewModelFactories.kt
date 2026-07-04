@@ -12,12 +12,21 @@ class BankrollViewModelFactory(private val container: AppContainer) : ViewModelP
         BankrollViewModel(container.sessionRepository, container.settingsRepository) as T
 }
 
-/** Builds an [EditorViewModel] for a given session id (0 = new session). */
+/** Builds an [EditorViewModel] for a given session id (0 = new session).
+ *  [startMillis]/[durationMinutes] pre-fill a new session logged from the live timer. */
 class EditorViewModelFactory(
     private val container: AppContainer,
     private val sessionId: Long,
+    private val startMillis: Long = 0L,
+    private val durationMinutes: Int = 0,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        EditorViewModel(sessionId, container.sessionRepository, container.settingsRepository) as T
+        EditorViewModel(
+            sessionId,
+            container.sessionRepository,
+            container.settingsRepository,
+            startMillis,
+            durationMinutes,
+        ) as T
 }
