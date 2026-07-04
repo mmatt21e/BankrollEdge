@@ -95,6 +95,9 @@ fun BankrollEdgeApp(container: AppContainer) {
                     contentPadding = padding,
                     onSessionClick = { id -> navController.navigate(Routes.editor(id)) },
                     onSeeAll = { navController.navigate(Routes.SESSIONS) },
+                    onLogTimedSession = { startMillis, durationMinutes ->
+                        navController.navigate(Routes.editor(0, startMillis, durationMinutes))
+                    },
                 )
             }
             composable(Routes.SESSIONS) {
@@ -112,15 +115,29 @@ fun BankrollEdgeApp(container: AppContainer) {
             }
             composable(
                 route = Routes.EDITOR_ROUTE,
-                arguments = listOf(navArgument(Routes.EDITOR_ARG_ID) {
-                    type = NavType.LongType
-                    defaultValue = 0L
-                }),
+                arguments = listOf(
+                    navArgument(Routes.EDITOR_ARG_ID) {
+                        type = NavType.LongType
+                        defaultValue = 0L
+                    },
+                    navArgument(Routes.EDITOR_ARG_START) {
+                        type = NavType.LongType
+                        defaultValue = 0L
+                    },
+                    navArgument(Routes.EDITOR_ARG_DURATION) {
+                        type = NavType.IntType
+                        defaultValue = 0
+                    },
+                ),
             ) { entry ->
                 val sessionId = entry.arguments?.getLong(Routes.EDITOR_ARG_ID) ?: 0L
+                val startMillis = entry.arguments?.getLong(Routes.EDITOR_ARG_START) ?: 0L
+                val durationMinutes = entry.arguments?.getInt(Routes.EDITOR_ARG_DURATION) ?: 0
                 EditorScreen(
                     container = container,
                     sessionId = sessionId,
+                    startMillis = startMillis,
+                    durationMinutes = durationMinutes,
                     onDone = { navController.popBackStack() },
                 )
             }

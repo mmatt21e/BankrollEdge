@@ -50,6 +50,13 @@ class BankrollViewModel(
         initialValue = BankrollUiState(loading = true),
     )
 
+    /** Epoch millis the live-session timer started; 0 = not running. */
+    val activeTimerStart: StateFlow<Long> = settingsRepository.activeTimerStart
+
+    fun startTimer() = settingsRepository.startTimer(System.currentTimeMillis())
+
+    fun clearTimer() = settingsRepository.clearTimer()
+
     fun setFilter(newFilter: SessionFilter) {
         filter.value = newFilter
     }

@@ -67,9 +67,11 @@ fun EditorScreen(
     container: AppContainer,
     sessionId: Long,
     onDone: () -> Unit,
+    startMillis: Long = 0L,
+    durationMinutes: Int = 0,
 ) {
     val viewModel: EditorViewModel = viewModel(
-        factory = EditorViewModelFactory(container, sessionId),
+        factory = EditorViewModelFactory(container, sessionId, startMillis, durationMinutes),
     )
     val form by viewModel.state.collectAsState()
     val isTournament = form.sessionType == SessionType.TOURNAMENT
