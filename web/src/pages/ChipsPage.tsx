@@ -40,7 +40,7 @@ export default function ChipsPage() {
 
   return (
     <>
-      <TopBar title="Chip calculator" onBack={() => navigate(-1)} />
+      <TopBar title="Tournament Chip stack setup" onBack={() => navigate(-1)} />
       <main className="page" style={{ paddingTop: 0 }}>
         <div className="row">
           <label className="field grow">

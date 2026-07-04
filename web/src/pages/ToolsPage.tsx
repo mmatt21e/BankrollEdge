@@ -21,9 +21,15 @@ const TOOLS = [
     blurb: 'Prize pools, payout templates and rounded payouts by place.',
   },
   {
+    to: '/tools/deal',
+    icon: '🤝',
+    name: 'Deal / chop calculator',
+    blurb: 'Split the remaining pool by chips — ICM, chip chop or even.',
+  },
+  {
     to: '/tools/chips',
     icon: '🪙',
-    name: 'Chip calculator',
+    name: 'Tournament Chip stack setup',
     blurb: 'Chips per player from your set, with inventory warnings.',
   },
   {

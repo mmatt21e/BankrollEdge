@@ -10,6 +10,7 @@ import ToolsPage from '../pages/ToolsPage';
 import ClockPage from '../pages/ClockPage';
 import HomeGamesPage from '../pages/HomeGamesPage';
 import PayoutPage from '../pages/PayoutPage';
+import DealPage from '../pages/DealPage';
 import ChipsPage from '../pages/ChipsPage';
 import CalendarPage from '../pages/CalendarPage';
 import HandNotesPage from '../pages/HandNotesPage';
@@ -26,6 +27,7 @@ export const routes: RouteObject[] = [
   { path: '/tools/clock', element: <ClockPage /> },
   { path: '/tools/home-games', element: <HomeGamesPage /> },
   { path: '/tools/payout', element: <PayoutPage /> },
+  { path: '/tools/deal', element: <DealPage /> },
   { path: '/tools/chips', element: <ChipsPage /> },
   { path: '/tools/calendar', element: <CalendarPage /> },
   { path: '/tools/hands', element: <HandNotesPage /> },
