@@ -25,10 +25,13 @@ import com.bankrolledge.app.data.local.entity.SessionEntity
 import com.bankrolledge.app.data.model.SessionType
 import com.bankrolledge.app.ui.BankrollViewModel
 import com.bankrolledge.app.ui.DateRange
+import com.bankrolledge.app.ui.components.BarChart
+import com.bankrolledge.app.ui.components.BarEntry
 import com.bankrolledge.app.ui.components.BreakdownList
-import com.bankrolledge.app.ui.components.MonthlyBarChart
 import com.bankrolledge.app.ui.components.StatTileData
 import com.bankrolledge.app.ui.components.StatTileGrid
+import com.bankrolledge.app.ui.theme.LossRed
+import com.bankrolledge.app.ui.theme.ProfitGreen
 import com.bankrolledge.app.ui.theme.profitColor
 import com.bankrolledge.app.util.Formatters
 
@@ -97,9 +100,34 @@ fun StatsScreen(
 
         item {
             SectionCard(title = "Profit by month") {
-                MonthlyBarChart(months = stats.byMonth, currency = currency)
+                BarChart(
+                    entries = stats.byMonth.takeLast(12).map { BarEntry(it.label, it.profit) },
+                    topLabel = stats.byMonth.takeLast(12)
+                        .maxOfOrNull { kotlin.math.abs(it.profit) }
+                        ?.let { Formatters.compactMoney(it, currency) },
+                )
             }
         }
+
+        item {
+            SectionCard(title = "Profit by hour of day") {
+                Text(
+                    "When your sessions start vs. how they end up.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                BarChart(
+                    entries = stats.hourlyProfit.mapIndexed { hour, profit ->
+                        BarEntry(hourLabel(hour), profit)
+                    },
+                    height = 140.dp,
+                    emptyMessage = "Log sessions to see your best playing hours.",
+                )
+            }
+        }
+
+        item { VarianceCard(stats, currency) }
 
         item { CashVsTournamentCard(stats, currency) }
 
@@ -115,6 +143,65 @@ fun StatsScreen(
             SectionCard(title = "By stakes (cash)") {
                 BreakdownList(stats.byStakes, currency, emptyMessage = "No cash sessions with stakes yet.")
             }
+        }
+    }
+}
+
+/** 0 -> "12a", 6 -> "6a", 12 -> "12p", 18 -> "6p". */
+private fun hourLabel(hour: Int): String = when {
+    hour == 0 -> "12a"
+    hour < 12 -> "${hour}a"
+    hour == 12 -> "12p"
+    else -> "${hour - 12}p"
+}
+
+/**
+ * Variance at a glance: swinginess tiles plus a histogram of session results,
+ * so a player can see whether their winrate rests on a few big scores.
+ */
+@Composable
+private fun VarianceCard(stats: com.bankrolledge.app.domain.Statistics, currency: String) {
+    SectionCard(title = "Variance") {
+        StatTileGrid(
+            tiles = listOf(
+                StatTileData(
+                    "Std Dev / Session",
+                    Formatters.money(stats.stdDevPerSession, currency),
+                    MaterialTheme.colorScheme.onSurface,
+                ),
+                StatTileData(
+                    "Max Downswing",
+                    if (stats.maxDrawdown > 0.0) "-${Formatters.money(stats.maxDrawdown, currency)}" else "—",
+                    if (stats.maxDrawdown > 0.0) profitColor(-1.0) else MaterialTheme.colorScheme.onSurface,
+                ),
+                StatTileData("Worst Skid", if (stats.worstLossStreak > 0) "${stats.worstLossStreak} losses" else "—", MaterialTheme.colorScheme.onSurface),
+                StatTileData("Best Run", if (stats.bestWinStreak > 0) "${stats.bestWinStreak} wins" else "—", MaterialTheme.colorScheme.onSurface),
+            ),
+        )
+        if (stats.profitBuckets.isNotEmpty()) {
+            Text(
+                "Session results distribution",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+            )
+            BarChart(
+                entries = stats.profitBuckets.map { b ->
+                    BarEntry(
+                        label = Formatters.compactMoney(if (b.isLossSide) b.lo else b.hi, currency),
+                        value = b.count.toDouble(),
+                        color = if (b.isLossSide) LossRed else ProfitGreen,
+                    )
+                },
+                height = 110.dp,
+                emptyMessage = "",
+            )
+            Text(
+                "Bar height = number of sessions ending in that range.",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
     }
 }
