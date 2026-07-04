@@ -1,17 +1,27 @@
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useRoutes } from 'react-router-dom';
 import { routes } from './routes/routes';
 import { NavBar } from './components/common';
+import { PinLock } from './components/PinLock';
 import { useOnline } from './hooks/useAppState';
+import { hasPin, loadHideBalances } from './storage/settings';
 
 export default function App() {
   const element = useRoutes(routes);
   const location = useLocation();
   const navigate = useNavigate();
   const online = useOnline();
+  const [locked, setLocked] = useState(hasPin);
 
-  // Bottom nav + FAB only on top-level destinations (matches the Android
-  // Scaffold, which hides them on the editor/bankroll detail screens).
-  const topLevel = ['/', '/sessions', '/stats', '/settings'].includes(location.pathname);
+  // "Hide balances" masks every money value app-wide via a body class.
+  useEffect(() => {
+    document.body.classList.toggle('privacy-hide', loadHideBalances());
+  }, [location]);
+
+  if (locked) return <PinLock onUnlock={() => setLocked(false)} />;
+
+  // Bottom nav + FAB only on top-level destinations.
+  const topLevel = ['/', '/sessions', '/stats', '/tools', '/settings'].includes(location.pathname);
   const showFab = location.pathname === '/' || location.pathname === '/sessions';
 
   return (

@@ -116,6 +116,44 @@ export default function StatsPage() {
         </div>
       </SectionCard>
 
+      <SectionCard title="Live vs online">
+        <BreakdownList groups={stats.byLiveOnline} currency={currency} />
+      </SectionCard>
+      <SectionCard title="By session type">
+        <BreakdownList groups={stats.bySessionType} currency={currency} />
+      </SectionCard>
+
+      {(stats.byFocus.length > 0 ||
+        stats.byGameQuality.length > 0 ||
+        stats.bySessionLength.length > 0) && (
+        <SectionCard title="Session quality analytics">
+          {stats.byFocus.length > 0 && (
+            <>
+              <div className="overline">By focus rating</div>
+              <BreakdownList groups={stats.byFocus} currency={currency} />
+            </>
+          )}
+          {stats.byGameQuality.length > 0 && (
+            <>
+              <div className="overline" style={{ marginTop: 10 }}>By game quality</div>
+              <BreakdownList groups={stats.byGameQuality} currency={currency} />
+            </>
+          )}
+          {stats.bySessionLength.length > 0 && (
+            <>
+              <div className="overline" style={{ marginTop: 10 }}>By session length</div>
+              <BreakdownList groups={stats.bySessionLength} currency={currency} />
+            </>
+          )}
+          {stats.byRebuys.length > 1 && (
+            <>
+              <div className="overline" style={{ marginTop: 10 }}>Single bullet vs rebuys</div>
+              <BreakdownList groups={stats.byRebuys} currency={currency} />
+            </>
+          )}
+        </SectionCard>
+      )}
+
       <SectionCard title="By game type">
         <BreakdownList groups={stats.byGameType} currency={currency} />
       </SectionCard>

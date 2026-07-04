@@ -3,6 +3,7 @@ import {
   Session,
   SessionType,
   GameType,
+  VenueType,
   GAME_TYPE_LABELS,
   stakesLabel,
 } from '../models/types';
@@ -19,22 +20,27 @@ export const DATE_RANGE_LABELS: Record<DateRange, string> = {
 export interface SessionFilter {
   type: SessionType | null;
   game: GameType | null;
+  venueType: VenueType | null;
   location: string | null;
+  tag: string | null;
   range: DateRange;
-  /** Free-text search over venue, notes, game name and stakes. */
+  /** Free-text search over venue, notes, game name, stakes and tags. */
   query: string;
 }
 
 export const EMPTY_FILTER: SessionFilter = {
   type: null,
   game: null,
+  venueType: null,
   location: null,
+  tag: null,
   range: 'ALL',
   query: '',
 };
 
 export const isFilterActive = (f: SessionFilter): boolean =>
-  f.type !== null || f.game !== null || f.location !== null ||
+  f.type !== null || f.game !== null || f.venueType !== null ||
+  f.location !== null || f.tag !== null ||
   f.range !== 'ALL' || f.query.trim() !== '';
 
 function rangeStart(range: DateRange, now: number): number | null {
@@ -57,7 +63,8 @@ function matches(s: Session, q: string): boolean {
     s.location.toLowerCase().includes(needle) ||
     s.notes.toLowerCase().includes(needle) ||
     GAME_TYPE_LABELS[s.gameType].toLowerCase().includes(needle) ||
-    stakesLabel(s).toLowerCase().includes(needle)
+    stakesLabel(s).toLowerCase().includes(needle) ||
+    s.tags.some((t) => t.toLowerCase().includes(needle))
   );
 }
 
@@ -72,7 +79,9 @@ export function applyFilter(
     (s) =>
       (filter.type === null || s.sessionType === filter.type) &&
       (filter.game === null || s.gameType === filter.game) &&
+      (filter.venueType === null || s.venueType === filter.venueType) &&
       (filter.location === null || s.location === filter.location) &&
+      (filter.tag === null || s.tags.includes(filter.tag)) &&
       (from === null || s.startTime >= from) &&
       (q === '' || matches(s, q)),
   );

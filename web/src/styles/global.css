@@ -306,6 +306,87 @@ button { font: inherit; }
 
 .empty { text-align: center; padding: 32px 16px; color: var(--on-surface-variant); }
 
+/* ---------- Collapsible sections ---------- */
+
+details.card > summary {
+  cursor: pointer;
+  min-height: var(--touch);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  list-style: none;
+  flex-wrap: wrap;
+}
+details.card > summary::before { content: '▸'; color: var(--on-surface-variant); }
+details[open].card > summary::before { content: '▾'; }
+details.card > summary::-webkit-details-marker { display: none; }
+
+/* ---------- Insight cards ---------- */
+
+.insight {
+  border-left: 4px solid var(--neutral);
+  background: var(--surface-variant);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 0.95rem;
+}
+.insight.good { border-left-color: var(--profit); }
+.insight.bad { border-left-color: var(--loss); }
+
+/* ---------- Tournament clock ---------- */
+
+.clock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--felt-900);
+  color: var(--cream);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  text-align: center;
+  transition: background 0.4s;
+}
+.clock-screen.clock-warning { background: #3d1414; }
+.clock-time {
+  font-size: clamp(4.5rem, 22vw, 13rem);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.clock-warning .clock-time { color: #ff6b6b; }
+.clock-blinds {
+  font-size: clamp(1.6rem, 7vw, 3.6rem);
+  font-weight: 700;
+  color: var(--gold-500);
+}
+.clock-ante { font-size: 0.55em; color: var(--cream); }
+
+/* ---------- PIN lock ---------- */
+
+.pin-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* ---------- Hide balances mode ---------- */
+
+body.privacy-hide .money {
+  filter: blur(7px);
+  user-select: none;
+}
+
 @media (min-width: 720px) {
   /* Desktop: keep the phone-style column centered; nothing hover-dependent. */
   .tile-grid { grid-template-columns: 1fr 1fr 1fr; }

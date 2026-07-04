@@ -88,6 +88,26 @@ describe('computeStats', () => {
     expect(bankrollOf(stats, 1000, 500)).toBeCloseTo(1650, 9);
   });
 
+  it('deducts add-ons and expenses from profit; rake stays informational', () => {
+    const stats = computeStats([
+      cash(100, 500, { addOns: 50, expenses: 30, tips: 20, rake: 999 }),
+    ]);
+    // 500 - (100 + 50) - 20 - 30 = 300; rake must NOT be deducted again.
+    expect(stats.totalProfit).toBeCloseTo(300, 9);
+    expect(stats.totalInvested).toBeCloseTo(150, 9);
+  });
+
+  it('classifies SNGs as tournament-style and home games as cash-style', () => {
+    const stats = computeStats([
+      { ...cash(100, 300), sessionType: 'SNG' as const }, // +200 cashed
+      { ...cash(100, 150), sessionType: 'HOME' as const }, // +50 cash bucket
+    ]);
+    expect(stats.tournamentCount).toBe(1);
+    expect(stats.tournamentsCashed).toBe(1);
+    expect(stats.cashCount).toBe(1);
+    expect(stats.cashProfit).toBeCloseTo(50, 9);
+  });
+
   it('yields zeroed stats for empty input', () => {
     const stats = computeStats([]);
     expect(stats.sessionCount).toBe(0);

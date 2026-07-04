@@ -15,12 +15,20 @@ import {
   Session,
   Transaction,
   TransactionType,
+  normalizeSession,
   signedAmount,
 } from '../models/types';
 import { EMPTY_FILTER, SessionFilter, applyFilter } from '../domain/filter';
 import { Statistics, computeStats, bankrollOf } from '../domain/stats';
 import { Backup } from '../domain/backup';
-import { db, requestPersistence } from '../storage/db';
+import {
+  db,
+  eventStore,
+  handNoteStore,
+  homeGameStore,
+  requestPersistence,
+  structureStore,
+} from '../storage/db';
 import {
   loadSettings,
   saveSettings,
@@ -40,6 +48,7 @@ export interface AppState {
   filteredStats: Statistics;
   bankroll: number;
   availableLocations: string[];
+  availableTags: string[];
   timerStart: number; // 0 = not running
 
   saveSession(session: Session): Promise<void>;
@@ -72,7 +81,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     requestPersistence();
     Promise.all([db.loadSessions(), db.loadTransactions()])
       .then(([s, t]) => {
-        setSessions(s.sort((a, b) => b.startTime - a.startTime));
+        // normalizeSession fills v2 defaults into records saved by v1.
+        setSessions(s.map(normalizeSession).sort((a, b) => b.startTime - a.startTime));
         setTransactions(t.sort((a, b) => b.time - a.time));
       })
       .catch(() => undefined)
@@ -147,6 +157,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const restoreBackup = useCallback(async (backup: Backup) => {
     await db.clearSessions();
     await db.clearTransactions();
+    // Tool collections live in their own stores; pages re-read them on mount.
+    await Promise.all([
+      handNoteStore.clear(),
+      homeGameStore.clear(),
+      structureStore.clear(),
+      eventStore.clear(),
+    ]);
+    for (const n of backup.handNotes) await handNoteStore.save(n);
+    for (const g of backup.homeGames) await homeGameStore.save(g);
+    for (const st of backup.structures) await structureStore.save(st);
+    for (const ev of backup.events) await eventStore.save(ev);
     const restoredSessions: Session[] = [];
     for (const s of backup.sessions) {
       const id = await db.saveSession({ ...s, id: 0 });
@@ -180,6 +201,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       filteredStats: computeStats(filteredSessions),
       bankroll: bankrollOf(allStats, settings.startingBankroll, transactionsNet),
       availableLocations: [...new Set(sessions.map((s) => s.location).filter(Boolean))].sort(),
+      availableTags: [...new Set(sessions.flatMap((s) => s.tags))].sort(),
       timerStart,
       saveSession,
       deleteSession,
@@ -217,6 +239,41 @@ export function useNow(enabled: boolean, intervalMs = 1000): number {
     return () => clearInterval(id);
   }, [enabled, intervalMs]);
   return now;
+}
+
+/** Load + CRUD one tool store (blind structures, home games, …) as local state. */
+export function useStoreList<T extends { id: number }>(store: {
+  list(): Promise<T[]>;
+  save(value: T): Promise<number>;
+  remove(id: number): Promise<void>;
+}) {
+  const [items, setItems] = useState<T[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    store
+      .list()
+      .then(setItems)
+      .catch(() => undefined)
+      .finally(() => setLoaded(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const save = useCallback(
+    async (value: T): Promise<T> => {
+      const id = await store.save(value);
+      const saved = { ...value, id };
+      setItems((prev) => [...prev.filter((x) => x.id !== id), saved]);
+      return saved;
+    },
+    [store],
+  );
+  const remove = useCallback(
+    async (id: number) => {
+      await store.remove(id);
+      setItems((prev) => prev.filter((x) => x.id !== id));
+    },
+    [store],
+  );
+  return { items, loaded, save, remove };
 }
 
 /** Online/offline indicator for the offline banner. */

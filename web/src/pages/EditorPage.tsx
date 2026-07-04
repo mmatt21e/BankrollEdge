@@ -1,18 +1,25 @@
-// Port of Android EditorScreen: add/edit a session with a live net-result
-// preview. Numeric fields are held as raw strings and parsed on save, so
-// partial input never crashes (same approach as the Android EditorViewModel).
+// Add/edit a session with a live net-result preview. Quick logging stays
+// fast: the essentials are up top, and money details / quality tracking live
+// in collapsible sections. Numeric fields are held as raw strings and parsed
+// on save so partial input never crashes.
 import { FormEvent, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
   Session,
   SessionType,
   GameType,
+  VenueType,
+  SleepQuality,
+  AlcoholLevel,
+  GameQuality,
+  YesNo,
   SESSION_TYPES,
   SESSION_TYPE_LABELS,
   GAME_TYPES,
   GAME_TYPE_LABELS,
   emptySession,
+  isTournamentStyle,
   profit,
 } from '../models/types';
 import { signedMoney } from '../domain/format';
@@ -21,6 +28,7 @@ import { ConfirmDialog, TopBar, profitClass } from '../components/common';
 interface FormState {
   sessionType: SessionType;
   gameType: GameType;
+  venueType: VenueType;
   location: string;
   date: string; // yyyy-MM-dd
   time: string; // HH:mm
@@ -30,12 +38,27 @@ interface FormState {
   bigBlind: string;
   buyIn: string;
   rebuysAddons: string;
+  addOns: string;
   cashOut: string;
   tips: string;
+  rake: string;
+  expenses: string;
   position: string;
   fieldSize: string;
+  handsPlayed: string;
+  tableSize: string;
+  tagsText: string; // comma-separated
   currency: string;
   notes: string;
+  focus: number;
+  tilt: number;
+  discipline: number;
+  sleep: SleepQuality;
+  alcohol: AlcoholLevel;
+  gameQuality: GameQuality;
+  leftAtStopLoss: YesNo;
+  stopLoss: string;
+  stopWin: string;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -53,6 +76,7 @@ function fromSession(s: Session): FormState {
   return {
     sessionType: s.sessionType,
     gameType: s.gameType,
+    venueType: s.venueType,
     location: s.location,
     date: toDateInput(s.startTime),
     time: toTimeInput(s.startTime),
@@ -62,12 +86,27 @@ function fromSession(s: Session): FormState {
     bigBlind: numStr(s.bigBlind),
     buyIn: numStr(s.buyIn),
     rebuysAddons: numStr(s.rebuysAddons),
+    addOns: numStr(s.addOns),
     cashOut: numStr(s.cashOut),
     tips: numStr(s.tips),
+    rake: numStr(s.rake),
+    expenses: numStr(s.expenses),
     position: s.position > 0 ? String(s.position) : '',
     fieldSize: s.fieldSize > 0 ? String(s.fieldSize) : '',
+    handsPlayed: s.handsPlayed > 0 ? String(s.handsPlayed) : '',
+    tableSize: s.tableSize > 0 ? String(s.tableSize) : '',
+    tagsText: s.tags.join(', '),
     currency: s.currency,
     notes: s.notes,
+    focus: s.focus,
+    tilt: s.tilt,
+    discipline: s.discipline,
+    sleep: s.sleep,
+    alcohol: s.alcohol,
+    gameQuality: s.gameQuality,
+    leftAtStopLoss: s.leftAtStopLoss,
+    stopLoss: numStr(s.stopLoss),
+    stopWin: numStr(s.stopWin),
   };
 }
 
@@ -87,6 +126,7 @@ function toSession(form: FormState, id: number): Session {
     id,
     sessionType: form.sessionType,
     gameType: form.gameType,
+    venueType: form.venueType,
     location: form.location.trim(),
     startTime: new Date(y, (mo || 1) - 1, d || 1, h || 0, mi || 0).getTime(),
     durationMinutes: i(form.hours) * 60 + i(form.minutes),
@@ -94,12 +134,27 @@ function toSession(form: FormState, id: number): Session {
     bigBlind: f(form.bigBlind),
     buyIn: f(form.buyIn),
     rebuysAddons: f(form.rebuysAddons),
+    addOns: f(form.addOns),
     cashOut: f(form.cashOut),
     tips: f(form.tips),
+    rake: f(form.rake),
+    expenses: f(form.expenses),
     position: i(form.position),
     fieldSize: i(form.fieldSize),
+    handsPlayed: i(form.handsPlayed),
+    tableSize: i(form.tableSize),
+    tags: form.tagsText.split(',').map((t) => t.trim()).filter(Boolean),
     currency: form.currency,
     notes: form.notes.trim(),
+    focus: form.focus,
+    tilt: form.tilt,
+    discipline: form.discipline,
+    sleep: form.sleep,
+    alcohol: form.alcohol,
+    gameQuality: form.gameQuality,
+    leftAtStopLoss: form.leftAtStopLoss,
+    stopLoss: f(form.stopLoss),
+    stopWin: f(form.stopWin),
   };
 }
 
@@ -115,23 +170,39 @@ export default function EditorPage() {
 
   const [form, setForm] = useState<FormState>(() => {
     if (existing) return fromSession(existing);
-    // Timer prefill via ?start=&duration=; otherwise defaults from settings.
     const start = Number(params.get('start')) || Date.now();
     const duration = Number(params.get('duration')) || 0;
-    const base = fromSession({
+    return fromSession({
       ...emptySession(start),
       durationMinutes: duration,
       currency: app.settings.currency,
       sessionType:
-        app.settings.defaultSessionType === 'TOURNAMENT' ? 'TOURNAMENT' : 'CASH',
+        app.settings.defaultSessionType !== 'ALL' ? app.settings.defaultSessionType : 'CASH',
     });
-    return base;
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const set = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
-  const isTournament = form.sessionType === 'TOURNAMENT';
+  const isTournament = isTournamentStyle({ sessionType: form.sessionType } as Session);
   const preview = useMemo(() => profit(toSession(form, sessionId)), [form, sessionId]);
+
+  /** "Repeat last session setup": copy game/venue/stakes from the newest session. */
+  const repeatLast = () => {
+    const last = app.sessions[0];
+    if (!last) return;
+    set({
+      sessionType: last.sessionType,
+      gameType: last.gameType,
+      venueType: last.venueType,
+      location: last.location,
+      smallBlind: numStr(last.smallBlind),
+      bigBlind: numStr(last.bigBlind),
+      buyIn: numStr(last.buyIn),
+      tableSize: last.tableSize > 0 ? String(last.tableSize) : '',
+      tagsText: last.tags.join(', '),
+      currency: last.currency,
+    });
+  };
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -146,7 +217,7 @@ export default function EditorPage() {
   };
 
   const moneyField = (label: string, key: keyof FormState) => (
-    <label className="field grow">
+    <label className="field grow" key={key}>
       <span>{label}</span>
       <input
         type="text"
@@ -157,7 +228,7 @@ export default function EditorPage() {
     </label>
   );
   const intField = (label: string, key: keyof FormState) => (
-    <label className="field grow">
+    <label className="field grow" key={key}>
       <span>{label}</span>
       <input
         type="text"
@@ -166,6 +237,24 @@ export default function EditorPage() {
         onChange={(e) => set({ [key]: e.target.value.replace(/\D/g, '') } as Partial<FormState>)}
       />
     </label>
+  );
+  const ratingRow = (label: string, key: 'focus' | 'tilt' | 'discipline') => (
+    <div className="field">
+      <span>{label}</span>
+      <div className="chips" role="group" aria-label={label}>
+        {[0, 1, 2, 3, 4, 5].map((v) => (
+          <button
+            key={v}
+            type="button"
+            className="chip"
+            aria-pressed={form[key] === v}
+            onClick={() => set({ [key]: v } as Partial<FormState>)}
+          >
+            {v === 0 ? '—' : v}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 
   return (
@@ -187,15 +276,33 @@ export default function EditorPage() {
         }
       />
       <form className="page" style={{ paddingTop: 0 }} onSubmit={onSubmit}>
-        <div className="segmented" role="group" aria-label="Session type">
-          {SESSION_TYPES.map((t) => (
+        {!isEditing && app.sessions.length > 0 && (
+          <button type="button" className="btn btn-outline" onClick={repeatLast}>
+            ↺ Repeat last session setup
+          </button>
+        )}
+
+        <label className="field">
+          <span>Session type</span>
+          <select
+            value={form.sessionType}
+            onChange={(e) => set({ sessionType: e.target.value as SessionType })}
+          >
+            {SESSION_TYPES.map((t) => (
+              <option key={t} value={t}>{SESSION_TYPE_LABELS[t]}</option>
+            ))}
+          </select>
+        </label>
+
+        <div className="segmented" role="group" aria-label="Live or online">
+          {(['LIVE', 'ONLINE'] as VenueType[]).map((v) => (
             <button
-              key={t}
+              key={v}
               type="button"
-              aria-pressed={form.sessionType === t}
-              onClick={() => set({ sessionType: t })}
+              aria-pressed={form.venueType === v}
+              onClick={() => set({ venueType: v })}
             >
-              {SESSION_TYPE_LABELS[t]}
+              {v === 'LIVE' ? 'Live' : 'Online'}
             </button>
           ))}
         </div>
@@ -214,11 +321,7 @@ export default function EditorPage() {
 
         <label className="field">
           <span>Venue / location</span>
-          <input
-            type="text"
-            value={form.location}
-            onChange={(e) => set({ location: e.target.value })}
-          />
+          <input type="text" value={form.location} onChange={(e) => set({ location: e.target.value })} />
         </label>
 
         <div className="row">
@@ -245,9 +348,9 @@ export default function EditorPage() {
         )}
 
         {moneyField(isTournament ? 'Buy-in (entry + fee)' : 'Buy-in (total)', 'buyIn')}
-        {moneyField(isTournament ? 'Rebuys / add-ons / re-entries' : 'Additional buy-ins', 'rebuysAddons')}
+        {moneyField(isTournament ? 'Rebuys / re-entries' : 'Additional buy-ins', 'rebuysAddons')}
+        {isTournament && moneyField('Add-ons', 'addOns')}
         {moneyField(isTournament ? 'Prize won' : 'Cash out', 'cashOut')}
-        {moneyField('Dealer tips', 'tips')}
 
         {isTournament && (
           <div className="row">
@@ -256,14 +359,96 @@ export default function EditorPage() {
           </div>
         )}
 
+        <details className="card">
+          <summary>Money details (tips, rake, expenses)</summary>
+          <div className="col" style={{ marginTop: 10 }}>
+            {moneyField('Dealer tips', 'tips')}
+            {moneyField('Rake paid (informational — not deducted)', 'rake')}
+            {moneyField('Travel / food / other expenses (deducted)', 'expenses')}
+          </div>
+        </details>
+
+        <details className="card">
+          <summary>More details (tags, hands, table size)</summary>
+          <div className="col" style={{ marginTop: 10 }}>
+            <label className="field">
+              <span>Tags (comma-separated, e.g. "deepstack, friday")</span>
+              <input type="text" value={form.tagsText} onChange={(e) => set({ tagsText: e.target.value })} />
+            </label>
+            <div className="row">
+              {intField('Hands played', 'handsPlayed')}
+              {intField('Table size', 'tableSize')}
+            </div>
+          </div>
+        </details>
+
+        <details className="card">
+          <summary>Session quality (optional)</summary>
+          <div className="col" style={{ marginTop: 10 }}>
+            {ratingRow('Focus (1–5)', 'focus')}
+            {ratingRow('Tilt (1–5)', 'tilt')}
+            {ratingRow('Discipline (1–5)', 'discipline')}
+            <div className="row">
+              <label className="field grow">
+                <span>Sleep</span>
+                <select value={form.sleep} onChange={(e) => set({ sleep: e.target.value as SleepQuality })}>
+                  <option value="">—</option>
+                  <option value="POOR">Poor</option>
+                  <option value="OK">OK</option>
+                  <option value="GOOD">Good</option>
+                </select>
+              </label>
+              <label className="field grow">
+                <span>Alcohol</span>
+                <select value={form.alcohol} onChange={(e) => set({ alcohol: e.target.value as AlcoholLevel })}>
+                  <option value="">—</option>
+                  <option value="NONE">None</option>
+                  <option value="LIGHT">Light</option>
+                  <option value="HEAVY">Heavy</option>
+                </select>
+              </label>
+            </div>
+            <label className="field">
+              <span>Game quality</span>
+              <select
+                value={form.gameQuality}
+                onChange={(e) => set({ gameQuality: e.target.value as GameQuality })}
+              >
+                <option value="">—</option>
+                <option value="BAD">Bad</option>
+                <option value="AVERAGE">Average</option>
+                <option value="GOOD">Good</option>
+                <option value="GREAT">Great</option>
+              </select>
+            </label>
+            <div className="row">
+              {moneyField('Stop-loss', 'stopLoss')}
+              {moneyField('Stop-win', 'stopWin')}
+            </div>
+            <label className="field">
+              <span>Left at planned stop-loss?</span>
+              <select
+                value={form.leftAtStopLoss}
+                onChange={(e) => set({ leftAtStopLoss: e.target.value as YesNo })}
+              >
+                <option value="">—</option>
+                <option value="YES">Yes</option>
+                <option value="NO">No</option>
+              </select>
+            </label>
+          </div>
+        </details>
+
         <label className="field">
           <span>Notes</span>
-          <textarea
-            rows={2}
-            value={form.notes}
-            onChange={(e) => set({ notes: e.target.value })}
-          />
+          <textarea rows={2} value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
         </label>
+
+        {isEditing && (
+          <Link to={`/tools/hands?session=${sessionId}`} className="muted">
+            ✎ Add a hand note for this session →
+          </Link>
+        )}
 
         <div className="card row-between">
           <h2>Net result</h2>
