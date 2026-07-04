@@ -5,7 +5,7 @@ sessions, watch your bankroll graph climb, and dig into the stats that tell you
 whether you're actually winning. Inspired by apps like Poker Bankroll Tracker,
 Pokerbase and Poker Mania, built from scratch with a modern Android stack.
 
-> Status: v1 (core MVP). Everything below works today; the roadmap lists what's
+> Status: v1.1. Everything below works today; the roadmap lists what's
 > planned next.
 
 ## Features
@@ -22,13 +22,25 @@ Pokerbase and Poker Mania, built from scratch with a modern Android stack.
   duration already filled in (survives app restarts).
 - **Dashboard** with your current bankroll (starting balance + all-time profit),
   a cumulative-profit line chart, headline stats, and recent sessions.
+- **Bankroll management**: tap the bankroll to deposit or withdraw money —
+  the balance combines your starting roll, session results and transactions,
+  with a full editable history.
 - **Statistics** screen: profit, hourly rate, ROI, win rate, average per
-  session, biggest win/loss, hours played, cash-vs-tournament split with
-  in-the-money %, plus profit breakdowns **by game type, venue and stakes**.
-- **Filtering** on the Sessions and Stats screens by session type, game,
-  venue and date range (this month / last 30 days / this year / all time).
+  session, biggest win/loss, hours played, win/loss streaks,
+  cash-vs-tournament split with in-the-money %, a **monthly profit bar
+  chart**, plus profit breakdowns **by game type, venue, stakes and day of
+  week**. The hourly rate only counts sessions with logged hours, so untimed
+  sessions can't inflate it.
+- **Bankroll health**: a buy-in count at your most-played stakes with
+  bankroll-management guidance (move up / hold / move down).
+- **Filtering & search** on the Sessions and Stats screens by session type,
+  game, venue, date range and free text (venue, notes, game).
 - **CSV export** of all sessions via the Android share sheet.
-- **Starting bankroll** and **default currency** settings (10 currencies).
+- **JSON backup & restore** of everything — sessions, transactions and
+  settings.
+- **Starting bankroll**, **default currency** (10 currencies) and a
+  **default view mode** (all games / cash only / tournaments only).
+- Delete confirmations for destructive actions.
 - Material 3 UI with a poker-felt theme, light & dark mode, edge-to-edge.
 - 100% offline, local-only data (Room / SQLite). No account, no network.
 
@@ -79,6 +91,7 @@ export ANDROID_HOME=/path/to/Android/sdk
 
 ./gradlew assembleDebug        # builds app/build/outputs/apk/debug/app-debug.apk
 ./gradlew installDebug         # install onto a connected device/emulator
+./gradlew test                 # run the JVM unit tests
 ```
 
 Requirements: JDK 17+, Android SDK Platform 35 and Build-Tools 35.
@@ -116,14 +129,14 @@ bankroll** is `startingBankroll + sum(profit)`.
 
 ## Roadmap
 
-Natural next steps beyond this MVP:
+Natural next steps:
 
-- Live session timer (start/stop a running session).
 - Multiple bankrolls / accounts and casino balances.
 - Multi-currency normalization with exchange rates.
-- CSV/JSON import and cloud backup.
-- More charts (profit by weekday/hour, variance, bankroll simulations).
+- CSV import and cloud backup.
+- More charts (profit by hour of day, variance, bankroll simulations).
 - Poker tools: ICM/deal calculator, odds calculator.
+- Home-screen widget with the current bankroll.
 
 ## License
 

@@ -27,6 +27,7 @@ import androidx.navigation.navArgument
 import com.bankrolledge.app.data.AppContainer
 import com.bankrolledge.app.ui.BankrollViewModel
 import com.bankrolledge.app.ui.BankrollViewModelFactory
+import com.bankrolledge.app.ui.bankroll.BankrollScreen
 import com.bankrolledge.app.ui.dashboard.DashboardScreen
 import com.bankrolledge.app.ui.editor.EditorScreen
 import com.bankrolledge.app.ui.sessions.SessionsScreen
@@ -98,6 +99,13 @@ fun BankrollEdgeApp(container: AppContainer) {
                     onLogTimedSession = { startMillis, durationMinutes ->
                         navController.navigate(Routes.editor(0, startMillis, durationMinutes))
                     },
+                    onBankrollClick = { navController.navigate(Routes.BANKROLL) },
+                )
+            }
+            composable(Routes.BANKROLL) {
+                BankrollScreen(
+                    viewModel = bankrollViewModel,
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Routes.SESSIONS) {

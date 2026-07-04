@@ -12,6 +12,7 @@ object Routes {
     const val SESSIONS = "sessions"
     const val STATS = "stats"
     const val SETTINGS = "settings"
+    const val BANKROLL = "bankroll"
     const val EDITOR = "editor"
     const val EDITOR_ARG_ID = "sessionId"
     const val EDITOR_ARG_START = "startMillis"

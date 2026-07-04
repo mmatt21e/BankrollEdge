@@ -21,9 +21,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bankrolledge.app.data.local.entity.SessionEntity
+import com.bankrolledge.app.data.model.SessionType
 import com.bankrolledge.app.ui.BankrollViewModel
 import com.bankrolledge.app.ui.DateRange
 import com.bankrolledge.app.ui.components.BreakdownList
+import com.bankrolledge.app.ui.components.MonthlyBarChart
 import com.bankrolledge.app.ui.components.StatTileData
 import com.bankrolledge.app.ui.components.StatTileGrid
 import com.bankrolledge.app.ui.theme.profitColor
@@ -84,11 +87,27 @@ fun StatsScreen(
                     StatTileData("Hours", String.format("%.1f", stats.totalHours), MaterialTheme.colorScheme.onSurface),
                     StatTileData("Biggest Win", Formatters.signedMoney(stats.biggestWin, currency), profitColor(stats.biggestWin)),
                     StatTileData("Biggest Loss", Formatters.signedMoney(stats.biggestLoss, currency), profitColor(stats.biggestLoss)),
+                    StatTileData("Streak", streakLabel(stats.currentStreak), profitColor(stats.currentStreak.toDouble())),
+                    StatTileData("Best Streak", "${stats.bestWinStreak} wins", MaterialTheme.colorScheme.onSurface),
                 ),
             )
         }
 
+        item { BankrollHealthCard(state.bankroll, state.allSessions, currency) }
+
+        item {
+            SectionCard(title = "Profit by month") {
+                MonthlyBarChart(months = stats.byMonth, currency = currency)
+            }
+        }
+
         item { CashVsTournamentCard(stats, currency) }
+
+        item {
+            SectionCard(title = "By day of week") {
+                BreakdownList(stats.byWeekday, currency, emptyMessage = "No data yet.")
+            }
+        }
 
         item { SectionCard(title = "By game type") { BreakdownList(stats.byGameType, currency) } }
         item { SectionCard(title = "By venue") { BreakdownList(stats.byLocation, currency) } }
@@ -96,6 +115,69 @@ fun StatsScreen(
             SectionCard(title = "By stakes (cash)") {
                 BreakdownList(stats.byStakes, currency, emptyMessage = "No cash sessions with stakes yet.")
             }
+        }
+    }
+}
+
+private fun streakLabel(streak: Int): String = when {
+    streak > 0 -> "$streak wins"
+    streak < 0 -> "${-streak} losses"
+    else -> "—"
+}
+
+/**
+ * Bankroll-management guidance based on the player's most-played cash stakes.
+ * Rule of thumb: a 100-big-blind buy-in, comfortable at 40+ buy-ins, adequate
+ * at 20–40, at risk below 20.
+ */
+@Composable
+private fun BankrollHealthCard(
+    bankroll: Double,
+    sessions: List<SessionEntity>,
+    currency: String,
+) {
+    val cashWithStakes = sessions.filter { it.type == SessionType.CASH && it.bigBlind > 0.0 }
+    if (cashWithStakes.isEmpty() || bankroll <= 0.0) return
+
+    val topStakes = cashWithStakes
+        .groupBy { it.bigBlind }
+        .maxBy { it.value.size }
+    val bigBlind = topStakes.key
+    val stakesLabel = topStakes.value.first().stakesLabel
+    val buyIn = bigBlind * 100
+    val buyIns = bankroll / buyIn
+
+    val (verdict, advice) = when {
+        buyIns >= 40 -> "Healthy" to "You're comfortably rolled — you could consider taking shots at higher stakes."
+        buyIns >= 20 -> "Adequate" to "A standard roll for these stakes. Keep logging sessions."
+        else -> "At risk" to "Under 20 buy-ins is thin for these stakes — consider moving down until the roll rebuilds."
+    }
+
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "BANKROLL HEALTH — $stakesLabel",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "${String.format("%.0f", buyIns)} buy-ins • $verdict",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = when {
+                    buyIns >= 40 -> profitColor(1.0)
+                    buyIns >= 20 -> MaterialTheme.colorScheme.onSurface
+                    else -> profitColor(-1.0)
+                },
+            )
+            Text(
+                "$advice (Assumes a ${Formatters.money(buyIn, currency)} / 100bb buy-in at your most-played stakes.)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

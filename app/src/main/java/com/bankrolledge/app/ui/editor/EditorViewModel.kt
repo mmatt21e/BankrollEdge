@@ -39,8 +39,12 @@ class EditorViewModel(
                 sessionRepository.getById(sessionId)?.let { s -> _state.value = s.toFormState() }
             } else {
                 val start = if (prefillStartMillis > 0L) prefillStartMillis else System.currentTimeMillis()
+                val defaultType = SessionType.entries.firstOrNull {
+                    it.name == settingsRepository.settings.value.defaultSessionType
+                } ?: SessionType.CASH
                 _state.update {
                     it.copy(
+                        sessionType = defaultType,
                         currency = currency,
                         date = DateTimeUtils.localDate(start),
                         startHour = DateTimeUtils.hourOf(start),

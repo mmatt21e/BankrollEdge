@@ -1,5 +1,6 @@
 package com.bankrolledge.app.ui.dashboard
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -46,12 +47,13 @@ fun DashboardScreen(
     onSessionClick: (Long) -> Unit,
     onSeeAll: () -> Unit,
     onLogTimedSession: (startMillis: Long, durationMinutes: Int) -> Unit,
+    onBankrollClick: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsState()
     val timerStart by viewModel.activeTimerStart.collectAsState()
     val stats = state.allStats
     val currency = state.settings.currency
-    val bankroll = stats.bankroll(state.settings.startingBankroll)
+    val bankroll = state.bankroll
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -63,7 +65,7 @@ fun DashboardScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { BankrollHeader(bankroll, stats.totalProfit, currency) }
+        item { BankrollHeader(bankroll, stats.totalProfit, currency, onBankrollClick) }
 
         item {
             LiveTimerCard(
@@ -226,10 +228,19 @@ private fun elapsedClock(millis: Long): String {
 }
 
 @Composable
-private fun BankrollHeader(bankroll: Double, totalProfit: Double, currency: String) {
-    Column {
+private fun BankrollHeader(
+    bankroll: Double,
+    totalProfit: Double,
+    currency: String,
+    onClick: () -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
         Text(
-            text = "CURRENT BANKROLL",
+            text = "CURRENT BANKROLL  ›",
             style = MaterialTheme.typography.labelMedium,
             color = Gold500,
         )
@@ -240,7 +251,7 @@ private fun BankrollHeader(bankroll: Double, totalProfit: Double, currency: Stri
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            text = "${Formatters.signedMoney(totalProfit, currency)} all-time",
+            text = "${Formatters.signedMoney(totalProfit, currency)} from sessions all-time • tap to manage",
             style = MaterialTheme.typography.bodyMedium,
             color = profitColor(totalProfit),
         )
