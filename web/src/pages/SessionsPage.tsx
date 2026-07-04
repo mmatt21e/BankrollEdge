@@ -64,6 +64,33 @@ export default function SessionsPage() {
         ))}
       </div>
 
+      <div className="chips" role="group" aria-label="Live or online filter">
+        {(['LIVE', 'ONLINE'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            className="chip"
+            aria-pressed={filter.venueType === v}
+            onClick={() =>
+              app.setFilter({ ...filter, venueType: filter.venueType === v ? null : v })
+            }
+          >
+            {v === 'LIVE' ? 'Live' : 'Online'}
+          </button>
+        ))}
+        {app.availableTags.map((t) => (
+          <button
+            key={t}
+            type="button"
+            className="chip"
+            aria-pressed={filter.tag === t}
+            onClick={() => app.setFilter({ ...filter, tag: filter.tag === t ? null : t })}
+          >
+            #{t}
+          </button>
+        ))}
+      </div>
+
       <div className="chips" role="group" aria-label="Date range filter">
         {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
           <button

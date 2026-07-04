@@ -1,12 +1,27 @@
 // IndexedDB persistence — the PWA equivalent of the Android Room database.
-// Two object stores mirror the Room tables; schema changes bump DB_VERSION and
-// are applied in onupgradeneeded (the analogue of Room migrations).
-import { Session, Transaction } from '../models/types';
+// Schema changes bump DB_VERSION and are applied in onupgradeneeded (the
+// analogue of Room migrations). v2 adds the tool stores; existing data is
+// untouched by the upgrade.
+import {
+  BlindStructure,
+  CalendarEvent,
+  HandNote,
+  HomeGame,
+  Session,
+  Transaction,
+} from '../models/types';
 
 const DB_NAME = 'bankrolledge';
-const DB_VERSION = 1;
-const SESSIONS = 'sessions';
-const TRANSACTIONS = 'transactions';
+const DB_VERSION = 2;
+
+const ALL_STORES = [
+  'sessions',
+  'transactions',
+  'handNotes',
+  'homeGames',
+  'structures',
+  'events',
+] as const;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -14,12 +29,11 @@ function openDb(): Promise<IDBDatabase> {
   dbPromise ??= new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(SESSIONS)) {
-        db.createObjectStore(SESSIONS, { keyPath: 'id', autoIncrement: true });
-      }
-      if (!db.objectStoreNames.contains(TRANSACTIONS)) {
-        db.createObjectStore(TRANSACTIONS, { keyPath: 'id', autoIncrement: true });
+      const database = request.result;
+      for (const store of ALL_STORES) {
+        if (!database.objectStoreNames.contains(store)) {
+          database.createObjectStore(store, { keyPath: 'id', autoIncrement: true });
+        }
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -34,9 +48,9 @@ function tx<T>(
   work: (store: IDBObjectStore) => IDBRequest<T>,
 ): Promise<T> {
   return openDb().then(
-    (db) =>
+    (database) =>
       new Promise<T>((resolve, reject) => {
-        const transaction = db.transaction(storeName, mode);
+        const transaction = database.transaction(storeName, mode);
         const request = work(transaction.objectStore(storeName));
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error ?? new Error('IndexedDB error'));
@@ -44,38 +58,50 @@ function tx<T>(
   );
 }
 
-async function getAll<T>(store: string): Promise<T[]> {
-  return tx<T[]>(store, 'readonly', (s) => s.getAll() as IDBRequest<T[]>);
+/** Typed CRUD for one object store (id 0 = unsaved → autoincrement key). */
+export interface Store<T extends { id: number }> {
+  list(): Promise<T[]>;
+  save(value: T): Promise<number>;
+  remove(id: number): Promise<void>;
+  clear(): Promise<void>;
 }
 
-async function put<T extends { id: number }>(store: string, value: T): Promise<number> {
-  // id 0 = unsaved → let IndexedDB assign an autoincrement key.
-  const record: Record<string, unknown> = { ...value };
-  if (value.id === 0) delete record.id;
-  const key = await tx<IDBValidKey>(store, 'readwrite', (s) => s.put(record));
-  return key as number;
+function makeStore<T extends { id: number }>(name: string): Store<T> {
+  return {
+    list: () => tx<T[]>(name, 'readonly', (s) => s.getAll() as IDBRequest<T[]>),
+    save: async (value: T) => {
+      const record: Record<string, unknown> = { ...value };
+      if (value.id === 0) delete record.id;
+      const key = await tx<IDBValidKey>(name, 'readwrite', (s) => s.put(record));
+      return key as number;
+    },
+    remove: (id: number) =>
+      tx(name, 'readwrite', (s) => s.delete(id) as IDBRequest<undefined>).then(() => undefined),
+    clear: () =>
+      tx(name, 'readwrite', (s) => s.clear() as IDBRequest<undefined>).then(() => undefined),
+  };
 }
 
-const remove = (store: string, id: number): Promise<void> =>
-  tx(store, 'readwrite', (s) => s.delete(id) as IDBRequest<undefined>).then(() => undefined);
+export const sessionStore = makeStore<Session>('sessions');
+export const transactionStore = makeStore<Transaction>('transactions');
+export const handNoteStore = makeStore<HandNote>('handNotes');
+export const homeGameStore = makeStore<HomeGame>('homeGames');
+export const structureStore = makeStore<BlindStructure>('structures');
+export const eventStore = makeStore<CalendarEvent>('events');
 
-const clear = (store: string): Promise<void> =>
-  tx(store, 'readwrite', (s) => s.clear() as IDBRequest<undefined>).then(() => undefined);
-
+// Back-compat facade used by useAppState.
 export const db = {
-  loadSessions: (): Promise<Session[]> => getAll<Session>(SESSIONS),
-  saveSession: (s: Session): Promise<number> => put(SESSIONS, s),
-  deleteSession: (id: number): Promise<void> => remove(SESSIONS, id),
-  clearSessions: (): Promise<void> => clear(SESSIONS),
-
-  loadTransactions: (): Promise<Transaction[]> => getAll<Transaction>(TRANSACTIONS),
-  saveTransaction: (t: Transaction): Promise<number> => put(TRANSACTIONS, t),
-  deleteTransaction: (id: number): Promise<void> => remove(TRANSACTIONS, id),
-  clearTransactions: (): Promise<void> => clear(TRANSACTIONS),
+  loadSessions: sessionStore.list,
+  saveSession: sessionStore.save,
+  deleteSession: sessionStore.remove,
+  clearSessions: sessionStore.clear,
+  loadTransactions: transactionStore.list,
+  saveTransaction: transactionStore.save,
+  deleteTransaction: transactionStore.remove,
+  clearTransactions: transactionStore.clear,
 };
 
-/** Ask the browser not to evict our data under storage pressure (best-effort;
- *  matters most on iOS). */
+/** Ask the browser not to evict our data under storage pressure. */
 export function requestPersistence(): void {
   if (navigator.storage?.persist) {
     navigator.storage.persist().catch(() => undefined);

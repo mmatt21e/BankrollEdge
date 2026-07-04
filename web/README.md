@@ -1,10 +1,29 @@
 # BankrollEdge Web (PWA)
 
-The Progressive Web App version of the BankrollEdge poker bankroll tracker —
-a feature-for-feature migration of the Android app in this repository's root.
-It runs in any modern browser, installs to the home screen on Android and
-iOS, and works **fully offline** (all data stays on your device in
-IndexedDB/localStorage — no server, no account).
+The Progressive Web App version of BankrollEdge — a poker **utility** app
+(no gameplay, no wagering): session & bankroll tracking, home-game tools and
+lightweight study support. It runs in any modern browser, installs to the
+home screen on Android and iOS, and works **fully offline** (all data stays
+on your device in IndexedDB/localStorage — no server, no account).
+
+> Track every session. Run every home game. Know where you win.
+
+**V2 feature set** (beyond the original Android port):
+
+- Sessions: Sit & Go / Home Game / Other types, live-vs-online, separate
+  add-ons, rake, expenses, tags, hands played, table size, and optional
+  session-quality tracking (focus/tilt/discipline, sleep, alcohol, game
+  quality, stop-loss/stop-win) — plus "Repeat last session setup".
+- Analytics: plain-English insight cards (best hourly spot, tournament ROI,
+  after-midnight performance, losing streaks, live-vs-online, focus and game
+  quality), new breakdowns and filters (live/online, tags, session type).
+- Tools tab: tournament blind clock (templates, breaks, alerts, full-screen),
+  home-game ledger with settlement + suggested payments + seat draw, payout
+  calculator (templates + pool-conserving rounding), chip calculator with
+  inventory warnings, poker calendar with .ics device-calendar reminders,
+  and hand notes with a review-later queue.
+- Privacy: optional PIN lock at launch and a hide-balances (blur) mode.
+  Everything remains free and local — no accounts, no paywall.
 
 ## How it was migrated
 

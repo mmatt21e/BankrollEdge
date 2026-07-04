@@ -178,6 +178,7 @@ const NAV = [
   { to: '/', label: 'Overview', icon: '◈' },
   { to: '/sessions', label: 'Sessions', icon: '☰' },
   { to: '/stats', label: 'Stats', icon: '▤' },
+  { to: '/tools', label: 'Tools', icon: '⛭' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ];
 

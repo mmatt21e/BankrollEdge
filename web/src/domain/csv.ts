@@ -13,8 +13,12 @@ import {
   emptySession,
 } from '../models/types';
 
+// The first 15 columns match the Android app's export exactly (so CSVs remain
+// interchangeable); the columns after Notes are v2 additions that older
+// importers simply ignore.
 const HEADER =
-  'Date,Type,Game,Location,Stakes,DurationMinutes,BuyIn,RebuysAddons,CashOut,Tips,Profit,Position,FieldSize,Currency,Notes';
+  'Date,Type,Game,Location,Stakes,DurationMinutes,BuyIn,RebuysAddons,CashOut,Tips,Profit,Position,FieldSize,Currency,Notes,' +
+  'LiveOnline,AddOns,Rake,Expenses,HandsPlayed,TableSize,Tags';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -58,6 +62,13 @@ export function buildCsv(sessions: Session[]): string {
         s.fieldSize,
         s.currency,
         escape(s.notes),
+        s.venueType === 'ONLINE' ? 'Online' : 'Live',
+        s.addOns,
+        s.rake,
+        s.expenses,
+        s.handsPlayed,
+        s.tableSize,
+        escape(s.tags.join(';')),
       ].join(','),
     );
   }
@@ -120,6 +131,13 @@ export function parseCsv(csv: string): ImportResult {
       fieldSize: int(row, 'fieldsize'),
       currency: field(row, 'currency') || 'USD',
       notes: field(row, 'notes'),
+      venueType: /online/i.test(field(row, 'liveonline')) ? 'ONLINE' : 'LIVE',
+      addOns: num(row, 'addons'),
+      rake: num(row, 'rake'),
+      expenses: num(row, 'expenses'),
+      handsPlayed: int(row, 'handsplayed'),
+      tableSize: int(row, 'tablesize'),
+      tags: field(row, 'tags').split(';').map((t) => t.trim()).filter(Boolean),
     });
   }
   return { sessions, skippedRows: skipped };

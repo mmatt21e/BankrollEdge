@@ -7,6 +7,19 @@ import { buildCsv, parseCsv } from '../domain/csv';
 import { backupToJson, backupFromJson } from '../domain/backup';
 import { exportFile, readFileAsText } from '../services/files';
 import { ConfirmDialog, SectionCard } from '../components/common';
+import {
+  eventStore,
+  handNoteStore,
+  homeGameStore,
+  structureStore,
+} from '../storage/db';
+import {
+  hasPin,
+  setPin,
+  clearPin,
+  loadHideBalances,
+  saveHideBalances,
+} from '../storage/settings';
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CHF', 'SEK', 'BRL', 'MXN', 'JPY'];
 
@@ -178,20 +191,31 @@ export default function SettingsPage() {
           <button
             type="button"
             className="btn btn-outline"
-            onClick={() =>
-              exportFile(
+            onClick={async () => {
+              // Gather the tool collections so the backup covers everything.
+              const [handNotes, homeGames, structures, events] = await Promise.all([
+                handNoteStore.list(),
+                homeGameStore.list(),
+                structureStore.list(),
+                eventStore.list(),
+              ]);
+              await exportFile(
                 'bankrolledge_backup.json',
                 backupToJson(
                   {
                     settings: app.settings,
                     sessions: app.sessions,
                     transactions: app.transactions,
+                    handNotes,
+                    homeGames,
+                    structures,
+                    events,
                   },
                   Date.now(),
                 ),
                 'application/json',
-              )
-            }
+              );
+            }}
           >
             Export backup
           </button>
@@ -209,6 +233,8 @@ export default function SettingsPage() {
           />
         </div>
       </SectionCard>
+
+      <PrivacyCard />
 
       <SectionCard title="About">
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
@@ -237,5 +263,88 @@ export default function SettingsPage() {
         onCancel={() => setPendingBackup(null)}
       />
     </main>
+  );
+}
+
+function PrivacyCard() {
+  const [pinSet, setPinSet] = useState(hasPin());
+  const [newPin, setNewPin] = useState('');
+  const [hide, setHide] = useState(loadHideBalances());
+
+  const applyHide = (value: boolean) => {
+    setHide(value);
+    saveHideBalances(value);
+    document.body.classList.toggle('privacy-hide', value);
+  };
+
+  return (
+    <SectionCard title="Privacy">
+      <p className="muted" style={{ margin: 0 }}>
+        Everything stays on this device — nothing is uploaded anywhere. These controls guard
+        against someone glancing at (or opening) the app on your phone.
+      </p>
+
+      <div className="row-between" style={{ marginTop: 4 }}>
+        <span>Hide balances (blur all money)</span>
+        <button
+          type="button"
+          className="chip"
+          aria-pressed={hide}
+          style={{ minHeight: 44 }}
+          onClick={() => applyHide(!hide)}
+        >
+          {hide ? 'On' : 'Off'}
+        </button>
+      </div>
+
+      {pinSet ? (
+        <div className="row-between">
+          <span>PIN lock is on</span>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => {
+              clearPin();
+              setPinSet(false);
+            }}
+          >
+            Remove PIN
+          </button>
+        </div>
+      ) : (
+        <div className="row">
+          <label className="field grow">
+            <span>Set a 4–8 digit PIN (required at launch)</span>
+            <input
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              value={newPin}
+              maxLength={8}
+              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn"
+            style={{ alignSelf: 'flex-end' }}
+            disabled={newPin.length < 4}
+            onClick={async () => {
+              await setPin(newPin);
+              setNewPin('');
+              setPinSet(true);
+            }}
+          >
+            Set PIN
+          </button>
+        </div>
+      )}
+      {pinSet && (
+        <p className="muted small" style={{ margin: 0 }}>
+          Forgot the PIN? Clearing the browser's site data removes it — along with your
+          data, so keep a backup exported.
+        </p>
+      )}
+    </SectionCard>
   );
 }

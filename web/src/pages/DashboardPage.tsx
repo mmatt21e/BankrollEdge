@@ -11,6 +11,7 @@ import {
   elapsedClock,
   formatDateTime,
 } from '../domain/format';
+import { computeInsights } from '../domain/insights';
 import { CumulativeProfitChart } from '../components/charts';
 import { StatTileGrid, SessionRow, profitClass } from '../components/common';
 
@@ -55,6 +56,8 @@ export default function DashboardPage() {
         ]}
       />
 
+      <Insights />
+
       {app.sessions.length > 0 ? (
         <>
           <div className="row-between">
@@ -78,6 +81,22 @@ export default function DashboardPage() {
         )
       )}
     </main>
+  );
+}
+
+function Insights() {
+  const app = useAppState();
+  const insights = computeInsights(app.sessions, app.settings.currency);
+  if (insights.length === 0) return null;
+  return (
+    <section className="col" aria-label="Insights">
+      <h2>Insights</h2>
+      {insights.map((ins) => (
+        <div key={ins.id} className={`insight ${ins.tone}`}>
+          {ins.text}
+        </div>
+      ))}
+    </section>
   );
 }
 

@@ -6,7 +6,11 @@ import {
   totalInvested,
   stakesLabel,
   cashed,
+  isTournamentStyle,
   GAME_TYPE_LABELS,
+  SESSION_TYPE_LABELS,
+  VENUE_TYPE_LABELS,
+  GAME_QUALITY_LABELS,
 } from '../models/types';
 
 export interface ProfitPoint {
@@ -72,6 +76,13 @@ export interface Statistics {
   byStakes: GroupStat[];
   byMonth: MonthlyProfit[];
   byWeekday: GroupStat[];
+  bySessionType: GroupStat[];
+  byLiveOnline: GroupStat[];
+  /** Quality analytics — only sessions that recorded the field. */
+  byFocus: GroupStat[];
+  byGameQuality: GroupStat[];
+  bySessionLength: GroupStat[];
+  byRebuys: GroupStat[];
 }
 
 export const hourlyRate = (s: Statistics): number =>
@@ -119,6 +130,12 @@ const EMPTY: Statistics = {
   byStakes: [],
   byMonth: [],
   byWeekday: [],
+  bySessionType: [],
+  byLiveOnline: [],
+  byFocus: [],
+  byGameQuality: [],
+  bySessionLength: [],
+  byRebuys: [],
 };
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -150,13 +167,13 @@ export function computeStats(sessions: Session[]): Statistics {
     if (p > 0) winning++;
     if (p > biggestWin) biggestWin = p;
     if (p < biggestLoss) biggestLoss = p;
-    if (s.sessionType === 'CASH') {
-      cashCount++;
-      cashProfit += p;
-    } else {
+    if (isTournamentStyle(s)) {
       tournamentCount++;
       tournamentProfit += p;
       if (cashed(s)) tournamentsCashed++;
+    } else {
+      cashCount++;
+      cashProfit += p;
     }
     hourly[new Date(s.startTime).getHours()] += p;
   }
@@ -223,12 +240,37 @@ export function computeStats(sessions: Session[]): Statistics {
     byGameType: groupBy(sessions, (s) => GAME_TYPE_LABELS[s.gameType]),
     byLocation: groupBy(sessions, (s) => s.location.trim() || 'Unspecified'),
     byStakes: groupBy(
-      sessions.filter((s) => s.sessionType === 'CASH'),
+      sessions.filter((s) => !isTournamentStyle(s) && s.bigBlind > 0),
       (s) => stakesLabel(s) || 'Other',
     ),
     byMonth: monthlyProfits(chronological),
     byWeekday: weekdayProfits(sessions),
+    bySessionType: groupBy(sessions, (s) => SESSION_TYPE_LABELS[s.sessionType]),
+    byLiveOnline: groupBy(sessions, (s) => VENUE_TYPE_LABELS[s.venueType ?? 'LIVE']),
+    byFocus: groupBy(
+      sessions.filter((s) => s.focus > 0),
+      (s) => `Focus ${s.focus}/5`,
+    ),
+    byGameQuality: groupBy(
+      sessions.filter((s) => s.gameQuality !== ''),
+      (s) => GAME_QUALITY_LABELS[s.gameQuality as Exclude<Session['gameQuality'], ''>],
+    ),
+    bySessionLength: groupBy(
+      sessions.filter((s) => s.durationMinutes > 0),
+      (s) => lengthBucket(s.durationMinutes),
+    ),
+    byRebuys: groupBy(sessions, (s) =>
+      s.rebuysAddons + s.addOns > 0 ? 'With rebuys / add-ons' : 'Single bullet',
+    ),
   };
+}
+
+function lengthBucket(minutes: number): string {
+  const h = minutes / 60;
+  if (h < 2) return 'Under 2h';
+  if (h < 4) return '2–4h';
+  if (h < 6) return '4–6h';
+  return '6h+';
 }
 
 function groupBy(sessions: Session[], key: (s: Session) => string): GroupStat[] {

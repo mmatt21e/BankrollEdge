@@ -30,3 +30,38 @@ export function saveTimerStart(startMillis: number): void {
   if (startMillis > 0) localStorage.setItem(TIMER_KEY, String(startMillis));
   else localStorage.removeItem(TIMER_KEY);
 }
+
+// --- Privacy controls (device-local by design; never included in backups) ---
+
+const PIN_KEY = 'bankrolledge_pin';
+const HIDE_BALANCES_KEY = 'bankrolledge_hide_balances';
+const PIN_SALT = 'bankrolledge-v1';
+
+async function hashPin(pin: string): Promise<string> {
+  const data = new TextEncoder().encode(`${PIN_SALT}:${pin}`);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export const hasPin = (): boolean => localStorage.getItem(PIN_KEY) !== null;
+
+export async function setPin(pin: string): Promise<void> {
+  localStorage.setItem(PIN_KEY, await hashPin(pin));
+}
+
+export function clearPin(): void {
+  localStorage.removeItem(PIN_KEY);
+}
+
+export async function verifyPin(pin: string): Promise<boolean> {
+  const stored = localStorage.getItem(PIN_KEY);
+  return stored !== null && stored === (await hashPin(pin));
+}
+
+export const loadHideBalances = (): boolean =>
+  localStorage.getItem(HIDE_BALANCES_KEY) === '1';
+
+export function saveHideBalances(hide: boolean): void {
+  if (hide) localStorage.setItem(HIDE_BALANCES_KEY, '1');
+  else localStorage.removeItem(HIDE_BALANCES_KEY);
+}
