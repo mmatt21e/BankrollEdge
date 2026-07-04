@@ -12,6 +12,7 @@ import com.bankrolledge.app.data.repository.TransactionRepository
 import com.bankrolledge.app.domain.Statistics
 import com.bankrolledge.app.domain.StatsCalculator
 import com.bankrolledge.app.util.BackupManager
+import com.bankrolledge.app.util.CsvImporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -101,6 +102,20 @@ class BankrollViewModel(
 
     fun deleteTransaction(transaction: TransactionEntity) {
         viewModelScope.launch { transactionRepository.delete(transaction) }
+    }
+
+    /** Appends sessions parsed from a CSV export. Unlike [restoreBackup], nothing is deleted. */
+    fun importCsv(csv: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val parsed = withContext(Dispatchers.Default) { CsvImporter.parse(csv) }
+                parsed.sessions.forEach { sessionRepository.upsert(it) }
+                val skipped = if (parsed.skippedRows > 0) " (${parsed.skippedRows} rows skipped)" else ""
+                onResult("Imported ${parsed.sessions.size} sessions$skipped.")
+            } catch (e: Exception) {
+                onResult("Import failed: ${e.message ?: "couldn't read that file"}")
+            }
+        }
     }
 
     /** Replaces ALL data with the backup's contents. Caller confirms with the user first. */

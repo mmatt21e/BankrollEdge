@@ -161,29 +161,77 @@ fun SettingsScreen(
             }
         }
 
-        // Export.
-        SettingsCard(title = "Export data") {
+        // CSV export & import.
+        SettingsCard(title = "CSV export & import") {
+            var pendingCsv by remember { mutableStateOf<String?>(null) }
+            val pickCsv = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent(),
+            ) { uri ->
+                if (uri != null) {
+                    val text = runCatching {
+                        context.contentResolver.openInputStream(uri)?.use {
+                            it.readBytes().toString(Charsets.UTF_8)
+                        }
+                    }.getOrNull()
+                    if (text.isNullOrBlank()) {
+                        Toast.makeText(context, "Couldn't read that file.", Toast.LENGTH_LONG).show()
+                    } else {
+                        pendingCsv = text
+                    }
+                }
+            }
+
+            pendingCsv?.let { csv ->
+                AlertDialog(
+                    onDismissRequest = { pendingCsv = null },
+                    title = { Text("Import sessions?") },
+                    text = {
+                        Text(
+                            "Sessions from this CSV are ADDED to your existing data " +
+                                "(nothing is deleted). Rows that can't be read are skipped.",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            pendingCsv = null
+                            viewModel.importCsv(csv) { message ->
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            }
+                        }) { Text("Import") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { pendingCsv = null }) { Text("Cancel") }
+                    },
+                )
+            }
+
             Text(
-                "Export all ${state.allSessions.size} sessions to a CSV file you can open in a spreadsheet.",
+                "Export all ${state.allSessions.size} sessions to a spreadsheet-friendly CSV, " +
+                    "or import sessions from a previous export.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedButton(
-                onClick = {
-                    if (state.allSessions.isEmpty()) return@OutlinedButton
-                    val uri = CsvExporter.writeToCache(context, state.allSessions)
-                    val share = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/csv"
-                        putExtra(Intent.EXTRA_STREAM, uri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    context.startActivity(Intent.createChooser(share, "Export sessions"))
-                },
-                enabled = state.allSessions.isNotEmpty(),
-                modifier = Modifier.padding(top = 8.dp),
+            Row(
+                Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Icon(Icons.Filled.Share, contentDescription = null)
-                Text("  Export CSV")
+                OutlinedButton(
+                    onClick = {
+                        if (state.allSessions.isEmpty()) return@OutlinedButton
+                        val uri = CsvExporter.writeToCache(context, state.allSessions)
+                        val share = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/csv"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(share, "Export sessions"))
+                    },
+                    enabled = state.allSessions.isNotEmpty(),
+                ) {
+                    Icon(Icons.Filled.Share, contentDescription = null)
+                    Text("  Export")
+                }
+                OutlinedButton(onClick = { pickCsv.launch("*/*") }) { Text("Import CSV") }
             }
         }
 

@@ -5,7 +5,7 @@ sessions, watch your bankroll graph climb, and dig into the stats that tell you
 whether you're actually winning. Inspired by apps like Poker Bankroll Tracker,
 Pokerbase and Poker Mania, built from scratch with a modern Android stack.
 
-> Status: v1.1. Everything below works today; the roadmap lists what's
+> Status: v1.2. Everything below works today; the roadmap lists what's
 > planned next.
 
 ## Features
@@ -28,14 +28,18 @@ Pokerbase and Poker Mania, built from scratch with a modern Android stack.
 - **Statistics** screen: profit, hourly rate, ROI, win rate, average per
   session, biggest win/loss, hours played, win/loss streaks,
   cash-vs-tournament split with in-the-money %, a **monthly profit bar
-  chart**, plus profit breakdowns **by game type, venue, stakes and day of
-  week**. The hourly rate only counts sessions with logged hours, so untimed
-  sessions can't inflate it.
+  chart**, a **profit-by-hour-of-day chart**, plus profit breakdowns **by
+  game type, venue, stakes and day of week**. The hourly rate only counts
+  sessions with logged hours, so untimed sessions can't inflate it.
+- **Variance view**: standard deviation per session, deepest downswing,
+  worst losing skid / best winning run, and a histogram of session results
+  so you can see whether the winrate rests on a few big scores.
 - **Bankroll health**: a buy-in count at your most-played stakes with
   bankroll-management guidance (move up / hold / move down).
 - **Filtering & search** on the Sessions and Stats screens by session type,
   game, venue, date range and free text (venue, notes, game).
-- **CSV export** of all sessions via the Android share sheet.
+- **CSV export & import** — share your sessions as a spreadsheet, or import
+  them back (column order doesn't matter; bad rows are skipped, not fatal).
 - **JSON backup & restore** of everything — sessions, transactions and
   settings.
 - **Starting bankroll**, **default currency** (10 currencies) and a
@@ -133,8 +137,8 @@ Natural next steps:
 
 - Multiple bankrolls / accounts and casino balances.
 - Multi-currency normalization with exchange rates.
-- CSV import and cloud backup.
-- More charts (profit by hour of day, variance, bankroll simulations).
+- Cloud backup.
+- Bankroll simulations (risk-of-ruin).
 - Poker tools: ICM/deal calculator, odds calculator.
 - Home-screen widget with the current bankroll.
 
