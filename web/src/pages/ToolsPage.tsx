@@ -27,6 +27,12 @@ const TOOLS = [
     blurb: 'Split the remaining pool by chips — ICM, chip chop or even.',
   },
   {
+    to: '/tools/stack-value',
+    icon: '💰',
+    name: 'My stack value',
+    blurb: 'What your stack is worth — chip position and ICM cash equity.',
+  },
+  {
     to: '/tools/chips',
     icon: '🪙',
     name: 'Tournament Chip stack setup',
