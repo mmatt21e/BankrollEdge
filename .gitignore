@@ -13,3 +13,8 @@ local.properties
 *.aab
 /app/release
 .claude/settings.local.json
+
+# Signing — never commit the keystore or its passwords
+*.jks
+*.keystore
+keystore.properties

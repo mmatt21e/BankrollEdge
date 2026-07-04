@@ -80,6 +80,30 @@ export ANDROID_HOME=/path/to/Android/sdk
 
 Requirements: JDK 17+, Android SDK Platform 35 and Build-Tools 35.
 
+### Release APK (installable on a phone)
+
+Release builds are signed if a `keystore.properties` file exists at the repo
+root (git-ignored, along with the keystore itself). Create your own key once:
+
+```bash
+keytool -genkeypair -v -keystore bankrolledge-release.jks \
+  -alias bankrolledge -keyalg RSA -keysize 2048 -validity 10000
+
+cat > keystore.properties <<'PROPS'
+storeFile=bankrolledge-release.jks
+storePassword=YOUR_STORE_PASSWORD
+keyAlias=bankrolledge
+keyPassword=YOUR_KEY_PASSWORD
+PROPS
+
+./gradlew assembleRelease   # -> app/build/outputs/apk/release/app-release.apk
+```
+
+Copy that APK to your phone and tap it to install (enable "install from
+unknown sources" for your browser/Files app). If `keystore.properties` is
+absent, the release build falls back to the debug signing key so it still
+compiles.
+
 ## Data model
 
 A single `SessionEntity` row covers both session types; unused fields stay at
