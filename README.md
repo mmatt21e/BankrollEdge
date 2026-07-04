@@ -1,5 +1,12 @@
 # BankrollEdge
 
+> **Also available as a PWA**: the [`web/`](web/) directory contains a
+> Progressive Web App port of this exact app (React + TypeScript + Vite) that
+> runs on Android, iPhone/iPad and desktop browsers, installs to the home
+> screen, and works fully offline. CSV exports and JSON backups are
+> interchangeable between the two. See [web/README.md](web/README.md) and
+> [docs/pwa-migration-plan.md](docs/pwa-migration-plan.md).
+
 A poker **bankroll tracker** for Android — log your cash-game and tournament
 sessions, watch your bankroll graph climb, and dig into the stats that tell you
 whether you're actually winning. Inspired by apps like Poker Bankroll Tracker,

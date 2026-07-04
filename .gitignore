@@ -18,3 +18,8 @@ local.properties
 *.jks
 *.keystore
 keystore.properties
+
+# Web (PWA)
+web/node_modules/
+web/dist/
+web/dev-dist/
