@@ -20,7 +20,8 @@ on your device in IndexedDB/localStorage — no server, no account).
 - Tools tab: tournament blind clock (templates, breaks, alerts, full-screen),
   home-game ledger with settlement + suggested payments + seat draw, payout
   calculator (templates + pool-conserving rounding), deal/chop calculator
-  (ICM, chip chop or even split of the remaining pool), chip calculator with
+  (ICM, chip chop or even split of the remaining pool), my stack value (chip
+  position + ICM cash equity for a single stack), chip calculator with
   inventory warnings, poker calendar with .ics device-calendar reminders,
   and hand notes with a review-later queue.
 - Privacy: optional PIN lock at launch and a hide-balances (blur) mode.
