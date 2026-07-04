@@ -76,6 +76,23 @@ fun EditorScreen(
     val form by viewModel.state.collectAsState()
     val isTournament = form.sessionType == SessionType.TOURNAMENT
     val profit = viewModel.previewProfit()
+    var confirmDelete by remember { mutableStateOf(false) }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete this session?") },
+            text = { Text("This removes the session and its result from your bankroll. This can't be undone.") },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; viewModel.delete(onDone) }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancel") }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -88,7 +105,7 @@ fun EditorScreen(
                 },
                 actions = {
                     if (viewModel.isEditing) {
-                        IconButton(onClick = { viewModel.delete(onDone) }) {
+                        IconButton(onClick = { confirmDelete = true }) {
                             Icon(Icons.Filled.Delete, contentDescription = "Delete")
                         }
                     }

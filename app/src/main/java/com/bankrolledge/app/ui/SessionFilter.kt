@@ -19,19 +19,30 @@ data class SessionFilter(
     val game: GameType? = null,
     val location: String? = null,
     val range: DateRange = DateRange.ALL,
+    /** Free-text search over venue, notes and game name. */
+    val query: String = "",
 ) {
     val isActive: Boolean
-        get() = type != null || game != null || location != null || range != DateRange.ALL
+        get() = type != null || game != null || location != null ||
+            range != DateRange.ALL || query.isNotBlank()
 
     fun apply(sessions: List<SessionEntity>, now: Long): List<SessionEntity> {
         val from = rangeStart(now)
+        val q = query.trim()
         return sessions.filter { s ->
             (type == null || s.type == type) &&
                 (game == null || s.game == game) &&
                 (location == null || s.location == location) &&
-                (from == null || s.startTime >= from)
+                (from == null || s.startTime >= from) &&
+                (q.isEmpty() || s.matches(q))
         }
     }
+
+    private fun SessionEntity.matches(q: String): Boolean =
+        location.contains(q, ignoreCase = true) ||
+            notes.contains(q, ignoreCase = true) ||
+            game.label.contains(q, ignoreCase = true) ||
+            stakesLabel.contains(q, ignoreCase = true)
 
     private fun rangeStart(now: Long): Long? {
         val today = DateTimeUtils.localDate(now)

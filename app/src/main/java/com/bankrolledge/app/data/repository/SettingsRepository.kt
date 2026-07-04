@@ -32,6 +32,7 @@ class SettingsRepository(context: Context) {
     private fun read(): AppSettings = AppSettings(
         startingBankroll = prefs.getFloat(KEY_STARTING_BANKROLL, 0f).toDouble(),
         currency = prefs.getString(KEY_CURRENCY, "USD") ?: "USD",
+        defaultSessionType = prefs.getString(KEY_DEFAULT_TYPE, DEFAULT_TYPE_ALL) ?: DEFAULT_TYPE_ALL,
     )
 
     fun setStartingBankroll(value: Double) {
@@ -44,15 +45,25 @@ class SettingsRepository(context: Context) {
         _settings.value = read()
     }
 
+    /** [DEFAULT_TYPE_ALL], or a [com.bankrolledge.app.data.model.SessionType] name. */
+    fun setDefaultSessionType(value: String) {
+        prefs.edit().putString(KEY_DEFAULT_TYPE, value).apply()
+        _settings.value = read()
+    }
+
     companion object {
         const val PREFS_NAME = "bankrolledge_settings"
         private const val KEY_STARTING_BANKROLL = "starting_bankroll"
         private const val KEY_CURRENCY = "currency"
         private const val KEY_TIMER_START = "active_timer_start"
+        private const val KEY_DEFAULT_TYPE = "default_session_type"
+        const val DEFAULT_TYPE_ALL = "ALL"
     }
 }
 
 data class AppSettings(
     val startingBankroll: Double = 0.0,
     val currency: String = "USD",
+    /** "ALL" or a SessionType name — the default view/entry mode. */
+    val defaultSessionType: String = SettingsRepository.DEFAULT_TYPE_ALL,
 )

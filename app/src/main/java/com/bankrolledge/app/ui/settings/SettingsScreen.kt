@@ -1,6 +1,9 @@
 package com.bankrolledge.app.ui.settings
 
 import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -23,6 +27,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,7 +44,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import com.bankrolledge.app.data.model.SessionType
+import com.bankrolledge.app.data.repository.SettingsRepository
+import androidx.compose.material3.TextButton
 import com.bankrolledge.app.ui.BankrollViewModel
+import com.bankrolledge.app.util.BackupManager
 import com.bankrolledge.app.util.CsvExporter
 
 private val CURRENCIES = listOf("USD", "EUR", "GBP", "CAD", "AUD", "CHF", "SEK", "BRL", "MXN", "JPY")
@@ -123,6 +134,33 @@ fun SettingsScreen(
             )
         }
 
+        // Default view mode.
+        SettingsCard(title = "Default view") {
+            Text(
+                "Focus the app on the games you play. Applied to session lists, stats and new sessions.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SingleChoiceSegmentedButtonRow(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            ) {
+                val options = listOf(
+                    SettingsRepository.DEFAULT_TYPE_ALL to "All games",
+                    SessionType.CASH.name to "Cash",
+                    SessionType.TOURNAMENT.name to "Tourneys",
+                )
+                options.forEachIndexed { index, (value, label) ->
+                    SegmentedButton(
+                        selected = state.settings.defaultSessionType == value,
+                        onClick = { viewModel.setDefaultSessionType(value) },
+                        shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                    ) { Text(label) }
+                }
+            }
+        }
+
         // Export.
         SettingsCard(title = "Export data") {
             Text(
@@ -146,6 +184,80 @@ fun SettingsScreen(
             ) {
                 Icon(Icons.Filled.Share, contentDescription = null)
                 Text("  Export CSV")
+            }
+        }
+
+        // Backup & restore.
+        SettingsCard(title = "Backup & restore") {
+            var pendingRestore by remember { mutableStateOf<String?>(null) }
+            val pickBackup = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent(),
+            ) { uri ->
+                if (uri != null) {
+                    val text = runCatching {
+                        context.contentResolver.openInputStream(uri)?.use {
+                            it.readBytes().toString(Charsets.UTF_8)
+                        }
+                    }.getOrNull()
+                    if (text.isNullOrBlank()) {
+                        Toast.makeText(context, "Couldn't read that file.", Toast.LENGTH_LONG).show()
+                    } else {
+                        pendingRestore = text
+                    }
+                }
+            }
+
+            pendingRestore?.let { json ->
+                AlertDialog(
+                    onDismissRequest = { pendingRestore = null },
+                    title = { Text("Restore backup?") },
+                    text = {
+                        Text(
+                            "This replaces ALL current sessions, transactions and settings " +
+                                "with the backup's contents. This can't be undone.",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            pendingRestore = null
+                            viewModel.restoreBackup(json) { message ->
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            }
+                        }) { Text("Restore", color = MaterialTheme.colorScheme.error) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { pendingRestore = null }) { Text("Cancel") }
+                    },
+                )
+            }
+
+            Text(
+                "Save everything (sessions, bankroll transactions and settings) to a JSON file, " +
+                    "or restore from a previous backup.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedButton(onClick = {
+                    val uri = BackupManager.writeToCache(
+                        context,
+                        BackupManager.Backup(
+                            settings = state.settings,
+                            sessions = state.allSessions,
+                            transactions = state.transactions,
+                        ),
+                    )
+                    val share = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/json"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(share, "Save backup"))
+                }) { Text("Export backup") }
+                OutlinedButton(onClick = { pickBackup.launch("*/*") }) { Text("Restore") }
             }
         }
 

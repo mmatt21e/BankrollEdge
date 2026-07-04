@@ -9,7 +9,11 @@ import com.bankrolledge.app.ui.editor.EditorViewModel
 class BankrollViewModelFactory(private val container: AppContainer) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        BankrollViewModel(container.sessionRepository, container.settingsRepository) as T
+        BankrollViewModel(
+            container.sessionRepository,
+            container.transactionRepository,
+            container.settingsRepository,
+        ) as T
 }
 
 /** Builds an [EditorViewModel] for a given session id (0 = new session).
