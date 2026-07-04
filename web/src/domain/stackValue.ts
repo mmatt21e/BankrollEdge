@@ -40,6 +40,11 @@ export interface StackValueResult {
   chipChopValue: number;
   /** The pool split evenly, for reference. */
   evenValue: number;
+  /**
+   * Cash value of a single big blind under each model — the stack value
+   * divided by how many big blinds it holds. Null if no big blind was given.
+   */
+  perBigBlind: { icm: number | null; chipChop: number; even: number } | null;
 }
 
 const round2 = (v: number): number => Math.round(v * 100) / 100;
@@ -82,16 +87,27 @@ export function valueStack(input: StackValueInput): StackValueResult {
     icmValue = round2(icmEquity(stacks, ladder)[0]);
   }
 
+  const bigBlinds = input.bigBlind > 0 && stack > 0 ? stack / input.bigBlind : null;
+  const perBigBlind =
+    bigBlinds !== null
+      ? {
+          icm: icmValue !== null ? round2(icmValue / bigBlinds) : null,
+          chipChop: round2(chipChopValue / bigBlinds),
+          even: round2(evenValue / bigBlinds),
+        }
+      : null;
+
   return {
     chipShare,
     averageStack,
     stacksVsAverage,
     position: classify(stacksVsAverage),
-    bigBlinds: input.bigBlind > 0 ? stack / input.bigBlind : null,
+    bigBlinds,
     prizePool: pool,
     icmValue,
     icmSupported,
     chipChopValue,
     evenValue,
+    perBigBlind,
   };
 }

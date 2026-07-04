@@ -234,6 +234,9 @@ export default function StackValuePage() {
             </span>
             <span className="money">
               {result.icmValue !== null ? money(result.icmValue, currency) : '—'}
+              {result.perBigBlind?.icm != null && (
+                <span className="muted small"> · {money(result.perBigBlind.icm, currency)}/BB</span>
+              )}
             </span>
           </div>
           {!result.icmSupported && (
@@ -244,15 +247,28 @@ export default function StackValuePage() {
           )}
           <div className="row-between">
             <span className="muted">Chip-chop value</span>
-            <span className="money">{money(result.chipChopValue, currency)}</span>
+            <span className="money">
+              {money(result.chipChopValue, currency)}
+              {result.perBigBlind && (
+                <span className="muted small"> · {money(result.perBigBlind.chipChop, currency)}/BB</span>
+              )}
+            </span>
           </div>
           <div className="row-between">
             <span className="muted">Even split</span>
-            <span className="money">{money(result.evenValue, currency)}</span>
+            <span className="money">
+              {money(result.evenValue, currency)}
+              {result.perBigBlind && (
+                <span className="muted small"> · {money(result.perBigBlind.even, currency)}/BB</span>
+              )}
+            </span>
           </div>
           <p className="muted small" style={{ margin: 0 }}>
             ICM is the fair value of your chips against the payout ladder; because chips lose value
             as you accumulate them, a big stack's ICM value sits below its raw chip share.
+            {result.perBigBlind
+              ? ' The /BB figure is what one big blind of your stack is worth.'
+              : ' Enter a big blind to see the cash value of each big blind.'}
           </p>
         </section>
       </main>

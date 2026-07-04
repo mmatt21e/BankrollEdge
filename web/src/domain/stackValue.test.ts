@@ -68,6 +68,23 @@ describe('valueStack', () => {
     expect(r.icmValue).toBeNull();
     expect(r.chipChopValue).toBeGreaterThan(0);
     expect(r.position).toBe('Big stack'); // 250k vs 100k avg = 2.5x
+    // Per-BB still works off the models that are available.
+    expect(r.perBigBlind).not.toBeNull();
+    expect(r.perBigBlind!.icm).toBeNull();
+    expect(r.perBigBlind!.chipChop).toBeGreaterThan(0);
+  });
+
+  it('values one big blind as the stack value divided by big blinds', () => {
+    // Equal stacks → every model = 25; stack is 10 big blinds → 2.5 per BB.
+    const r = valueStack({ ...base, bigBlind: 10 });
+    expect(r.bigBlinds).toBe(10);
+    expect(r.perBigBlind).toEqual({ icm: 2.5, chipChop: 2.5, even: 2.5 });
+  });
+
+  it('omits per-big-blind values when no big blind is given', () => {
+    const r = valueStack(base); // bigBlind 0
+    expect(r.bigBlinds).toBeNull();
+    expect(r.perBigBlind).toBeNull();
   });
 
   it('gives the chip leader less than a naive proportional slice (ICM pressure)', () => {
