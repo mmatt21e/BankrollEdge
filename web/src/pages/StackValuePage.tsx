@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { valueStack, StackPosition } from '../domain/stackValue';
 import { ICM_MAX_PLAYERS } from '../domain/deal';
+import { geometricPercentages } from '../domain/payout';
 import { money, percent } from '../domain/format';
 import { useAppState } from '../hooks/useAppState';
 import { TopBar } from '../components/common';
@@ -38,14 +39,26 @@ export default function StackValuePage() {
   const [players, setPlayers] = useState('6');
   const [totalChips, setTotalChips] = useState('1200000');
   const [bigBlind, setBigBlind] = useState('8000');
+  const [payoutMode, setPayoutMode] = useState<'LADDER' | 'POOL'>('LADDER');
   const [payouts, setPayouts] = useState<PayoutRow[]>(DEFAULT_PAYOUTS);
+  const [poolTotal, setPoolTotal] = useState('10000');
+  const [paidPlaces, setPaidPlaces] = useState('9');
 
   const n = (v: string) => Number.parseFloat(v) || 0;
   const stackN = n(stack);
   const playersN = Math.max(1, Math.round(n(players)));
   const totalChipsN = n(totalChips);
+  const paidPlacesN = Math.max(1, Math.round(n(paidPlaces)));
 
-  const ladder = useMemo(() => payouts.map((p) => n(p.amount)), [payouts]);
+  // Either an exact per-place ladder, or a total pool spread across N places
+  // on the standard geometric curve so ICM/chip-chop still have a structure.
+  const ladder = useMemo(() => {
+    if (payoutMode === 'POOL') {
+      const total = n(poolTotal);
+      return geometricPercentages(paidPlacesN).map((pct) => (total * pct) / 100);
+    }
+    return payouts.map((p) => n(p.amount));
+  }, [payoutMode, payouts, poolTotal, paidPlacesN]);
 
   const result = useMemo(
     () =>
@@ -127,46 +140,88 @@ export default function StackValuePage() {
           )}
         </section>
 
-        <section className="card col">
-          <h2>Remaining payouts</h2>
-          <p className="muted small" style={{ margin: 0 }}>
-            The prize money still on the table, biggest first. Order doesn't matter.
-          </p>
-          {payouts.map((r, index) => (
-            <div key={index} className="row">
-              <span className="muted" style={{ minWidth: 64 }}>{ordinal(index + 1)}</span>
-              <input
-                className="grow"
-                type="text"
-                inputMode="decimal"
-                aria-label={`${ordinal(index + 1)} place payout`}
-                value={r.amount}
-                style={{ minHeight: 44, width: '100%' }}
-                onChange={(e) => setPayout(index, e.target.value.replace(/[^0-9.]/g, ''))}
-              />
-              <button
-                type="button"
-                className="back"
-                aria-label={`Remove ${ordinal(index + 1)} place payout`}
-                disabled={payouts.length <= 1}
-                onClick={() => setPayouts((prev) => prev.filter((_, ri) => ri !== index))}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => setPayouts((prev) => [...prev, { amount: '' }])}
-          >
-            + Payout place
-          </button>
-          <div className="row-between" style={{ fontWeight: 700 }}>
-            <span>Prize pool</span>
-            <span className="money">{money(result.prizePool, currency)}</span>
+        <div className="field">
+          <span>Prize input</span>
+          <div className="chips" role="group" aria-label="Prize input mode">
+            <button
+              type="button"
+              className="chip"
+              aria-pressed={payoutMode === 'LADDER'}
+              onClick={() => setPayoutMode('LADDER')}
+            >
+              Remaining payouts
+            </button>
+            <button
+              type="button"
+              className="chip"
+              aria-pressed={payoutMode === 'POOL'}
+              onClick={() => setPayoutMode('POOL')}
+            >
+              Total prize pool
+            </button>
           </div>
-        </section>
+        </div>
+
+        {payoutMode === 'LADDER' && (
+          <section className="card col">
+            <h2>Remaining payouts</h2>
+            <p className="muted small" style={{ margin: 0 }}>
+              The prize money still on the table, biggest first. Order doesn't matter.
+            </p>
+            {payouts.map((r, index) => (
+              <div key={index} className="row">
+                <span className="muted" style={{ minWidth: 64 }}>{ordinal(index + 1)}</span>
+                <input
+                  className="grow"
+                  type="text"
+                  inputMode="decimal"
+                  aria-label={`${ordinal(index + 1)} place payout`}
+                  value={r.amount}
+                  style={{ minHeight: 44, width: '100%' }}
+                  onChange={(e) => setPayout(index, e.target.value.replace(/[^0-9.]/g, ''))}
+                />
+                <button
+                  type="button"
+                  className="back"
+                  aria-label={`Remove ${ordinal(index + 1)} place payout`}
+                  disabled={payouts.length <= 1}
+                  onClick={() => setPayouts((prev) => prev.filter((_, ri) => ri !== index))}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setPayouts((prev) => [...prev, { amount: '' }])}
+            >
+              + Payout place
+            </button>
+            <div className="row-between" style={{ fontWeight: 700 }}>
+              <span>Prize pool</span>
+              <span className="money">{money(result.prizePool, currency)}</span>
+            </div>
+          </section>
+        )}
+
+        {payoutMode === 'POOL' && (
+          <section className="card col">
+            <h2>Total prize pool</h2>
+            <div className="row">
+              {field('Prize pool', poolTotal, setPoolTotal)}
+              {field('Paid places', paidPlaces, setPaidPlaces)}
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Spread across {paidPlacesN} place{paidPlacesN === 1 ? '' : 's'} on a standard
+              payout curve. Switch to "Remaining payouts" for an exact ladder.
+            </p>
+            <div className="row-between" style={{ fontWeight: 700 }}>
+              <span>Prize pool</span>
+              <span className="money">{money(result.prizePool, currency)}</span>
+            </div>
+          </section>
+        )}
 
         <section className="card col">
           <h2>Cash value of your stack</h2>
