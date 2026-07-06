@@ -1,7 +1,7 @@
 // Port of Android BackupManagerTest.
 import { describe, it, expect } from 'vitest';
 import { backupToJson, backupFromJson } from './backup';
-import { emptySession, profit, signedAmount } from '../models/types';
+import { emptyBet, emptySession, profit, signedAmount } from '../models/types';
 
 describe('backup', () => {
   it('round-trips sessions, transactions and settings', () => {
@@ -10,6 +10,8 @@ describe('backup', () => {
         startingBankroll: 1500,
         currency: 'EUR',
         defaultSessionType: 'CASH' as const,
+        betUnitValue: 50,
+        oddsFormat: 'DECIMAL' as const,
       },
       sessions: [
         {
@@ -67,6 +69,20 @@ describe('backup', () => {
       ],
       structures: [],
       events: [],
+      bets: [
+        {
+          ...emptyBet(1_700_000_222_000),
+          id: 9,
+          sport: 'NFL' as const,
+          pick: 'Chiefs -3.5',
+          betType: 'SPREAD' as const,
+          odds: 1.9091,
+          stake: 110,
+          status: 'WON' as const,
+          sportsbook: 'DraftKings',
+          legs: [],
+        },
+      ],
     };
 
     const restored = backupFromJson(backupToJson(backup, 1));
@@ -90,6 +106,12 @@ describe('backup', () => {
     expect(restored.handNotes[0].holeCards).toBe('Ah Kh');
     expect(restored.handNotes[0].reviewLater).toBe(true);
     expect(restored.homeGames[0].players[0].paymentMethod).toBe('VENMO');
+
+    expect(restored.bets).toHaveLength(1);
+    expect(restored.bets[0].id).toBe(0);
+    expect(restored.bets[0].pick).toBe('Chiefs -3.5');
+    expect(restored.bets[0].status).toBe('WON');
+    expect(restored.bets[0].stake).toBe(110);
   });
 
   it('treats v1 backups (no collections) as empty collections', () => {
@@ -105,6 +127,9 @@ describe('backup', () => {
     expect(restored.homeGames).toEqual([]);
     expect(restored.structures).toEqual([]);
     expect(restored.events).toEqual([]);
+    expect(restored.bets).toEqual([]);
+    expect(restored.settings.betUnitValue).toBe(0);
+    expect(restored.settings.oddsFormat).toBe('AMERICAN');
   });
 
   it('rejects foreign JSON', () => {
@@ -117,7 +142,13 @@ describe('backup', () => {
 describe('table game backup fields', () => {
   it('round-trips table fields and rejects unknown table games', () => {
     const backup = {
-      settings: { startingBankroll: 0, currency: 'USD', defaultSessionType: 'ALL' as const },
+      settings: {
+        startingBankroll: 0,
+        currency: 'USD',
+        defaultSessionType: 'ALL' as const,
+        betUnitValue: 0,
+        oddsFormat: 'AMERICAN' as const,
+      },
       sessions: [
         {
           ...emptySession(1_700_000_123_456),
@@ -134,6 +165,7 @@ describe('table game backup fields', () => {
         },
       ],
       transactions: [],
+      bets: [],
       handNotes: [],
       homeGames: [],
       structures: [],

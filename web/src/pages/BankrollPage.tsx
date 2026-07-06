@@ -40,10 +40,22 @@ export default function BankrollPage() {
             className={profitClass(app.allStats.totalProfit)}
           />
           <BreakdownLine
+            label="Sports betting profit"
+            value={signedMoney(app.betStats.netProfit, currency)}
+            className={profitClass(app.betStats.netProfit)}
+          />
+          <BreakdownLine
             label="Deposits − withdrawals"
             value={signedMoney(app.transactionsNet, currency)}
             className={profitClass(app.transactionsNet)}
           />
+          {app.betStats.pendingStake > 0 && (
+            <BreakdownLine
+              label="On open bets (not deducted)"
+              value={money(app.betStats.pendingStake, currency)}
+              className="muted"
+            />
+          )}
         </section>
 
         <section className="card col">

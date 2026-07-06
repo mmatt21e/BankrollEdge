@@ -34,14 +34,14 @@ export function formatIso(epochMillis: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function parseIso(value: string): number | null {
+export function parseIso(value: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(value.trim());
   if (!m) return null;
   const t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
   return Number.isNaN(t) ? null : t;
 }
 
-function escape(value: string): string {
+export function escape(value: string): string {
   if (value === '') return '';
   const needsQuoting = value.includes(',') || value.includes('"') || value.includes('\n');
   const escaped = value.replaceAll('"', '""');

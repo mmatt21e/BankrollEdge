@@ -33,12 +33,15 @@ export default function DashboardPage() {
           Current bankroll ›
         </div>
         <h1 className="money">{money(app.bankroll, currency)}</h1>
-        <div className={`muted ${profitClass(stats.totalProfit)}`}>
-          {signedMoney(stats.totalProfit, currency)} from sessions all-time • tap to manage
+        <div className={`muted ${profitClass(stats.totalProfit + app.betStats.netProfit)}`}>
+          {signedMoney(stats.totalProfit + app.betStats.netProfit, currency)} from sessions &amp;
+          bets all-time • tap to manage
         </div>
       </button>
 
       <TimerCard />
+
+      <OpenBetsCard />
 
       <section className="card">
         <div className="overline">Cumulative profit</div>
@@ -81,6 +84,33 @@ export default function DashboardPage() {
         )
       )}
     </main>
+  );
+}
+
+/** Pending sports bets at a glance; hidden when nothing is open. */
+function OpenBetsCard() {
+  const app = useAppState();
+  const navigate = useNavigate();
+  const { pendingCount, pendingStake, pendingToWin } = app.betStats;
+  if (pendingCount === 0) return null;
+  const currency = app.settings.currency;
+  return (
+    <button
+      type="button"
+      className="card row-between"
+      style={{ cursor: 'pointer', textAlign: 'left', width: '100%' }}
+      onClick={() => navigate('/bets')}
+      aria-label={`${pendingCount} open bets`}
+    >
+      <div className="grow">
+        <h2>
+          {pendingCount} open bet{pendingCount === 1 ? '' : 's'} ›
+        </h2>
+        <p className="muted" style={{ margin: '4px 0 0' }}>
+          {money(pendingStake, currency)} at risk • to win {money(pendingToWin, currency)}
+        </p>
+      </div>
+    </button>
   );
 }
 

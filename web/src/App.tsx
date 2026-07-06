@@ -21,8 +21,9 @@ export default function App() {
   if (locked) return <PinLock onUnlock={() => setLocked(false)} />;
 
   // Bottom nav + FAB only on top-level destinations.
-  const topLevel = ['/', '/sessions', '/stats', '/tools', '/settings'].includes(location.pathname);
-  const showFab = location.pathname === '/' || location.pathname === '/sessions';
+  const topLevel = ['/', '/sessions', '/bets', '/stats', '/tools', '/settings'].includes(location.pathname);
+  const onBets = location.pathname === '/bets';
+  const showFab = location.pathname === '/' || location.pathname === '/sessions' || onBets;
 
   return (
     <>
@@ -36,8 +37,8 @@ export default function App() {
         <button
           type="button"
           className="fab"
-          aria-label="Add session"
-          onClick={() => navigate('/session/new')}
+          aria-label={onBets ? 'Add bet' : 'Add session'}
+          onClick={() => navigate(onBets ? '/bet/new' : '/session/new')}
         >
           +
         </button>
