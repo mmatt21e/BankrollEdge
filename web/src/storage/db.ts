@@ -1,18 +1,19 @@
 // IndexedDB persistence — the PWA equivalent of the Android Room database.
 // Schema changes bump DB_VERSION and are applied in onupgradeneeded (the
-// analogue of Room migrations). v2 adds the tool stores; existing data is
-// untouched by the upgrade.
+// analogue of Room migrations). v2 adds the tool stores; v3 adds sports
+// bets; existing data is untouched by the upgrades.
 import {
   BlindStructure,
   CalendarEvent,
   HandNote,
   HomeGame,
   Session,
+  SportsBet,
   Transaction,
 } from '../models/types';
 
 const DB_NAME = 'bankrolledge';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const ALL_STORES = [
   'sessions',
@@ -21,6 +22,7 @@ const ALL_STORES = [
   'homeGames',
   'structures',
   'events',
+  'bets',
 ] as const;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -88,6 +90,7 @@ export const handNoteStore = makeStore<HandNote>('handNotes');
 export const homeGameStore = makeStore<HomeGame>('homeGames');
 export const structureStore = makeStore<BlindStructure>('structures');
 export const eventStore = makeStore<CalendarEvent>('events');
+export const betStore = makeStore<SportsBet>('bets');
 
 // Back-compat facade used by useAppState.
 export const db = {

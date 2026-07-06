@@ -12,16 +12,21 @@ import {
 } from 'react';
 import {
   AppSettings,
+  BetStatus,
   Session,
+  SportsBet,
   Transaction,
   TransactionType,
+  normalizeBet,
   normalizeSession,
   signedAmount,
 } from '../models/types';
 import { EMPTY_FILTER, SessionFilter, applyFilter } from '../domain/filter';
 import { Statistics, computeStats, bankrollOf } from '../domain/stats';
+import { BetStats, computeBetStats } from '../domain/bets';
 import { Backup } from '../domain/backup';
 import {
+  betStore,
   db,
   eventStore,
   handNoteStore,
@@ -42,6 +47,9 @@ export interface AppState {
   filteredSessions: Session[];
   transactions: Transaction[]; // newest first
   transactionsNet: number;
+  bets: SportsBet[]; // newest first
+  betStats: BetStats;
+  availableSportsbooks: string[];
   settings: AppSettings;
   filter: SessionFilter;
   allStats: Statistics;
@@ -54,6 +62,12 @@ export interface AppState {
   saveSession(session: Session): Promise<void>;
   deleteSession(id: number): Promise<void>;
   getSession(id: number): Session | undefined;
+  saveBet(bet: SportsBet): Promise<void>;
+  deleteBet(id: number): Promise<void>;
+  getBet(id: number): SportsBet | undefined;
+  /** One-tap settle from the open-bets list. */
+  settleBet(id: number, status: BetStatus): Promise<void>;
+  importBets(bets: SportsBet[]): Promise<number>;
   addTransaction(type: TransactionType, amount: number, note: string): Promise<void>;
   deleteTransaction(id: number): Promise<void>;
   updateSettings(patch: Partial<AppSettings>): void;
@@ -70,6 +84,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [bets, setBets] = useState<SportsBet[]>([]);
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [timerStart, setTimerStart] = useState<number>(loadTimerStart);
   const [filter, setFilter] = useState<SessionFilter>(() => {
@@ -79,11 +94,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     requestPersistence();
-    Promise.all([db.loadSessions(), db.loadTransactions()])
-      .then(([s, t]) => {
-        // normalizeSession fills v2 defaults into records saved by v1.
+    Promise.all([db.loadSessions(), db.loadTransactions(), betStore.list()])
+      .then(([s, t, b]) => {
+        // normalizeSession/normalizeBet fill newer-version defaults into old records.
         setSessions(s.map(normalizeSession).sort((a, b) => b.startTime - a.startTime));
         setTransactions(t.sort((a, b) => b.time - a.time));
+        setBets(b.map(normalizeBet).sort((a, z) => z.placedAt - a.placedAt));
       })
       .catch(() => undefined)
       .finally(() => setReady(true));
@@ -100,6 +116,39 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const deleteSession = useCallback(async (id: number) => {
     await db.deleteSession(id);
     setSessions((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
+  const saveBet = useCallback(async (bet: SportsBet) => {
+    const id = await betStore.save(bet);
+    const saved = { ...bet, id };
+    setBets((prev) =>
+      [...prev.filter((b) => b.id !== id), saved].sort((a, z) => z.placedAt - a.placedAt),
+    );
+  }, []);
+
+  const deleteBet = useCallback(async (id: number) => {
+    await betStore.remove(id);
+    setBets((prev) => prev.filter((b) => b.id !== id));
+  }, []);
+
+  const settleBet = useCallback(
+    async (id: number, status: BetStatus) => {
+      const bet = bets.find((b) => b.id === id);
+      if (!bet) return;
+      await saveBet({ ...bet, status });
+    },
+    [bets, saveBet],
+  );
+
+  /** CSV import: APPENDS to existing bets. Returns the number imported. */
+  const importBets = useCallback(async (toImport: SportsBet[]) => {
+    const saved: SportsBet[] = [];
+    for (const b of toImport) {
+      const id = await betStore.save({ ...b, id: 0 });
+      saved.push({ ...b, id });
+    }
+    setBets((prev) => [...prev, ...saved].sort((a, z) => z.placedAt - a.placedAt));
+    return saved.length;
   }, []);
 
   const addTransaction = useCallback(
@@ -157,6 +206,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const restoreBackup = useCallback(async (backup: Backup) => {
     await db.clearSessions();
     await db.clearTransactions();
+    await betStore.clear();
     // Tool collections live in their own stores; pages re-read them on mount.
     await Promise.all([
       handNoteStore.clear(),
@@ -178,10 +228,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const id = await db.saveTransaction({ ...t, id: 0 });
       restoredTx.push({ ...t, id });
     }
+    const restoredBets: SportsBet[] = [];
+    for (const b of backup.bets) {
+      const id = await betStore.save({ ...b, id: 0 });
+      restoredBets.push({ ...b, id });
+    }
     saveSettings(backup.settings);
     setSettings(backup.settings);
     setSessions(restoredSessions.sort((a, b) => b.startTime - a.startTime));
     setTransactions(restoredTx.sort((a, b) => b.time - a.time));
+    setBets(restoredBets.sort((a, z) => z.placedAt - a.placedAt));
   }, []);
 
   const value = useMemo<AppState>(() => {
@@ -189,23 +245,34 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const filteredSessions = applyFilter(filter, sessions, now);
     const allStats = computeStats(sessions);
     const transactionsNet = transactions.reduce((a, t) => a + signedAmount(t), 0);
+    const betStats = computeBetStats(bets);
     return {
       ready,
       sessions,
       filteredSessions,
       transactions,
       transactionsNet,
+      bets,
+      betStats,
+      availableSportsbooks: [...new Set(bets.map((b) => b.sportsbook.trim()).filter(Boolean))].sort(),
       settings,
       filter,
       allStats,
       filteredStats: computeStats(filteredSessions),
-      bankroll: bankrollOf(allStats, settings.startingBankroll, transactionsNet),
+      // Settled bet results roll into the same bankroll as poker/table sessions.
+      bankroll:
+        bankrollOf(allStats, settings.startingBankroll, transactionsNet) + betStats.netProfit,
       availableLocations: [...new Set(sessions.map((s) => s.location).filter(Boolean))].sort(),
       availableTags: [...new Set(sessions.flatMap((s) => s.tags))].sort(),
       timerStart,
       saveSession,
       deleteSession,
       getSession: (id: number) => sessions.find((s) => s.id === id),
+      saveBet,
+      deleteBet,
+      getBet: (id: number) => bets.find((b) => b.id === id),
+      settleBet,
+      importBets,
       addTransaction,
       deleteTransaction,
       updateSettings,
@@ -216,8 +283,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       restoreBackup,
     };
   }, [
-    ready, sessions, transactions, settings, filter, timerStart,
-    saveSession, deleteSession, addTransaction, deleteTransaction,
+    ready, sessions, transactions, bets, settings, filter, timerStart,
+    saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
+    addTransaction, deleteTransaction,
     updateSettings, startTimer, clearTimer, importSessions, restoreBackup,
   ]);
 

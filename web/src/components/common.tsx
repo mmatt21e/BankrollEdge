@@ -79,10 +79,16 @@ export function BreakdownList({
   groups,
   currency,
   emptyMessage = 'No data yet.',
+  countNoun = 'sessions',
+  showRate = true,
 }: {
   groups: GroupStat[];
   currency: string;
   emptyMessage?: string;
+  /** What one entry is called, e.g. "sessions" or "bets". */
+  countNoun?: string;
+  /** Hide the $/hr figure for entries without hours (e.g. bets). */
+  showRate?: boolean;
 }) {
   if (groups.length === 0) return <p className="muted">{emptyMessage}</p>;
   const maxAbs = Math.max(...groups.map((g) => Math.abs(g.profit)), 1e-9);
@@ -97,7 +103,8 @@ export function BreakdownList({
             </span>
           </div>
           <div className="muted small">
-            {g.sessionCount} sessions • {perHour(groupHourlyRate(g), currency)}
+            {g.sessionCount} {countNoun}
+            {showRate && <> • {perHour(groupHourlyRate(g), currency)}</>}
           </div>
           <div className="bar-track" style={{ marginTop: 6 }} aria-hidden="true">
             <div
@@ -187,6 +194,7 @@ export function TopBar({ title, onBack, action }: { title: string; onBack: () =>
 const NAV = [
   { to: '/', label: 'Overview', icon: '◈' },
   { to: '/sessions', label: 'Sessions', icon: '☰' },
+  { to: '/bets', label: 'Bets', icon: '◎' },
   { to: '/stats', label: 'Stats', icon: '▤' },
   { to: '/tools', label: 'Tools', icon: '⛭' },
   { to: '/settings', label: 'Settings', icon: '⚙' },

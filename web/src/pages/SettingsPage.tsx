@@ -28,6 +28,9 @@ export default function SettingsPage() {
   const [bankrollText, setBankrollText] = useState(
     app.settings.startingBankroll === 0 ? '' : String(app.settings.startingBankroll),
   );
+  const [unitText, setUnitText] = useState(
+    app.settings.betUnitValue === 0 ? '' : String(app.settings.betUnitValue),
+  );
   const [message, setMessage] = useState('');
   const [pendingCsv, setPendingCsv] = useState<string | null>(null);
   const [pendingBackup, setPendingBackup] = useState<string | null>(null);
@@ -153,6 +156,51 @@ export default function SettingsPage() {
         </div>
       </SectionCard>
 
+      <SectionCard title="Sports betting">
+        <p className="muted" style={{ margin: 0 }}>
+          Unit size shows your betting results in units alongside money; the odds format applies
+          to entering and displaying bet prices.
+        </p>
+        <div className="row">
+          <label className="field grow">
+            <span>Unit size ({app.settings.currency}, 0 = off)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={unitText}
+              onChange={(e) => setUnitText(e.target.value.replace(/[^0-9.]/g, ''))}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn"
+            style={{ alignSelf: 'flex-end' }}
+            onClick={() =>
+              app.updateSettings({ betUnitValue: Number.parseFloat(unitText) || 0 })
+            }
+          >
+            Save
+          </button>
+        </div>
+        <div className="segmented" role="group" aria-label="Odds format">
+          {(
+            [
+              ['AMERICAN', 'American (-110)'],
+              ['DECIMAL', 'Decimal (1.91)'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={app.settings.oddsFormat === value}
+              onClick={() => app.updateSettings({ oddsFormat: value })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </SectionCard>
+
       <SectionCard title="CSV export & import">
         <p className="muted" style={{ margin: 0 }}>
           Export all {app.sessions.length} sessions to a spreadsheet-friendly CSV, or import
@@ -206,6 +254,7 @@ export default function SettingsPage() {
                     settings: app.settings,
                     sessions: app.sessions,
                     transactions: app.transactions,
+                    bets: app.bets,
                     handNotes,
                     homeGames,
                     structures,
@@ -239,9 +288,9 @@ export default function SettingsPage() {
       <SectionCard title="About">
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
-          A bankroll tracker for poker cash games, tournaments and casino table games. Web
-          version 1.7.0 — works fully offline; all data stays on this device. Install it from
-          your browser menu for an app-like experience.
+          A bankroll tracker for poker, casino table games and sports betting. Web version
+          1.8.0 — works fully offline; all data stays on this device. Install it from your
+          browser menu for an app-like experience.
         </p>
       </SectionCard>
 

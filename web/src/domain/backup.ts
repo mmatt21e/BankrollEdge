@@ -4,6 +4,7 @@ import {
   AppSettings,
   DEFAULT_SETTINGS,
   Session,
+  SportsBet,
   Transaction,
   BlindStructure,
   CalendarEvent,
@@ -11,20 +12,23 @@ import {
   HomeGame,
   emptySession,
   normalizeSession,
+  normalizeBet,
   GAME_TYPES,
   SESSION_TYPES,
   TABLE_GAMES,
 } from '../models/types';
 
-// v2 adds optional session fields plus the tool collections. Version-1
-// readers (including the Android app) ignore unknown keys, and this reader
-// treats missing collections as empty — both directions stay compatible.
-export const FORMAT_VERSION = 2;
+// v2 adds optional session fields plus the tool collections; v3 adds sports
+// bets and betting settings. Older readers (including the Android app)
+// ignore unknown keys, and this reader treats missing collections as empty —
+// both directions stay compatible.
+export const FORMAT_VERSION = 3;
 
 export interface Backup {
   settings: AppSettings;
   sessions: Session[];
   transactions: Transaction[];
+  bets: SportsBet[];
   handNotes: HandNote[];
   homeGames: HomeGame[];
   structures: BlindStructure[];
@@ -41,9 +45,12 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
         startingBankroll: backup.settings.startingBankroll,
         currency: backup.settings.currency,
         defaultSessionType: backup.settings.defaultSessionType,
+        betUnitValue: backup.settings.betUnitValue,
+        oddsFormat: backup.settings.oddsFormat,
       },
       sessions: backup.sessions.map(({ id: _id, ...rest }) => rest),
       transactions: backup.transactions.map(({ id: _id, ...rest }) => rest),
+      bets: backup.bets.map(({ id: _id, ...rest }) => rest),
       handNotes: backup.handNotes.map(({ id: _id, ...rest }) => rest),
       homeGames: backup.homeGames.map(({ id: _id, ...rest }) => rest),
       structures: backup.structures.map(({ id: _id, ...rest }) => rest),
@@ -72,6 +79,8 @@ export function backupFromJson(json: string): Backup {
     currency: str(s.currency, 'USD'),
     defaultSessionType:
       rawDefault === 'CASH' || rawDefault === 'TOURNAMENT' ? rawDefault : 'ALL',
+    betUnitValue: num(s.betUnitValue),
+    oddsFormat: str(s.oddsFormat) === 'DECIMAL' ? 'DECIMAL' : 'AMERICAN',
   };
 
   const sessions = (Array.isArray(root.sessions) ? root.sessions : []).map((raw) => {
@@ -144,10 +153,18 @@ export function backupFromJson(json: string): Backup {
       id: 0,
     }));
 
+  // Bets get full normalization (enum coercion, leg shape) rather than the
+  // shape-tolerant copy the tool collections use.
+  const bets: SportsBet[] = (Array.isArray(root.bets) ? root.bets : []).map((raw) => ({
+    ...normalizeBet(raw as Partial<SportsBet>),
+    id: 0,
+  }));
+
   return {
     settings: { ...DEFAULT_SETTINGS, ...settings },
     sessions,
     transactions,
+    bets,
     handNotes: collection<HandNote>('handNotes'),
     homeGames: collection<HomeGame>('homeGames'),
     structures: collection<BlindStructure>('structures'),

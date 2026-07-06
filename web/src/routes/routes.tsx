@@ -15,15 +15,20 @@ import StackValuePage from '../pages/StackValuePage';
 import ChipsPage from '../pages/ChipsPage';
 import CalendarPage from '../pages/CalendarPage';
 import HandNotesPage from '../pages/HandNotesPage';
+import BetsPage from '../pages/BetsPage';
+import BetEditorPage from '../pages/BetEditorPage';
 
 export const routes: RouteObject[] = [
   { path: '/', element: <DashboardPage /> },
   { path: '/sessions', element: <SessionsPage /> },
+  { path: '/bets', element: <BetsPage /> },
   { path: '/stats', element: <StatsPage /> },
   { path: '/tools', element: <ToolsPage /> },
   { path: '/settings', element: <SettingsPage /> },
   { path: '/session/new', element: <EditorPage /> },
   { path: '/session/:id', element: <EditorPage /> },
+  { path: '/bet/new', element: <BetEditorPage /> },
+  { path: '/bet/:id', element: <BetEditorPage /> },
   { path: '/bankroll', element: <BankrollPage /> },
   { path: '/tools/clock', element: <ClockPage /> },
   { path: '/tools/home-games', element: <HomeGamesPage /> },

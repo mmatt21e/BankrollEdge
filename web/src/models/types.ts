@@ -133,6 +133,165 @@ export interface Session {
   stopWin: number; // 0 = not set
 }
 
+// --- Sports betting ---
+
+export type Sport =
+  | 'NFL'
+  | 'NBA'
+  | 'MLB'
+  | 'NHL'
+  | 'NCAAF'
+  | 'NCAAB'
+  | 'SOCCER'
+  | 'TENNIS'
+  | 'GOLF'
+  | 'MMA'
+  | 'BOXING'
+  | 'RACING'
+  | 'ESPORTS'
+  | 'OTHER';
+
+export const SPORT_LABELS: Record<Sport, string> = {
+  NFL: 'NFL',
+  NBA: 'NBA',
+  MLB: 'MLB',
+  NHL: 'NHL',
+  NCAAF: 'College Football',
+  NCAAB: 'College Basketball',
+  SOCCER: 'Soccer',
+  TENNIS: 'Tennis',
+  GOLF: 'Golf',
+  MMA: 'MMA / UFC',
+  BOXING: 'Boxing',
+  RACING: 'Horse Racing',
+  ESPORTS: 'Esports',
+  OTHER: 'Other',
+};
+
+export const SPORTS = Object.keys(SPORT_LABELS) as Sport[];
+
+export type BetType =
+  | 'SPREAD'
+  | 'MONEYLINE'
+  | 'TOTAL'
+  | 'PROP'
+  | 'PARLAY'
+  | 'TEASER'
+  | 'FUTURES'
+  | 'LIVE'
+  | 'OTHER';
+
+export const BET_TYPE_LABELS: Record<BetType, string> = {
+  SPREAD: 'Spread',
+  MONEYLINE: 'Moneyline',
+  TOTAL: 'Total (Over/Under)',
+  PROP: 'Prop',
+  PARLAY: 'Parlay',
+  TEASER: 'Teaser',
+  FUTURES: 'Futures',
+  LIVE: 'Live / In-play',
+  OTHER: 'Other',
+};
+
+export const BET_TYPES = Object.keys(BET_TYPE_LABELS) as BetType[];
+
+export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'PUSH' | 'VOID' | 'CASHED_OUT';
+
+export const BET_STATUS_LABELS: Record<BetStatus, string> = {
+  PENDING: 'Pending',
+  WON: 'Won',
+  LOST: 'Lost',
+  PUSH: 'Push',
+  VOID: 'Void',
+  CASHED_OUT: 'Cashed out',
+};
+
+export const BET_STATUSES = Object.keys(BET_STATUS_LABELS) as BetStatus[];
+
+export type LegResult = '' | 'WON' | 'LOST' | 'PUSH';
+
+/** One leg of a parlay/teaser. Odds are decimal; PUSH legs drop out of the
+ *  combined price. */
+export interface BetLeg {
+  pick: string;
+  odds: number;
+  result: LegResult;
+}
+
+export interface SportsBet {
+  id: number; // 0 = unsaved
+  /** When the bet was placed. */
+  placedAt: number;
+  /** When the event starts (0 = not recorded). */
+  eventStart: number;
+  sport: Sport;
+  /** Matchup / event, e.g. "Chiefs @ Bills". */
+  event: string;
+  /** The selection, e.g. "Chiefs -3.5". */
+  pick: string;
+  betType: BetType;
+  /** Parlay/teaser legs; empty for straight bets. */
+  legs: BetLeg[];
+  /** Decimal odds (1.91 = -110). For bets with legs this is derived. */
+  odds: number;
+  stake: number;
+  status: BetStatus;
+  /** Amount returned by the book when status is CASHED_OUT. */
+  cashOutAmount: number;
+  /** Free bet / bonus bet: no stake at risk, win pays profit only. */
+  freeBet: boolean;
+  /** Closing decimal odds for CLV tracking (0 = not recorded). */
+  closingOdds: number;
+  sportsbook: string;
+  tags: string[];
+  notes: string;
+  currency: string;
+}
+
+export function emptyBet(now: number): SportsBet {
+  return {
+    id: 0,
+    placedAt: now,
+    eventStart: 0,
+    sport: 'NFL',
+    event: '',
+    pick: '',
+    betType: 'SPREAD',
+    legs: [],
+    odds: 0,
+    stake: 0,
+    status: 'PENDING',
+    cashOutAmount: 0,
+    freeBet: false,
+    closingOdds: 0,
+    sportsbook: '',
+    tags: [],
+    notes: '',
+    currency: 'USD',
+  };
+}
+
+/** Fills defaults into bets stored before newer fields existed and coerces
+ *  enum-ish fields from foreign data. */
+export function normalizeBet(raw: Partial<SportsBet> & { placedAt?: number }): SportsBet {
+  const base = emptyBet(raw.placedAt ?? 0);
+  const bet = { ...base, ...raw };
+  if (!SPORTS.includes(bet.sport)) bet.sport = 'OTHER';
+  if (!BET_TYPES.includes(bet.betType)) bet.betType = 'OTHER';
+  if (!BET_STATUSES.includes(bet.status)) bet.status = 'PENDING';
+  bet.tags = Array.isArray(raw.tags) ? raw.tags.map(String) : [];
+  bet.legs = Array.isArray(raw.legs)
+    ? raw.legs
+        .filter((l): l is BetLeg => typeof l === 'object' && l !== null)
+        .map((l) => ({
+          pick: String(l.pick ?? ''),
+          odds: Number.isFinite(l.odds) ? Number(l.odds) : 0,
+          result: l.result === 'WON' || l.result === 'LOST' || l.result === 'PUSH' ? l.result : '',
+        }))
+    : [];
+  return bet;
+}
+
 export type TransactionType = 'DEPOSIT' | 'WITHDRAWAL';
 
 export interface Transaction {
@@ -143,16 +302,24 @@ export interface Transaction {
   note: string;
 }
 
+export type OddsFormat = 'AMERICAN' | 'DECIMAL';
+
 export interface AppSettings {
   startingBankroll: number;
   currency: string;
   defaultSessionType: 'ALL' | SessionType;
+  /** Money one betting unit represents for sports bets (0 = units off). */
+  betUnitValue: number;
+  /** How odds are entered and displayed. */
+  oddsFormat: OddsFormat;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   startingBankroll: 0,
   currency: 'USD',
   defaultSessionType: 'ALL',
+  betUnitValue: 0,
+  oddsFormat: 'AMERICAN',
 };
 
 export function emptySession(now: number): Session {
