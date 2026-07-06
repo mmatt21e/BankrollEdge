@@ -12,7 +12,8 @@ registerSW({ immediate: true });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* basename follows Vite's base so subpath deploys (GitHub Pages) route correctly. */}
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
       <AppStateProvider>
         <App />
       </AppStateProvider>
