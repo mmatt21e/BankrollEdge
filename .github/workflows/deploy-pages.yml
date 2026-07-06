@@ -1,5 +1,5 @@
 # Builds the web PWA and deploys it to GitHub Pages on every push to the
-# default branch. The site is served at https://<owner>.github.io/BankrollEdge/
+# default branch. The site is served at the custom domain https://bankrolledge.com
 name: Deploy PWA to GitHub Pages
 
 on:
@@ -32,13 +32,14 @@ jobs:
         run: |
           npm ci
           npm test
-      - name: Build with Pages base path
+      - name: Build
         working-directory: web
-        env:
-          PAGES_BASE: /BankrollEdge/
+        # Custom domain serves from the root, so the default base '/' is correct.
         run: npm run build
-      - name: SPA fallback for deep links
-        run: cp web/dist/index.html web/dist/404.html
+      - name: SPA fallback for deep links + custom domain
+        run: |
+          cp web/dist/index.html web/dist/404.html
+          echo bankrolledge.com > web/dist/CNAME
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
