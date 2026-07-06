@@ -7,7 +7,9 @@ import {
   stakesLabel,
   cashed,
   isTournamentStyle,
+  isTableSession,
   GAME_TYPE_LABELS,
+  TABLE_GAME_LABELS,
   SESSION_TYPE_LABELS,
   VENUE_TYPE_LABELS,
   GAME_QUALITY_LABELS,
@@ -57,6 +59,8 @@ export interface Statistics {
   tournamentCount: number;
   tournamentProfit: number;
   tournamentsCashed: number;
+  tableCount: number;
+  tableProfit: number;
   /** Profit from sessions WITH a logged duration — keeps untimed sessions
    *  from inflating the hourly rate. */
   timedProfit: number;
@@ -116,6 +120,8 @@ const EMPTY: Statistics = {
   tournamentCount: 0,
   tournamentProfit: 0,
   tournamentsCashed: 0,
+  tableCount: 0,
+  tableProfit: 0,
   timedProfit: 0,
   currentStreak: 0,
   bestWinStreak: 0,
@@ -156,6 +162,8 @@ export function computeStats(sessions: Session[]): Statistics {
   let tournamentCount = 0;
   let tournamentProfit = 0;
   let tournamentsCashed = 0;
+  let tableCount = 0;
+  let tableProfit = 0;
   const hourly = new Array<number>(24).fill(0);
 
   for (const s of sessions) {
@@ -171,6 +179,9 @@ export function computeStats(sessions: Session[]): Statistics {
       tournamentCount++;
       tournamentProfit += p;
       if (cashed(s)) tournamentsCashed++;
+    } else if (isTableSession(s)) {
+      tableCount++;
+      tableProfit += p;
     } else {
       cashCount++;
       cashProfit += p;
@@ -228,6 +239,8 @@ export function computeStats(sessions: Session[]): Statistics {
     tournamentCount,
     tournamentProfit,
     tournamentsCashed,
+    tableCount,
+    tableProfit,
     timedProfit,
     currentStreak: runStreak,
     bestWinStreak,
@@ -237,7 +250,9 @@ export function computeStats(sessions: Session[]): Statistics {
     hourlyProfit: hourly,
     profitBuckets: profitBuckets(sessions),
     cumulative,
-    byGameType: groupBy(sessions, (s) => GAME_TYPE_LABELS[s.gameType]),
+    byGameType: groupBy(sessions, (s) =>
+      isTableSession(s) ? TABLE_GAME_LABELS[s.tableGame] : GAME_TYPE_LABELS[s.gameType],
+    ),
     byLocation: groupBy(sessions, (s) => s.location.trim() || 'Unspecified'),
     byStakes: groupBy(
       sessions.filter((s) => !isTournamentStyle(s) && s.bigBlind > 0),

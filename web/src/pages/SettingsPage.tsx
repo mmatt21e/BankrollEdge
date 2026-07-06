@@ -239,9 +239,9 @@ export default function SettingsPage() {
       <SectionCard title="About">
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
-          A poker bankroll tracker for cash games and tournaments. Web version 1.2 — works fully
-          offline; all data stays on this device. Install it from your browser menu for an
-          app-like experience.
+          A bankroll tracker for poker cash games, tournaments and casino table games. Web
+          version 1.7.0 — works fully offline; all data stays on this device. Install it from
+          your browser menu for an app-like experience.
         </p>
       </SectionCard>
 

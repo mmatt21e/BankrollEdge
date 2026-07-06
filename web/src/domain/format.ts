@@ -45,6 +45,13 @@ export function compactMoney(amount: number, code: string): string {
 
 export const percent = (fraction: number): string => `${(fraction * 100).toFixed(1)}%`;
 
+/** Signed betting-unit amount: "+12.5u" / "-3u". */
+export function signedUnits(units: number): string {
+  const v = Math.abs(units);
+  const body = Number.isInteger(v) ? String(v) : v.toFixed(1);
+  return `${units < 0 ? '-' : '+'}${body}u`;
+}
+
 /** Minutes → "3h 20m" / "45m". */
 export function duration(minutes: number): string {
   const h = Math.floor(minutes / 60);

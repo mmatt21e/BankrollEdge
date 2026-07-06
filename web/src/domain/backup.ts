@@ -13,6 +13,7 @@ import {
   normalizeSession,
   GAME_TYPES,
   SESSION_TYPES,
+  TABLE_GAMES,
 } from '../models/types';
 
 // v2 adds optional session fields plus the tool collections. Version-1
@@ -97,6 +98,14 @@ export function backupFromJson(json: string): Backup {
       expenses: num(o.expenses),
       position: num(o.position),
       fieldSize: num(o.fieldSize),
+      tableGame: TABLE_GAMES.includes(str(o.tableGame) as never)
+        ? (str(o.tableGame) as Session['tableGame'])
+        : 'BLACKJACK',
+      tableMinBet: num(o.tableMinBet),
+      tableMaxBet: num(o.tableMaxBet),
+      unitValue: num(o.unitValue),
+      unitsMin: num(o.unitsMin),
+      unitsMax: num(o.unitsMax),
       handsPlayed: num(o.handsPlayed),
       tableSize: num(o.tableSize),
       tags: Array.isArray(o.tags) ? (o.tags as unknown[]).map((t) => String(t)) : [],

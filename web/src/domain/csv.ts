@@ -4,21 +4,27 @@ import {
   Session,
   SessionType,
   GameType,
+  TableGameType,
   SESSION_TYPE_LABELS,
   GAME_TYPE_LABELS,
+  TABLE_GAME_LABELS,
   GAME_TYPES,
   SESSION_TYPES,
+  TABLE_GAMES,
   profit,
   stakesLabel,
+  isTableSession,
   emptySession,
 } from '../models/types';
 
 // The first 15 columns match the Android app's export exactly (so CSVs remain
 // interchangeable); the columns after Notes are v2 additions that older
-// importers simply ignore.
+// importers simply ignore. The table-game columns after Tags are v1.7
+// additions handled the same way.
 const HEADER =
   'Date,Type,Game,Location,Stakes,DurationMinutes,BuyIn,RebuysAddons,CashOut,Tips,Profit,Position,FieldSize,Currency,Notes,' +
-  'LiveOnline,AddOns,Rake,Expenses,HandsPlayed,TableSize,Tags';
+  'LiveOnline,AddOns,Rake,Expenses,HandsPlayed,TableSize,Tags,' +
+  'TableGame,TableMinBet,TableMaxBet,UnitValue,UnitsMin,UnitsMax';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -69,6 +75,12 @@ export function buildCsv(sessions: Session[]): string {
         s.handsPlayed,
         s.tableSize,
         escape(s.tags.join(';')),
+        isTableSession(s) ? TABLE_GAME_LABELS[s.tableGame] : '',
+        s.tableMinBet,
+        s.tableMaxBet,
+        s.unitValue,
+        s.unitsMin,
+        s.unitsMax,
       ].join(','),
     );
   }
@@ -138,6 +150,12 @@ export function parseCsv(csv: string): ImportResult {
       handsPlayed: int(row, 'handsplayed'),
       tableSize: int(row, 'tablesize'),
       tags: field(row, 'tags').split(';').map((t) => t.trim()).filter(Boolean),
+      tableGame: parseTableGame(field(row, 'tablegame')),
+      tableMinBet: num(row, 'tableminbet'),
+      tableMaxBet: num(row, 'tablemaxbet'),
+      unitValue: num(row, 'unitvalue'),
+      unitsMin: num(row, 'unitsmin'),
+      unitsMax: num(row, 'unitsmax'),
     });
   }
   return { sessions, skippedRows: skipped };
@@ -150,6 +168,7 @@ function parseType(value: string): SessionType {
       SESSION_TYPE_LABELS[t].toLowerCase() === value.toLowerCase(),
   );
   if (found) return found;
+  if (/table/i.test(value)) return 'TABLE';
   return /tourn/i.test(value) ? 'TOURNAMENT' : 'CASH';
 }
 
@@ -159,6 +178,17 @@ function parseGame(value: string): GameType {
       (g) =>
         g.toLowerCase() === value.toLowerCase() ||
         GAME_TYPE_LABELS[g].toLowerCase() === value.toLowerCase(),
+    ) ?? 'OTHER'
+  );
+}
+
+function parseTableGame(value: string): TableGameType {
+  if (value === '') return 'BLACKJACK'; // model default for non-table rows
+  return (
+    TABLE_GAMES.find(
+      (g) =>
+        g.toLowerCase() === value.toLowerCase() ||
+        TABLE_GAME_LABELS[g].toLowerCase() === value.toLowerCase(),
     ) ?? 'OTHER'
   );
 }

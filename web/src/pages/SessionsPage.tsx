@@ -5,7 +5,10 @@ import {
   SESSION_TYPE_LABELS,
   GAME_TYPES,
   GAME_TYPE_LABELS,
+  TABLE_GAMES,
+  TABLE_GAME_LABELS,
   GameType,
+  TableGameType,
   profit,
 } from '../models/types';
 import { DATE_RANGE_LABELS, DateRange } from '../domain/filter';
@@ -57,7 +60,17 @@ export default function SessionsPage() {
             type="button"
             className="chip"
             aria-pressed={filter.type === t}
-            onClick={() => app.setFilter({ ...filter, type: filter.type === t ? null : t })}
+            onClick={() => {
+              const next = filter.type === t ? null : t;
+              // The game dropdowns only apply to their own discipline —
+              // drop the one that no longer matches the selected type.
+              app.setFilter({
+                ...filter,
+                type: next,
+                game: next === 'TABLE' ? null : filter.game,
+                tableGame: next === 'TABLE' ? filter.tableGame : null,
+              });
+            }}
           >
             {SESSION_TYPE_LABELS[t]}
           </button>
@@ -106,20 +119,40 @@ export default function SessionsPage() {
       </div>
 
       <div className="row">
-        <label className="field grow">
-          <span>Game</span>
-          <select
-            value={filter.game ?? ''}
-            onChange={(e) =>
-              app.setFilter({ ...filter, game: (e.target.value || null) as GameType | null })
-            }
-          >
-            <option value="">Any game</option>
-            {GAME_TYPES.map((g) => (
-              <option key={g} value={g}>{GAME_TYPE_LABELS[g]}</option>
-            ))}
-          </select>
-        </label>
+        {filter.type === 'TABLE' ? (
+          <label className="field grow">
+            <span>Table game</span>
+            <select
+              value={filter.tableGame ?? ''}
+              onChange={(e) =>
+                app.setFilter({
+                  ...filter,
+                  tableGame: (e.target.value || null) as TableGameType | null,
+                })
+              }
+            >
+              <option value="">Any game</option>
+              {TABLE_GAMES.map((g) => (
+                <option key={g} value={g}>{TABLE_GAME_LABELS[g]}</option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label className="field grow">
+            <span>Game</span>
+            <select
+              value={filter.game ?? ''}
+              onChange={(e) =>
+                app.setFilter({ ...filter, game: (e.target.value || null) as GameType | null })
+              }
+            >
+              <option value="">Any game</option>
+              {GAME_TYPES.map((g) => (
+                <option key={g} value={g}>{GAME_TYPE_LABELS[g]}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="field grow">
           <span>Venue</span>
           <select
