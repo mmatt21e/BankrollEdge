@@ -113,3 +113,47 @@ describe('backup', () => {
     );
   });
 });
+
+describe('table game backup fields', () => {
+  it('round-trips table fields and rejects unknown table games', () => {
+    const backup = {
+      settings: { startingBankroll: 0, currency: 'USD', defaultSessionType: 'ALL' as const },
+      sessions: [
+        {
+          ...emptySession(1_700_000_123_456),
+          id: 1,
+          sessionType: 'TABLE' as const,
+          tableGame: 'BACCARAT' as const,
+          tableMinBet: 25,
+          tableMaxBet: 5000,
+          unitValue: 50,
+          unitsMin: 1,
+          unitsMax: 8,
+          buyIn: 500,
+          cashOut: 650,
+        },
+      ],
+      transactions: [],
+      handNotes: [],
+      homeGames: [],
+      structures: [],
+      events: [],
+    };
+    const restored = backupFromJson(backupToJson(backup, 1_700_000_000_000));
+    const s = restored.sessions[0];
+    expect(s.sessionType).toBe('TABLE');
+    expect(s.tableGame).toBe('BACCARAT');
+    expect(s.tableMinBet).toBe(25);
+    expect(s.tableMaxBet).toBe(5000);
+    expect(s.unitValue).toBe(50);
+    expect(s.unitsMin).toBe(1);
+    expect(s.unitsMax).toBe(8);
+    expect(profit(s)).toBeCloseTo(150, 9);
+
+    // An unknown table game name from a foreign/newer file falls back safely.
+    const tampered = JSON.parse(backupToJson(backup, 1_700_000_000_000));
+    tampered.sessions[0].tableGame = 'SIC_BO_FUTURE';
+    const reread = backupFromJson(JSON.stringify(tampered));
+    expect(reread.sessions[0].tableGame).toBe('BLACKJACK');
+  });
+});

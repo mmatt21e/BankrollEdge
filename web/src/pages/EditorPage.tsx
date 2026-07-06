@@ -9,6 +9,7 @@ import {
   Session,
   SessionType,
   GameType,
+  TableGameType,
   VenueType,
   SleepQuality,
   AlcoholLevel,
@@ -18,11 +19,13 @@ import {
   SESSION_TYPE_LABELS,
   GAME_TYPES,
   GAME_TYPE_LABELS,
+  TABLE_GAMES,
+  TABLE_GAME_LABELS,
   emptySession,
   isTournamentStyle,
   profit,
 } from '../models/types';
-import { signedMoney } from '../domain/format';
+import { money, signedMoney, signedUnits } from '../domain/format';
 import { ConfirmDialog, TopBar, profitClass } from '../components/common';
 
 interface FormState {
@@ -45,6 +48,14 @@ interface FormState {
   expenses: string;
   position: string;
   fieldSize: string;
+  tableGame: TableGameType;
+  tableMinBet: string;
+  tableMaxBet: string;
+  unitValue: string;
+  unitsMin: string;
+  unitsMax: string;
+  /** Whether the money fields are being entered in dollars or betting units. */
+  amountMode: 'MONEY' | 'UNITS';
   handsPlayed: string;
   tableSize: string;
   tagsText: string; // comma-separated
@@ -93,6 +104,13 @@ function fromSession(s: Session): FormState {
     expenses: numStr(s.expenses),
     position: s.position > 0 ? String(s.position) : '',
     fieldSize: s.fieldSize > 0 ? String(s.fieldSize) : '',
+    tableGame: s.tableGame,
+    tableMinBet: numStr(s.tableMinBet),
+    tableMaxBet: numStr(s.tableMaxBet),
+    unitValue: numStr(s.unitValue),
+    unitsMin: numStr(s.unitsMin),
+    unitsMax: numStr(s.unitsMax),
+    amountMode: 'MONEY',
     handsPlayed: s.handsPlayed > 0 ? String(s.handsPlayed) : '',
     tableSize: s.tableSize > 0 ? String(s.tableSize) : '',
     tagsText: s.tags.join(', '),
@@ -122,25 +140,37 @@ const i = (v: string) => {
 function toSession(form: FormState, id: number): Session {
   const [y, mo, d] = form.date.split('-').map(Number);
   const [h, mi] = form.time.split(':').map(Number);
+  const isTable = form.sessionType === 'TABLE';
+  const uv = f(form.unitValue);
+  // In units mode the buy-in/cash-out fields hold unit counts; storage is
+  // always in money so stats and the bankroll stay currency-based.
+  const inUnits = isTable && form.amountMode === 'UNITS' && uv > 0;
+  const amount = (v: string) => (inUnits ? f(v) * uv : f(v));
   return {
     id,
     sessionType: form.sessionType,
-    gameType: form.gameType,
+    gameType: isTable ? 'OTHER' : form.gameType,
     venueType: form.venueType,
     location: form.location.trim(),
     startTime: new Date(y, (mo || 1) - 1, d || 1, h || 0, mi || 0).getTime(),
     durationMinutes: i(form.hours) * 60 + i(form.minutes),
-    smallBlind: f(form.smallBlind),
-    bigBlind: f(form.bigBlind),
-    buyIn: f(form.buyIn),
-    rebuysAddons: f(form.rebuysAddons),
+    smallBlind: isTable ? 0 : f(form.smallBlind),
+    bigBlind: isTable ? 0 : f(form.bigBlind),
+    buyIn: amount(form.buyIn),
+    rebuysAddons: amount(form.rebuysAddons),
     addOns: f(form.addOns),
-    cashOut: f(form.cashOut),
+    cashOut: amount(form.cashOut),
     tips: f(form.tips),
     rake: f(form.rake),
     expenses: f(form.expenses),
     position: i(form.position),
     fieldSize: i(form.fieldSize),
+    tableGame: form.tableGame,
+    tableMinBet: f(form.tableMinBet),
+    tableMaxBet: f(form.tableMaxBet),
+    unitValue: uv,
+    unitsMin: f(form.unitsMin),
+    unitsMax: f(form.unitsMax),
     handsPlayed: i(form.handsPlayed),
     tableSize: i(form.tableSize),
     tags: form.tagsText.split(',').map((t) => t.trim()).filter(Boolean),
@@ -184,7 +214,30 @@ export default function EditorPage() {
 
   const set = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
   const isTournament = isTournamentStyle({ sessionType: form.sessionType } as Session);
+  const isTable = form.sessionType === 'TABLE';
+  const unitValue = f(form.unitValue);
+  const inUnits = isTable && form.amountMode === 'UNITS' && unitValue > 0;
   const preview = useMemo(() => profit(toSession(form, sessionId)), [form, sessionId]);
+
+  /** Swap the money fields between dollars and units, converting entered values. */
+  const switchAmountMode = (mode: FormState['amountMode']) => {
+    if (mode === form.amountMode || unitValue <= 0) {
+      set({ amountMode: mode });
+      return;
+    }
+    const convert = (v: string): string => {
+      const n = Number.parseFloat(v);
+      if (!Number.isFinite(n)) return v;
+      const out = mode === 'UNITS' ? n / unitValue : n * unitValue;
+      return String(Math.round(out * 100) / 100);
+    };
+    set({
+      amountMode: mode,
+      buyIn: convert(form.buyIn),
+      rebuysAddons: convert(form.rebuysAddons),
+      cashOut: convert(form.cashOut),
+    });
+  };
 
   /** "Repeat last session setup": copy game/venue/stakes from the newest session. */
   const repeatLast = () => {
@@ -201,6 +254,13 @@ export default function EditorPage() {
       tableSize: last.tableSize > 0 ? String(last.tableSize) : '',
       tagsText: last.tags.join(', '),
       currency: last.currency,
+      tableGame: last.tableGame,
+      tableMinBet: numStr(last.tableMinBet),
+      tableMaxBet: numStr(last.tableMaxBet),
+      unitValue: numStr(last.unitValue),
+      unitsMin: numStr(last.unitsMin),
+      unitsMax: numStr(last.unitsMax),
+      amountMode: 'MONEY',
     });
   };
 
@@ -307,17 +367,31 @@ export default function EditorPage() {
           ))}
         </div>
 
-        <label className="field">
-          <span>Game</span>
-          <select
-            value={form.gameType}
-            onChange={(e) => set({ gameType: e.target.value as GameType })}
-          >
-            {GAME_TYPES.map((g) => (
-              <option key={g} value={g}>{GAME_TYPE_LABELS[g]}</option>
-            ))}
-          </select>
-        </label>
+        {isTable ? (
+          <label className="field">
+            <span>Table game</span>
+            <select
+              value={form.tableGame}
+              onChange={(e) => set({ tableGame: e.target.value as TableGameType })}
+            >
+              {TABLE_GAMES.map((g) => (
+                <option key={g} value={g}>{TABLE_GAME_LABELS[g]}</option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label className="field">
+            <span>Game</span>
+            <select
+              value={form.gameType}
+              onChange={(e) => set({ gameType: e.target.value as GameType })}
+            >
+              {GAME_TYPES.map((g) => (
+                <option key={g} value={g}>{GAME_TYPE_LABELS[g]}</option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="field">
           <span>Venue / location</span>
@@ -340,17 +414,70 @@ export default function EditorPage() {
           {intField('Minutes', 'minutes')}
         </div>
 
-        {!isTournament && (
+        {!isTournament && !isTable && (
           <div className="row">
             {moneyField('Small blind', 'smallBlind')}
             {moneyField('Big blind', 'bigBlind')}
           </div>
         )}
 
-        {moneyField(isTournament ? 'Buy-in (entry + fee)' : 'Buy-in (total)', 'buyIn')}
-        {moneyField(isTournament ? 'Rebuys / re-entries' : 'Additional buy-ins', 'rebuysAddons')}
+        {isTable && (
+          <>
+            <div className="row">
+              {moneyField('Table min bet', 'tableMinBet')}
+              {moneyField('Table max bet', 'tableMaxBet')}
+            </div>
+
+            <details className="card" open={unitValue > 0 || undefined}>
+              <summary>Unit sizing (bet in units instead of dollars)</summary>
+              <div className="col" style={{ marginTop: 10 }}>
+                {moneyField('Unit value (what 1 unit is worth)', 'unitValue')}
+                <div className="row">
+                  {moneyField('Min bet (units)', 'unitsMin')}
+                  {moneyField('Max bet (units)', 'unitsMax')}
+                </div>
+                {unitValue > 0 && (f(form.unitsMin) > 0 || f(form.unitsMax) > 0) && (
+                  <p className="muted small" style={{ margin: 0 }}>
+                    1 unit = {money(unitValue, form.currency)} • your spread:{' '}
+                    {money(f(form.unitsMin) * unitValue, form.currency)} –{' '}
+                    {money(f(form.unitsMax) * unitValue, form.currency)}
+                  </p>
+                )}
+              </div>
+            </details>
+
+            {unitValue > 0 && (
+              <div className="segmented" role="group" aria-label="Enter amounts in dollars or units">
+                {(['MONEY', 'UNITS'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={form.amountMode === m}
+                    onClick={() => switchAmountMode(m)}
+                  >
+                    {m === 'MONEY' ? 'Dollars' : 'Units'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {moneyField(
+          isTournament ? 'Buy-in (entry + fee)' : inUnits ? 'Buy-in (units)' : 'Buy-in (total)',
+          'buyIn',
+        )}
+        {moneyField(
+          isTournament ? 'Rebuys / re-entries'
+            : inUnits ? 'Additional buy-ins (units)'
+            : 'Additional buy-ins',
+          'rebuysAddons',
+        )}
         {isTournament && moneyField('Add-ons', 'addOns')}
-        {moneyField(isTournament ? 'Prize won' : 'Cash out', 'cashOut')}
+        {moneyField(
+          isTournament ? 'Prize won' : inUnits ? 'Cash out (units)' : 'Cash out',
+          'cashOut',
+        )}
 
         {isTournament && (
           <div className="row">
@@ -444,7 +571,7 @@ export default function EditorPage() {
           <textarea rows={2} value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
         </label>
 
-        {isEditing && (
+        {isEditing && !isTable && (
           <Link to={`/tools/hands?session=${sessionId}`} className="muted">
             ✎ Add a hand note for this session →
           </Link>
@@ -452,8 +579,13 @@ export default function EditorPage() {
 
         <div className="card row-between">
           <h2>Net result</h2>
-          <span className={`money ${profitClass(preview)}`} style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-            {signedMoney(preview, form.currency)}
+          <span className="col" style={{ gap: 2, alignItems: 'flex-end' }}>
+            <span className={`money ${profitClass(preview)}`} style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+              {signedMoney(preview, form.currency)}
+            </span>
+            {isTable && unitValue > 0 && (
+              <span className="muted small">{signedUnits(preview / unitValue)} units</span>
+            )}
           </span>
         </div>
 

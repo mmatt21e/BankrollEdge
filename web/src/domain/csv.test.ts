@@ -105,3 +105,42 @@ describe('parseCsv', () => {
     expect(() => parseCsv('Foo,Bar\n1,2')).toThrow(/Date/);
   });
 });
+
+describe('table game sessions', () => {
+  it('round-trips table game, bet range and unit sizing through CSV', () => {
+    const csv = buildCsv([
+      {
+        ...emptySession(T0),
+        sessionType: 'TABLE',
+        tableGame: 'CRAPS',
+        tableMinBet: 10,
+        tableMaxBet: 1000,
+        unitValue: 25,
+        unitsMin: 1,
+        unitsMax: 4,
+        buyIn: 300,
+        cashOut: 450,
+        location: 'Bellagio',
+      },
+    ]);
+    const result = parseCsv(csv);
+    expect(result.skippedRows).toBe(0);
+    const s = result.sessions[0];
+    expect(s.sessionType).toBe('TABLE');
+    expect(s.tableGame).toBe('CRAPS');
+    expect(s.tableMinBet).toBe(10);
+    expect(s.tableMaxBet).toBe(1000);
+    expect(s.unitValue).toBe(25);
+    expect(s.unitsMin).toBe(1);
+    expect(s.unitsMax).toBe(4);
+    expect(profit(s)).toBeCloseTo(150, 9);
+  });
+
+  it('leaves the TableGame column empty for poker sessions', () => {
+    const csv = buildCsv([{ ...emptySession(T0), buyIn: 100, cashOut: 200 }]);
+    const lines = csv.trim().split('\n');
+    const header = lines[0].split(',');
+    const row = lines[1].split(',');
+    expect(row[header.indexOf('TableGame')]).toBe('');
+  });
+});

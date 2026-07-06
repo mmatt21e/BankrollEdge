@@ -2,7 +2,7 @@
 // are optional in old data and normalized to defaults on load, so existing
 // user data (and Android-app backups) remain fully compatible.
 
-export type SessionType = 'CASH' | 'TOURNAMENT' | 'SNG' | 'HOME' | 'OTHER';
+export type SessionType = 'CASH' | 'TOURNAMENT' | 'SNG' | 'HOME' | 'TABLE' | 'OTHER';
 export type GameType = 'NLH' | 'PLO' | 'PLO5' | 'LHE' | 'MIXED' | 'STUD' | 'OTHER';
 export type VenueType = 'LIVE' | 'ONLINE';
 
@@ -11,8 +11,39 @@ export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   TOURNAMENT: 'Tournament',
   SNG: 'Sit & Go',
   HOME: 'Home Game',
+  TABLE: 'Table Game',
   OTHER: 'Other',
 };
+
+/** Casino table/pit games tracked against the same bankroll as poker. */
+export type TableGameType =
+  | 'BLACKJACK'
+  | 'CRAPS'
+  | 'ROULETTE'
+  | 'BACCARAT'
+  | 'PAI_GOW'
+  | 'THREE_CARD'
+  | 'ULTIMATE_TH'
+  | 'LET_IT_RIDE'
+  | 'VIDEO_POKER'
+  | 'SLOTS'
+  | 'OTHER';
+
+export const TABLE_GAME_LABELS: Record<TableGameType, string> = {
+  BLACKJACK: 'Blackjack',
+  CRAPS: 'Craps',
+  ROULETTE: 'Roulette',
+  BACCARAT: 'Baccarat',
+  PAI_GOW: 'Pai Gow',
+  THREE_CARD: 'Three Card Poker',
+  ULTIMATE_TH: "Ultimate Texas Hold'em",
+  LET_IT_RIDE: 'Let It Ride',
+  VIDEO_POKER: 'Video Poker',
+  SLOTS: 'Slots',
+  OTHER: 'Other',
+};
+
+export const TABLE_GAMES = Object.keys(TABLE_GAME_LABELS) as TableGameType[];
 
 export const GAME_TYPE_LABELS: Record<GameType, string> = {
   NLH: "No-Limit Hold'em",
@@ -69,6 +100,21 @@ export interface Session {
   expenses: number;
   position: number; // tournament finish (0 = unset)
   fieldSize: number; // tournament entrants (0 = unknown)
+
+  // Table-game fields (only meaningful when sessionType === 'TABLE').
+  /** Which pit game was played. */
+  tableGame: TableGameType;
+  /** Posted table minimum bet (0 = not recorded). */
+  tableMinBet: number;
+  /** Posted table maximum bet (0 = not recorded). */
+  tableMaxBet: number;
+  /** What one betting unit is worth in money (0 = not using units). */
+  unitValue: number;
+  /** Player's minimum bet in units (0 = not recorded). */
+  unitsMin: number;
+  /** Player's maximum bet in units (0 = not recorded). */
+  unitsMax: number;
+
   handsPlayed: number; // 0 = not recorded
   tableSize: number; // 0 = not recorded
   tags: string[];
@@ -129,6 +175,12 @@ export function emptySession(now: number): Session {
     expenses: 0,
     position: 0,
     fieldSize: 0,
+    tableGame: 'BLACKJACK',
+    tableMinBet: 0,
+    tableMaxBet: 0,
+    unitValue: 0,
+    unitsMin: 0,
+    unitsMax: 0,
     handsPlayed: 0,
     tableSize: 0,
     tags: [],
@@ -165,12 +217,27 @@ export const profit = (s: Session): number =>
 export const isTournamentStyle = (s: Session): boolean =>
   s.sessionType === 'TOURNAMENT' || s.sessionType === 'SNG';
 
+/** Casino table-game sessions (blackjack, craps, …). */
+export const isTableSession = (s: Session): boolean => s.sessionType === 'TABLE';
+
 export const cashed = (s: Session): boolean => s.cashOut > 0;
 
 export function stakesLabel(s: Session): string {
-  if (isTournamentStyle(s) || s.bigBlind <= 0) return '';
+  if (isTournamentStyle(s) || isTableSession(s) || s.bigBlind <= 0) return '';
   return `${s.smallBlind}/${s.bigBlind}`;
 }
+
+/** Table bet range, e.g. "10–1000", "10+", "up to 1000" ('' = not recorded). */
+export function tableStakesLabel(s: Session): string {
+  if (s.tableMinBet > 0 && s.tableMaxBet > 0) return `${s.tableMinBet}–${s.tableMaxBet}`;
+  if (s.tableMinBet > 0) return `${s.tableMinBet}+`;
+  if (s.tableMaxBet > 0) return `up to ${s.tableMaxBet}`;
+  return '';
+}
+
+/** Convert a money amount into betting units (0 when units aren't set up). */
+export const toUnits = (amount: number, unitValue: number): number =>
+  unitValue > 0 ? amount / unitValue : 0;
 
 export const signedAmount = (t: Transaction): number =>
   t.type === 'DEPOSIT' ? t.amount : -t.amount;

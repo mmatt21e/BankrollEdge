@@ -3,9 +3,13 @@ import {
   Session,
   SessionType,
   GameType,
+  TableGameType,
   VenueType,
   GAME_TYPE_LABELS,
+  TABLE_GAME_LABELS,
+  isTableSession,
   stakesLabel,
+  tableStakesLabel,
 } from '../models/types';
 
 export type DateRange = 'ALL' | 'THIS_MONTH' | 'LAST_30' | 'THIS_YEAR';
@@ -20,6 +24,8 @@ export const DATE_RANGE_LABELS: Record<DateRange, string> = {
 export interface SessionFilter {
   type: SessionType | null;
   game: GameType | null;
+  /** Only applies to table-game sessions. */
+  tableGame: TableGameType | null;
   venueType: VenueType | null;
   location: string | null;
   tag: string | null;
@@ -31,6 +37,7 @@ export interface SessionFilter {
 export const EMPTY_FILTER: SessionFilter = {
   type: null,
   game: null,
+  tableGame: null,
   venueType: null,
   location: null,
   tag: null,
@@ -39,8 +46,8 @@ export const EMPTY_FILTER: SessionFilter = {
 };
 
 export const isFilterActive = (f: SessionFilter): boolean =>
-  f.type !== null || f.game !== null || f.venueType !== null ||
-  f.location !== null || f.tag !== null ||
+  f.type !== null || f.game !== null || f.tableGame !== null ||
+  f.venueType !== null || f.location !== null || f.tag !== null ||
   f.range !== 'ALL' || f.query.trim() !== '';
 
 function rangeStart(range: DateRange, now: number): number | null {
@@ -59,11 +66,15 @@ function rangeStart(range: DateRange, now: number): number | null {
 
 function matches(s: Session, q: string): boolean {
   const needle = q.toLowerCase();
+  const gameLabel = isTableSession(s)
+    ? TABLE_GAME_LABELS[s.tableGame]
+    : GAME_TYPE_LABELS[s.gameType];
+  const stakes = isTableSession(s) ? tableStakesLabel(s) : stakesLabel(s);
   return (
     s.location.toLowerCase().includes(needle) ||
     s.notes.toLowerCase().includes(needle) ||
-    GAME_TYPE_LABELS[s.gameType].toLowerCase().includes(needle) ||
-    stakesLabel(s).toLowerCase().includes(needle) ||
+    gameLabel.toLowerCase().includes(needle) ||
+    stakes.toLowerCase().includes(needle) ||
     s.tags.some((t) => t.toLowerCase().includes(needle))
   );
 }
@@ -78,7 +89,8 @@ export function applyFilter(
   return sessions.filter(
     (s) =>
       (filter.type === null || s.sessionType === filter.type) &&
-      (filter.game === null || s.gameType === filter.game) &&
+      (filter.game === null || (!isTableSession(s) && s.gameType === filter.game)) &&
+      (filter.tableGame === null || (isTableSession(s) && s.tableGame === filter.tableGame)) &&
       (filter.venueType === null || s.venueType === filter.venueType) &&
       (filter.location === null || s.location === filter.location) &&
       (filter.tag === null || s.tags.includes(filter.tag)) &&

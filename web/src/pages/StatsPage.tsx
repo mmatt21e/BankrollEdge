@@ -95,7 +95,7 @@ export default function StatsPage() {
 
       <VarianceCard stats={stats} currency={currency} />
 
-      <SectionCard title="Cash vs tournaments">
+      <SectionCard title={stats.tableCount > 0 ? 'Poker vs table games' : 'Cash vs tournaments'}>
         <div className="row" style={{ alignItems: 'flex-start' }}>
           <div className="grow">
             <div className="overline">Cash games</div>
@@ -113,6 +113,15 @@ export default function StatsPage() {
               {stats.tournamentCount} played • {percent(itmRate(stats))} ITM
             </div>
           </div>
+          {stats.tableCount > 0 && (
+            <div className="grow">
+              <div className="overline">Table games</div>
+              <div className={`value money ${profitClass(stats.tableProfit)}`} style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                {signedMoney(stats.tableProfit, currency)}
+              </div>
+              <div className="muted small">{stats.tableCount} sessions</div>
+            </div>
+          )}
         </div>
       </SectionCard>
 

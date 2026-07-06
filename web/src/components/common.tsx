@@ -5,8 +5,11 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Session,
   GAME_TYPE_LABELS,
+  TABLE_GAME_LABELS,
+  isTableSession,
   profit,
   stakesLabel,
+  tableStakesLabel,
 } from '../models/types';
 import { GroupStat, groupHourlyRate } from '../domain/stats';
 import { signedMoney, perHour, formatDate, duration } from '../domain/format';
@@ -35,12 +38,19 @@ export function StatTileGrid({ tiles }: { tiles: Tile[] }) {
 export function SessionRow({ session }: { session: Session }) {
   const navigate = useNavigate();
   const p = profit(session);
-  const stakes = stakesLabel(session);
-  const game = GAME_TYPE_LABELS[session.gameType];
-  const title =
-    session.sessionType === 'CASH'
-      ? stakes ? `${stakes} ${game}` : game
-      : `${game} Tournament`;
+  let title: string;
+  if (isTableSession(session)) {
+    const range = tableStakesLabel(session);
+    const game = TABLE_GAME_LABELS[session.tableGame];
+    title = range ? `${game} ${range}` : game;
+  } else {
+    const stakes = stakesLabel(session);
+    const game = GAME_TYPE_LABELS[session.gameType];
+    title =
+      session.sessionType === 'CASH'
+        ? stakes ? `${stakes} ${game}` : game
+        : `${game} Tournament`;
+  }
   return (
     <button
       type="button"
