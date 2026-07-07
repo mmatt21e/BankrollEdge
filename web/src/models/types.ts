@@ -487,3 +487,32 @@ export interface HandNote {
   notes: string;
   reviewLater: boolean;
 }
+
+/** A saved venue the user can pick when logging a session. The session still
+ *  stores its venue as a plain `location` string, so this list is only a
+ *  managed pick-list — existing data and backups stay unchanged. */
+export interface Venue {
+  id: number;
+  name: string;
+}
+
+/** A saved stakes preset. `kind` selects which session fields it fills:
+ *  POKER → small/big blind; TABLE → table-game min/max bet. As with venues the
+ *  session keeps storing the raw numbers, so presets are purely a pick-list. */
+export interface StakePreset {
+  id: number;
+  kind: 'POKER' | 'TABLE';
+  smallBlind: number; // POKER
+  bigBlind: number; // POKER
+  minBet: number; // TABLE
+  maxBet: number; // TABLE
+}
+
+/** Display label for a stakes preset, matching stakesLabel / tableStakesLabel. */
+export function stakePresetLabel(s: StakePreset): string {
+  if (s.kind === 'POKER') return `${s.smallBlind}/${s.bigBlind}`;
+  if (s.minBet > 0 && s.maxBet > 0) return `${s.minBet}–${s.maxBet}`;
+  if (s.minBet > 0) return `${s.minBet}+`;
+  if (s.maxBet > 0) return `up to ${s.maxBet}`;
+  return '—';
+}

@@ -69,6 +69,11 @@ describe('backup', () => {
       ],
       structures: [],
       events: [],
+      venues: [{ id: 5, name: 'Bellagio' }],
+      stakes: [
+        { id: 1, kind: 'POKER' as const, smallBlind: 1, bigBlind: 2, minBet: 0, maxBet: 0 },
+        { id: 2, kind: 'TABLE' as const, smallBlind: 0, bigBlind: 0, minBet: 25, maxBet: 5000 },
+      ],
       bets: [
         {
           ...emptyBet(1_700_000_222_000),
@@ -107,6 +112,14 @@ describe('backup', () => {
     expect(restored.handNotes[0].reviewLater).toBe(true);
     expect(restored.homeGames[0].players[0].paymentMethod).toBe('VENMO');
 
+    // Saved venues and stakes presets round-trip (ids re-assigned on restore).
+    expect(restored.venues).toHaveLength(1);
+    expect(restored.venues[0].name).toBe('Bellagio');
+    expect(restored.venues[0].id).toBe(0);
+    expect(restored.stakes).toHaveLength(2);
+    expect(restored.stakes.find((s) => s.kind === 'POKER')?.bigBlind).toBe(2);
+    expect(restored.stakes.find((s) => s.kind === 'TABLE')?.maxBet).toBe(5000);
+
     expect(restored.bets).toHaveLength(1);
     expect(restored.bets[0].id).toBe(0);
     expect(restored.bets[0].pick).toBe('Chiefs -3.5');
@@ -127,6 +140,8 @@ describe('backup', () => {
     expect(restored.homeGames).toEqual([]);
     expect(restored.structures).toEqual([]);
     expect(restored.events).toEqual([]);
+    expect(restored.venues).toEqual([]);
+    expect(restored.stakes).toEqual([]);
     expect(restored.bets).toEqual([]);
     expect(restored.settings.betUnitValue).toBe(0);
     expect(restored.settings.oddsFormat).toBe('AMERICAN');
@@ -170,6 +185,8 @@ describe('table game backup fields', () => {
       homeGames: [],
       structures: [],
       events: [],
+      venues: [],
+      stakes: [],
     };
     const restored = backupFromJson(backupToJson(backup, 1_700_000_000_000));
     const s = restored.sessions[0];

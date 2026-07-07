@@ -32,7 +32,9 @@ import {
   handNoteStore,
   homeGameStore,
   requestPersistence,
+  stakeStore,
   structureStore,
+  venueStore,
 } from '../storage/db';
 import {
   loadSettings,
@@ -213,11 +215,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       homeGameStore.clear(),
       structureStore.clear(),
       eventStore.clear(),
+      venueStore.clear(),
+      stakeStore.clear(),
     ]);
     for (const n of backup.handNotes) await handNoteStore.save(n);
     for (const g of backup.homeGames) await homeGameStore.save(g);
     for (const st of backup.structures) await structureStore.save(st);
     for (const ev of backup.events) await eventStore.save(ev);
+    for (const v of backup.venues) await venueStore.save(v);
+    for (const st of backup.stakes) await stakeStore.save(st);
     const restoredSessions: Session[] = [];
     for (const s of backup.sessions) {
       const id = await db.saveSession({ ...s, id: 0 });

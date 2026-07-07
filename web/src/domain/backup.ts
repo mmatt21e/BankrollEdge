@@ -10,6 +10,8 @@ import {
   CalendarEvent,
   HandNote,
   HomeGame,
+  StakePreset,
+  Venue,
   emptySession,
   normalizeSession,
   normalizeBet,
@@ -19,10 +21,10 @@ import {
 } from '../models/types';
 
 // v2 adds optional session fields plus the tool collections; v3 adds sports
-// bets and betting settings. Older readers (including the Android app)
-// ignore unknown keys, and this reader treats missing collections as empty —
-// both directions stay compatible.
-export const FORMAT_VERSION = 3;
+// bets and betting settings; v4 adds the saved venue and stakes pick-lists.
+// Older readers (including the Android app) ignore unknown keys, and this
+// reader treats missing collections as empty — both directions stay compatible.
+export const FORMAT_VERSION = 4;
 
 export interface Backup {
   settings: AppSettings;
@@ -33,6 +35,8 @@ export interface Backup {
   homeGames: HomeGame[];
   structures: BlindStructure[];
   events: CalendarEvent[];
+  venues: Venue[];
+  stakes: StakePreset[];
 }
 
 export function backupToJson(backup: Backup, exportedAt: number): string {
@@ -55,6 +59,8 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
       homeGames: backup.homeGames.map(({ id: _id, ...rest }) => rest),
       structures: backup.structures.map(({ id: _id, ...rest }) => rest),
       events: backup.events.map(({ id: _id, ...rest }) => rest),
+      venues: backup.venues.map(({ id: _id, ...rest }) => rest),
+      stakes: backup.stakes.map(({ id: _id, ...rest }) => rest),
     },
     null,
     2,
@@ -169,5 +175,7 @@ export function backupFromJson(json: string): Backup {
     homeGames: collection<HomeGame>('homeGames'),
     structures: collection<BlindStructure>('structures'),
     events: collection<CalendarEvent>('events'),
+    venues: collection<Venue>('venues'),
+    stakes: collection<StakePreset>('stakes'),
   };
 }

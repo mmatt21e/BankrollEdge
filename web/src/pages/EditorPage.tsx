@@ -4,7 +4,7 @@
 // on save so partial input never crashes.
 import { FormEvent, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useAppState } from '../hooks/useAppState';
+import { useAppState, useStoreList } from '../hooks/useAppState';
 import {
   Session,
   SessionType,
@@ -26,7 +26,9 @@ import {
   profit,
 } from '../models/types';
 import { money, signedMoney, signedUnits } from '../domain/format';
+import { stakeStore, venueStore } from '../storage/db';
 import { ConfirmDialog, TopBar, profitClass } from '../components/common';
+import { StakesPicker, VenuePicker } from '../components/pickers';
 
 interface FormState {
   sessionType: SessionType;
@@ -197,6 +199,15 @@ export default function EditorPage() {
   const sessionId = id ? Number(id) : 0;
   const existing = sessionId > 0 ? app.getSession(sessionId) : undefined;
   const isEditing = !!existing;
+
+  const venueList = useStoreList(venueStore);
+  const stakeList = useStoreList(stakeStore);
+  const pokerPresets = stakeList.items
+    .filter((s) => s.kind === 'POKER')
+    .sort((a, b) => a.smallBlind - b.smallBlind || a.bigBlind - b.bigBlind);
+  const tablePresets = stakeList.items
+    .filter((s) => s.kind === 'TABLE')
+    .sort((a, b) => a.minBet - b.minBet || a.maxBet - b.maxBet);
 
   const [form, setForm] = useState<FormState>(() => {
     if (existing) return fromSession(existing);
@@ -395,7 +406,14 @@ export default function EditorPage() {
 
         <label className="field">
           <span>Venue / location</span>
-          <input type="text" value={form.location} onChange={(e) => set({ location: e.target.value })} />
+          <VenuePicker
+            value={form.location}
+            venues={venueList.items}
+            onSelect={(name) => set({ location: name })}
+            onCreate={async (name) => {
+              await venueList.save({ id: 0, name });
+            }}
+          />
         </label>
 
         <div className="row">
@@ -415,14 +433,42 @@ export default function EditorPage() {
         </div>
 
         {!isTournament && !isTable && (
-          <div className="row">
-            {moneyField('Small blind', 'smallBlind')}
-            {moneyField('Big blind', 'bigBlind')}
-          </div>
+          <>
+            <label className="field">
+              <span>Stakes (blinds)</span>
+              <StakesPicker
+                kind="POKER"
+                a={f(form.smallBlind)}
+                b={f(form.bigBlind)}
+                presets={pokerPresets}
+                onSelect={(a, b) => set({ smallBlind: numStr(a), bigBlind: numStr(b) })}
+                onCreate={async (a, b) => {
+                  await stakeList.save({ id: 0, kind: 'POKER', smallBlind: a, bigBlind: b, minBet: 0, maxBet: 0 });
+                }}
+              />
+            </label>
+            <div className="row">
+              {moneyField('Small blind', 'smallBlind')}
+              {moneyField('Big blind', 'bigBlind')}
+            </div>
+          </>
         )}
 
         {isTable && (
           <>
+            <label className="field">
+              <span>Table stakes (min / max bet)</span>
+              <StakesPicker
+                kind="TABLE"
+                a={f(form.tableMinBet)}
+                b={f(form.tableMaxBet)}
+                presets={tablePresets}
+                onSelect={(a, b) => set({ tableMinBet: numStr(a), tableMaxBet: numStr(b) })}
+                onCreate={async (a, b) => {
+                  await stakeList.save({ id: 0, kind: 'TABLE', smallBlind: 0, bigBlind: 0, minBet: a, maxBet: b });
+                }}
+              />
+            </label>
             <div className="row">
               {moneyField('Table min bet', 'tableMinBet')}
               {moneyField('Table max bet', 'tableMaxBet')}

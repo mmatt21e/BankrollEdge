@@ -9,11 +9,15 @@ import {
   HomeGame,
   Session,
   SportsBet,
+  StakePreset,
   Transaction,
+  Venue,
 } from '../models/types';
 
 const DB_NAME = 'bankrolledge';
-const DB_VERSION = 3;
+// v4 adds the saved-venue and stakes-preset pick-lists; existing stores are
+// left untouched by the upgrade.
+const DB_VERSION = 4;
 
 const ALL_STORES = [
   'sessions',
@@ -23,6 +27,8 @@ const ALL_STORES = [
   'structures',
   'events',
   'bets',
+  'venues',
+  'stakes',
 ] as const;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -91,6 +97,8 @@ export const homeGameStore = makeStore<HomeGame>('homeGames');
 export const structureStore = makeStore<BlindStructure>('structures');
 export const eventStore = makeStore<CalendarEvent>('events');
 export const betStore = makeStore<SportsBet>('bets');
+export const venueStore = makeStore<Venue>('venues');
+export const stakeStore = makeStore<StakePreset>('stakes');
 
 // Back-compat facade used by useAppState.
 export const db = {

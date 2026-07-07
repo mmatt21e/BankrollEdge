@@ -1,8 +1,8 @@
 // Port of Android SettingsScreen: starting bankroll, currency, default view,
 // CSV export/import, JSON backup/restore, about.
 import { ChangeEvent, useRef, useState } from 'react';
-import { useAppState } from '../hooks/useAppState';
-import { SessionType } from '../models/types';
+import { useAppState, useStoreList } from '../hooks/useAppState';
+import { SessionType, stakePresetLabel } from '../models/types';
 import { buildCsv, parseCsv } from '../domain/csv';
 import { backupToJson, backupFromJson } from '../domain/backup';
 import { exportFile, readFileAsText } from '../services/files';
@@ -11,7 +11,9 @@ import {
   eventStore,
   handNoteStore,
   homeGameStore,
+  stakeStore,
   structureStore,
+  venueStore,
 } from '../storage/db';
 import {
   hasPin,
@@ -201,6 +203,8 @@ export default function SettingsPage() {
         </div>
       </SectionCard>
 
+      <VenuesStakesCard />
+
       <SectionCard title="CSV export & import">
         <p className="muted" style={{ margin: 0 }}>
           Export all {app.sessions.length} sessions to a spreadsheet-friendly CSV, or import
@@ -241,12 +245,15 @@ export default function SettingsPage() {
             className="btn btn-outline"
             onClick={async () => {
               // Gather the tool collections so the backup covers everything.
-              const [handNotes, homeGames, structures, events] = await Promise.all([
-                handNoteStore.list(),
-                homeGameStore.list(),
-                structureStore.list(),
-                eventStore.list(),
-              ]);
+              const [handNotes, homeGames, structures, events, venues, stakes] =
+                await Promise.all([
+                  handNoteStore.list(),
+                  homeGameStore.list(),
+                  structureStore.list(),
+                  eventStore.list(),
+                  venueStore.list(),
+                  stakeStore.list(),
+                ]);
               await exportFile(
                 'bankrolledge_backup.json',
                 backupToJson(
@@ -259,6 +266,8 @@ export default function SettingsPage() {
                     homeGames,
                     structures,
                     events,
+                    venues,
+                    stakes,
                   },
                   Date.now(),
                 ),
@@ -289,7 +298,7 @@ export default function SettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.8.1 — works fully offline; all data stays on this device. Install it from your
+          1.9.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>
@@ -312,6 +321,182 @@ export default function SettingsPage() {
         onCancel={() => setPendingBackup(null)}
       />
     </main>
+  );
+}
+
+function VenuesStakesCard() {
+  const venues = useStoreList(venueStore);
+  const stakes = useStoreList(stakeStore);
+  const poker = stakes.items
+    .filter((s) => s.kind === 'POKER')
+    .sort((a, b) => a.smallBlind - b.smallBlind || a.bigBlind - b.bigBlind);
+  const table = stakes.items
+    .filter((s) => s.kind === 'TABLE')
+    .sort((a, b) => a.minBet - b.minBet || a.maxBet - b.maxBet);
+  const sortedVenues = [...venues.items].sort((a, b) => a.name.localeCompare(b.name));
+
+  const [venueName, setVenueName] = useState('');
+  const [pkSb, setPkSb] = useState('');
+  const [pkBb, setPkBb] = useState('');
+  const [tbMin, setTbMin] = useState('');
+  const [tbMax, setTbMax] = useState('');
+  const dec = (v: string) => v.replace(/[^0-9.]/g, '');
+
+  const addVenue = async () => {
+    const n = venueName.trim();
+    if (!n) return;
+    if (!venues.items.some((v) => v.name.toLowerCase() === n.toLowerCase())) {
+      await venues.save({ id: 0, name: n });
+    }
+    setVenueName('');
+  };
+  const addPoker = async () => {
+    const a = Number.parseFloat(pkSb) || 0;
+    const b = Number.parseFloat(pkBb) || 0;
+    if (a <= 0 && b <= 0) return;
+    await stakes.save({ id: 0, kind: 'POKER', smallBlind: a, bigBlind: b, minBet: 0, maxBet: 0 });
+    setPkSb('');
+    setPkBb('');
+  };
+  const addTable = async () => {
+    const a = Number.parseFloat(tbMin) || 0;
+    const b = Number.parseFloat(tbMax) || 0;
+    if (a <= 0 && b <= 0) return;
+    await stakes.save({ id: 0, kind: 'TABLE', smallBlind: 0, bigBlind: 0, minBet: a, maxBet: b });
+    setTbMin('');
+    setTbMax('');
+  };
+
+  return (
+    <SectionCard title="Venues & stakes">
+      <p className="muted" style={{ margin: 0 }}>
+        Saved here, these appear as dropdown choices when you log a session — pick one instead of
+        retyping it. You can also add new ones straight from the session screen.
+      </p>
+
+      <div className="col" style={{ gap: 8 }}>
+        <span className="overline">Venues</span>
+        {sortedVenues.length === 0 && (
+          <p className="muted small" style={{ margin: 0 }}>No saved venues yet.</p>
+        )}
+        {sortedVenues.map((v) => (
+          <div className="row" key={v.id}>
+            <label className="field grow">
+              <input
+                type="text"
+                defaultValue={v.name}
+                onBlur={(e) => {
+                  const n = e.target.value.trim();
+                  if (n && n !== v.name) venues.save({ ...v, name: n });
+                }}
+              />
+            </label>
+            <button
+              type="button"
+              className="back"
+              aria-label={`Delete ${v.name}`}
+              onClick={() => venues.remove(v.id)}
+            >
+              🗑
+            </button>
+          </div>
+        ))}
+        <div className="row">
+          <label className="field grow">
+            <input
+              type="text"
+              placeholder="Add a venue"
+              value={venueName}
+              onChange={(e) => setVenueName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addVenue())}
+            />
+          </label>
+          <button type="button" className="btn" onClick={addVenue}>Add</button>
+        </div>
+      </div>
+
+      <div className="col" style={{ gap: 8 }}>
+        <span className="overline">Cash game stakes</span>
+        {poker.length === 0 && (
+          <p className="muted small" style={{ margin: 0 }}>No saved blinds yet.</p>
+        )}
+        {poker.map((p) => (
+          <div className="row-between" key={p.id}>
+            <span>{stakePresetLabel(p)}</span>
+            <button
+              type="button"
+              className="back"
+              aria-label={`Delete ${stakePresetLabel(p)}`}
+              onClick={() => stakes.remove(p.id)}
+            >
+              🗑
+            </button>
+          </div>
+        ))}
+        <div className="row">
+          <label className="field grow">
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Small blind"
+              value={pkSb}
+              onChange={(e) => setPkSb(dec(e.target.value))}
+            />
+          </label>
+          <label className="field grow">
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Big blind"
+              value={pkBb}
+              onChange={(e) => setPkBb(dec(e.target.value))}
+            />
+          </label>
+          <button type="button" className="btn" onClick={addPoker}>Add</button>
+        </div>
+      </div>
+
+      <div className="col" style={{ gap: 8 }}>
+        <span className="overline">Table game stakes</span>
+        {table.length === 0 && (
+          <p className="muted small" style={{ margin: 0 }}>No saved table stakes yet.</p>
+        )}
+        {table.map((p) => (
+          <div className="row-between" key={p.id}>
+            <span>{stakePresetLabel(p)}</span>
+            <button
+              type="button"
+              className="back"
+              aria-label={`Delete ${stakePresetLabel(p)}`}
+              onClick={() => stakes.remove(p.id)}
+            >
+              🗑
+            </button>
+          </div>
+        ))}
+        <div className="row">
+          <label className="field grow">
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Min bet"
+              value={tbMin}
+              onChange={(e) => setTbMin(dec(e.target.value))}
+            />
+          </label>
+          <label className="field grow">
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="Max bet"
+              value={tbMax}
+              onChange={(e) => setTbMax(dec(e.target.value))}
+            />
+          </label>
+          <button type="button" className="btn" onClick={addTable}>Add</button>
+        </div>
+      </div>
+    </SectionCard>
   );
 }
 
