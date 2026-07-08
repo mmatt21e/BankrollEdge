@@ -17,7 +17,7 @@ on your device in IndexedDB/localStorage — no server, no account).
 - Analytics: plain-English insight cards (best hourly spot, tournament ROI,
   after-midnight performance, losing streaks, live-vs-online, focus and game
   quality), new breakdowns and filters (live/online, tags, session type).
-- Tools tab: tournament blind clock (templates, breaks, alerts, full-screen),
+- Tools (in the More tab): tournament blind clock (templates, breaks, alerts, full-screen),
   home-game ledger with settlement + suggested payments + seat draw, payout
   calculator (templates + pool-conserving rounding), deal/chop calculator
   (ICM, chip chop or even split of the remaining pool), my stack value (chip

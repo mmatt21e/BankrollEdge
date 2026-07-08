@@ -1,5 +1,7 @@
-// Port of Android StatsScreen: range chips, stat tiles, bankroll health,
-// monthly + hourly charts, variance card with histogram, breakdowns.
+// Statistics, split into two sub-views so nothing is a mile-long scroll:
+// Overview (headline tiles, health, charts, variance) and Breakdowns
+// (profit grouped by every dimension). A date-range chip row applies to both.
+import { useState } from 'react';
 import { useAppState } from '../hooks/useAppState';
 import { DATE_RANGE_LABELS, DateRange } from '../domain/filter';
 import {
@@ -28,15 +30,29 @@ export default function StatsPage() {
   const stats = app.filteredStats;
   const currency = app.settings.currency;
   const { filter } = app;
-
-  const streakLabel =
-    stats.currentStreak > 0 ? `${stats.currentStreak} wins`
-    : stats.currentStreak < 0 ? `${-stats.currentStreak} losses`
-    : '—';
+  const [view, setView] = useState<'OVERVIEW' | 'BREAKDOWNS'>('OVERVIEW');
 
   return (
     <main className="page">
       <h1>Statistics</h1>
+
+      <div className="segmented" role="group" aria-label="Statistics view">
+        {(
+          [
+            ['OVERVIEW', 'Overview'],
+            ['BREAKDOWNS', 'Breakdowns'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={view === value}
+            onClick={() => setView(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="chips" role="group" aria-label="Date range">
         {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
@@ -52,6 +68,28 @@ export default function StatsPage() {
         ))}
       </div>
 
+      {view === 'OVERVIEW' ? (
+        <OverviewView stats={stats} currency={currency} sessions={app.sessions} bankroll={app.bankroll} />
+      ) : (
+        <BreakdownsView stats={stats} currency={currency} />
+      )}
+    </main>
+  );
+}
+
+function OverviewView({
+  stats,
+  currency,
+  sessions,
+  bankroll,
+}: {
+  stats: Statistics;
+  currency: string;
+  sessions: Session[];
+  bankroll: number;
+}) {
+  return (
+    <>
       <StatTileGrid
         tiles={[
           { label: 'Profit', value: signedMoney(stats.totalProfit, currency), className: profitClass(stats.totalProfit) },
@@ -60,14 +98,10 @@ export default function StatsPage() {
           { label: 'Win rate', value: percent(winRate(stats)) },
           { label: 'Avg / session', value: signedMoney(avgProfit(stats), currency), className: profitClass(avgProfit(stats)) },
           { label: 'Hours', value: stats.totalHours.toFixed(1) },
-          { label: 'Biggest win', value: signedMoney(stats.biggestWin, currency), className: profitClass(stats.biggestWin) },
-          { label: 'Biggest loss', value: signedMoney(stats.biggestLoss, currency), className: profitClass(stats.biggestLoss) },
-          { label: 'Streak', value: streakLabel, className: profitClass(stats.currentStreak) },
-          { label: 'Best streak', value: stats.bestWinStreak > 0 ? `${stats.bestWinStreak} wins` : '—' },
         ]}
       />
 
-      <BankrollHealth bankroll={app.bankroll} sessions={app.sessions} currency={currency} />
+      <BankrollHealth bankroll={bankroll} sessions={sessions} currency={currency} />
 
       <SectionCard title="Profit by month">
         <BarChart
@@ -124,12 +158,34 @@ export default function StatsPage() {
           )}
         </div>
       </SectionCard>
+    </>
+  );
+}
 
+function BreakdownsView({ stats, currency }: { stats: Statistics; currency: string }) {
+  return (
+    <>
+      <SectionCard title="By venue">
+        <BreakdownList groups={stats.byLocation} currency={currency} />
+      </SectionCard>
+      <SectionCard title="By game type">
+        <BreakdownList groups={stats.byGameType} currency={currency} />
+      </SectionCard>
+      <SectionCard title="By stakes (cash)">
+        <BreakdownList
+          groups={stats.byStakes}
+          currency={currency}
+          emptyMessage="No cash sessions with stakes yet."
+        />
+      </SectionCard>
       <SectionCard title="Live vs online">
         <BreakdownList groups={stats.byLiveOnline} currency={currency} />
       </SectionCard>
       <SectionCard title="By session type">
         <BreakdownList groups={stats.bySessionType} currency={currency} />
+      </SectionCard>
+      <SectionCard title="By day of week">
+        <BreakdownList groups={stats.byWeekday} currency={currency} />
       </SectionCard>
 
       {(stats.byFocus.length > 0 ||
@@ -162,24 +218,7 @@ export default function StatsPage() {
           )}
         </SectionCard>
       )}
-
-      <SectionCard title="By game type">
-        <BreakdownList groups={stats.byGameType} currency={currency} />
-      </SectionCard>
-      <SectionCard title="By venue">
-        <BreakdownList groups={stats.byLocation} currency={currency} />
-      </SectionCard>
-      <SectionCard title="By stakes (cash)">
-        <BreakdownList
-          groups={stats.byStakes}
-          currency={currency}
-          emptyMessage="No cash sessions with stakes yet."
-        />
-      </SectionCard>
-      <SectionCard title="By day of week">
-        <BreakdownList groups={stats.byWeekday} currency={currency} />
-      </SectionCard>
-    </main>
+    </>
   );
 }
 
@@ -229,18 +268,24 @@ function BankrollHealth({
 }
 
 function VarianceCard({ stats, currency }: { stats: Statistics; currency: string }) {
+  const streakLabel =
+    stats.currentStreak > 0 ? `${stats.currentStreak} wins`
+    : stats.currentStreak < 0 ? `${-stats.currentStreak} losses`
+    : '—';
   return (
-    <SectionCard title="Variance">
+    <SectionCard title="Variance & records">
       <StatTileGrid
         tiles={[
+          { label: 'Biggest win', value: signedMoney(stats.biggestWin, currency), className: profitClass(stats.biggestWin) },
+          { label: 'Biggest loss', value: signedMoney(stats.biggestLoss, currency), className: profitClass(stats.biggestLoss) },
+          { label: 'Streak', value: streakLabel, className: profitClass(stats.currentStreak) },
+          { label: 'Best run', value: stats.bestWinStreak > 0 ? `${stats.bestWinStreak} wins` : '—' },
           { label: 'Std dev / session', value: money(stats.stdDevPerSession, currency) },
           {
             label: 'Max downswing',
             value: stats.maxDrawdown > 0 ? `-${money(stats.maxDrawdown, currency)}` : '—',
             className: stats.maxDrawdown > 0 ? 'neg' : '',
           },
-          { label: 'Worst skid', value: stats.worstLossStreak > 0 ? `${stats.worstLossStreak} losses` : '—' },
-          { label: 'Best run', value: stats.bestWinStreak > 0 ? `${stats.bestWinStreak} wins` : '—' },
         ]}
       />
       {stats.profitBuckets.length > 0 && (

@@ -1,7 +1,30 @@
-// Tools hub — entry point for the home-game and tournament utilities.
+// "More" hub — bankroll management, settings and the poker utilities live
+// here so the bottom nav stays focused on the core tracking loop.
 import { Link } from 'react-router-dom';
 
-const TOOLS = [
+interface HubLink {
+  to: string;
+  icon: string;
+  name: string;
+  blurb: string;
+}
+
+const MANAGE: HubLink[] = [
+  {
+    to: '/bankroll',
+    icon: '🏦',
+    name: 'Manage bankroll',
+    blurb: 'Deposits, withdrawals and your starting bankroll history.',
+  },
+  {
+    to: '/settings',
+    icon: '⚙️',
+    name: 'Settings',
+    blurb: 'Currency, defaults, presets, privacy, backup and CSV.',
+  },
+];
+
+const TOOLS: HubLink[] = [
   {
     to: '/tools/clock',
     icon: '⏱',
@@ -52,20 +75,32 @@ const TOOLS = [
   },
 ];
 
+function HubRow({ link }: { link: HubLink }) {
+  return (
+    <Link to={link.to} className="session-row" style={{ textDecoration: 'none' }}>
+      <span aria-hidden="true" style={{ fontSize: '1.6rem' }}>{link.icon}</span>
+      <span className="grow col" style={{ gap: 2 }}>
+        <span className="title">{link.name}</span>
+        <span className="muted small">{link.blurb}</span>
+      </span>
+      <span aria-hidden="true" className="muted">›</span>
+    </Link>
+  );
+}
+
 export default function ToolsPage() {
   return (
     <main className="page">
-      <h1>Tools</h1>
+      <h1>More</h1>
       <div className="col">
-        {TOOLS.map((t) => (
-          <Link key={t.to} to={t.to} className="session-row" style={{ textDecoration: 'none' }}>
-            <span aria-hidden="true" style={{ fontSize: '1.6rem' }}>{t.icon}</span>
-            <span className="grow col" style={{ gap: 2 }}>
-              <span className="title">{t.name}</span>
-              <span className="muted small">{t.blurb}</span>
-            </span>
-            <span aria-hidden="true" className="muted">›</span>
-          </Link>
+        {MANAGE.map((l) => (
+          <HubRow key={l.to} link={l} />
+        ))}
+      </div>
+      <h2>Tools</h2>
+      <div className="col">
+        {TOOLS.map((l) => (
+          <HubRow key={l.to} link={l} />
         ))}
       </div>
     </main>

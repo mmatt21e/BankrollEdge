@@ -1,12 +1,15 @@
 // Port of Android SettingsScreen: starting bankroll, currency, default view,
-// CSV export/import, JSON backup/restore, about.
+// CSV export/import (sessions and bets), JSON backup/restore, about.
+// Reached from the More tab, so it renders with a back top-bar.
 import { ChangeEvent, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppState, useStoreList } from '../hooks/useAppState';
 import { SessionType, stakePresetLabel } from '../models/types';
 import { buildCsv, parseCsv } from '../domain/csv';
+import { buildBetsCsv, parseBetsCsv } from '../domain/bets';
 import { backupToJson, backupFromJson } from '../domain/backup';
 import { exportFile, readFileAsText } from '../services/files';
-import { ConfirmDialog, SectionCard } from '../components/common';
+import { ConfirmDialog, SectionCard, TopBar } from '../components/common';
 import {
   eventStore,
   handNoteStore,
@@ -27,6 +30,7 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CHF', 'SEK', 'BRL', 'MXN
 
 export default function SettingsPage() {
   const app = useAppState();
+  const navigate = useNavigate();
   const [bankrollText, setBankrollText] = useState(
     app.settings.startingBankroll === 0 ? '' : String(app.settings.startingBankroll),
   );
@@ -35,8 +39,10 @@ export default function SettingsPage() {
   );
   const [message, setMessage] = useState('');
   const [pendingCsv, setPendingCsv] = useState<string | null>(null);
+  const [pendingBetsCsv, setPendingBetsCsv] = useState<string | null>(null);
   const [pendingBackup, setPendingBackup] = useState<string | null>(null);
   const csvInput = useRef<HTMLInputElement>(null);
+  const betsCsvInput = useRef<HTMLInputElement>(null);
   const backupInput = useRef<HTMLInputElement>(null);
 
   const readPicked = async (
@@ -66,6 +72,19 @@ export default function SettingsPage() {
     }
   };
 
+  const doImportBetsCsv = async () => {
+    const csv = pendingBetsCsv!;
+    setPendingBetsCsv(null);
+    try {
+      const { bets, skippedRows } = parseBetsCsv(csv);
+      const count = await app.importBets(bets);
+      const skipped = skippedRows > 0 ? ` (${skippedRows} rows skipped)` : '';
+      setMessage(`Imported ${count} bet${count === 1 ? '' : 's'}${skipped}.`);
+    } catch (err) {
+      setMessage(`Import failed: ${(err as Error).message}`);
+    }
+  };
+
   const doRestore = async () => {
     const json = pendingBackup!;
     setPendingBackup(null);
@@ -84,9 +103,9 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="page">
-      <h1>Settings</h1>
-
+    <>
+    <TopBar title="Settings" onBack={() => navigate(-1)} />
+    <main className="page" style={{ paddingTop: 0 }}>
       {message && (
         <div className="card" role="status" style={{ borderLeft: '4px solid var(--gold-500)' }}>
           {message}
@@ -207,9 +226,11 @@ export default function SettingsPage() {
 
       <SectionCard title="CSV export & import">
         <p className="muted" style={{ margin: 0 }}>
-          Export all {app.sessions.length} sessions to a spreadsheet-friendly CSV, or import
-          sessions from a previous export (Android or web — same format).
+          Spreadsheet-friendly CSVs. Sessions ({app.sessions.length}) use the same format as the
+          Android app; sports bets ({app.bets.length}) have their own format. Imports ADD to your
+          existing data.
         </p>
+        <div className="overline">Sessions</div>
         <div className="row">
           <button
             type="button"
@@ -230,6 +251,29 @@ export default function SettingsPage() {
             aria-hidden="true"
             tabIndex={-1}
             onChange={(e) => readPicked(e, setPendingCsv)}
+          />
+        </div>
+        <div className="overline">Sports bets</div>
+        <div className="row">
+          <button
+            type="button"
+            className="btn btn-outline"
+            disabled={app.bets.length === 0}
+            onClick={() => exportFile('bankrolledge_bets.csv', buildBetsCsv(app.bets), 'text/csv')}
+          >
+            Export
+          </button>
+          <button type="button" className="btn btn-outline" onClick={() => betsCsvInput.current?.click()}>
+            Import CSV
+          </button>
+          <input
+            ref={betsCsvInput}
+            type="file"
+            accept=".csv,text/csv"
+            hidden
+            aria-hidden="true"
+            tabIndex={-1}
+            onChange={(e) => readPicked(e, setPendingBetsCsv)}
           />
         </div>
       </SectionCard>
@@ -298,7 +342,7 @@ export default function SettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.10.0 — works fully offline; all data stays on this device. Install it from your
+          1.11.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>
@@ -312,6 +356,14 @@ export default function SettingsPage() {
         onCancel={() => setPendingCsv(null)}
       />
       <ConfirmDialog
+        open={pendingBetsCsv !== null}
+        title="Import bets?"
+        message="Bets from this CSV are ADDED to your existing bets (nothing is deleted). Rows that can't be read are skipped."
+        confirmLabel="Import"
+        onConfirm={doImportBetsCsv}
+        onCancel={() => setPendingBetsCsv(null)}
+      />
+      <ConfirmDialog
         open={pendingBackup !== null}
         title="Restore backup?"
         message="This replaces ALL current sessions, transactions and settings with the backup's contents. This can't be undone."
@@ -321,6 +373,7 @@ export default function SettingsPage() {
         onCancel={() => setPendingBackup(null)}
       />
     </main>
+    </>
   );
 }
 

@@ -1,6 +1,7 @@
 // Sports bets: open-bet tracker with one-tap settling, searchable history,
-// and a full stats view (record, ROI, CLV, breakdowns). The FAB adds a bet.
-import { ChangeEvent, useMemo, useRef, useState } from 'react';
+// and a full stats view (record, ROI, CLV, breakdowns). The FAB adds a bet;
+// CSV export/import lives in Settings with the rest of the data tools.
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
@@ -23,17 +24,16 @@ import {
   isSettled,
   recordLabel,
   toWin,
-  buildBetsCsv,
-  parseBetsCsv,
 } from '../domain/bets';
 import { money, signedMoney, signedUnits, percent, formatDate } from '../domain/format';
-import { exportFile, readFileAsText } from '../services/files';
 import { CumulativeProfitChart, BarChart } from '../components/charts';
 import {
   BreakdownList,
-  ConfirmDialog,
+  FilterPanel,
+  MonthHeader,
   SectionCard,
   StatTileGrid,
+  groupByMonth,
   profitClass,
 } from '../components/common';
 
@@ -161,38 +161,47 @@ export default function BetsPage() {
             ))}
           </div>
 
-          <div className="row">
-            <label className="field grow">
-              <span>Sport</span>
-              <select value={sport} onChange={(e) => setSport(e.target.value as Sport | '')}>
-                <option value="">Any sport</option>
-                {SPORTS.map((s) => (
-                  <option key={s} value={s}>{SPORT_LABELS[s]}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field grow">
-              <span>Bet type</span>
-              <select value={betType} onChange={(e) => setBetType(e.target.value as BetType | '')}>
-                <option value="">Any type</option>
-                {BET_TYPES.map((t) => (
-                  <option key={t} value={t}>{BET_TYPE_LABELS[t]}</option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <FilterPanel
+            activeCount={(sport !== '' ? 1 : 0) + (betType !== '' ? 1 : 0) + (book !== '' ? 1 : 0)}
+            onClear={() => {
+              setSport('');
+              setBetType('');
+              setBook('');
+            }}
+          >
+            <div className="row">
+              <label className="field grow">
+                <span>Sport</span>
+                <select value={sport} onChange={(e) => setSport(e.target.value as Sport | '')}>
+                  <option value="">Any sport</option>
+                  {SPORTS.map((s) => (
+                    <option key={s} value={s}>{SPORT_LABELS[s]}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field grow">
+                <span>Bet type</span>
+                <select value={betType} onChange={(e) => setBetType(e.target.value as BetType | '')}>
+                  <option value="">Any type</option>
+                  {BET_TYPES.map((t) => (
+                    <option key={t} value={t}>{BET_TYPE_LABELS[t]}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
-          {app.availableSportsbooks.length > 0 && (
-            <label className="field">
-              <span>Sportsbook</span>
-              <select value={book} onChange={(e) => setBook(e.target.value)}>
-                <option value="">Any book</option>
-                {app.availableSportsbooks.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </label>
-          )}
+            {app.availableSportsbooks.length > 0 && (
+              <label className="field">
+                <span>Sportsbook</span>
+                <select value={book} onChange={(e) => setBook(e.target.value)}>
+                  <option value="">Any book</option>
+                  {app.availableSportsbooks.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </FilterPanel>
 
           {settledBets.length === 0 && openBets.length === 0 ? (
             <p className="empty">
@@ -205,15 +214,18 @@ export default function BetsPage() {
               <>
                 <h2>Settled</h2>
                 <div className="col">
-                  {settledBets.map((b) => (
-                    <BetRow key={b.id} bet={b} />
+                  {groupByMonth(settledBets, (b) => b.placedAt, betProfit).map((m) => (
+                    <div key={m.key} className="col">
+                      <MonthHeader label={m.label} total={m.total} currency={currency} />
+                      {m.items.map((b) => (
+                        <BetRow key={b.id} bet={b} />
+                      ))}
+                    </div>
                   ))}
                 </div>
               </>
             )
           )}
-
-          <CsvSection />
         </>
       )}
     </main>
@@ -417,64 +429,3 @@ function BetStatsView({
   );
 }
 
-function CsvSection() {
-  const app = useAppState();
-  const input = useRef<HTMLInputElement>(null);
-  const [pendingCsv, setPendingCsv] = useState<string | null>(null);
-  const [message, setMessage] = useState('');
-
-  const onPick = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    setPendingCsv(await readFileAsText(file));
-  };
-
-  const doImport = async () => {
-    if (pendingCsv === null) return;
-    try {
-      const { bets, skippedRows } = parseBetsCsv(pendingCsv);
-      const count = await app.importBets(bets);
-      setMessage(`Imported ${count} bet${count === 1 ? '' : 's'}${skippedRows > 0 ? ` (${skippedRows} rows skipped)` : ''}.`);
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Import failed.');
-    }
-    setPendingCsv(null);
-  };
-
-  return (
-    <SectionCard title="Export / import bets">
-      <div className="row">
-        <button
-          type="button"
-          className="btn btn-outline"
-          disabled={app.bets.length === 0}
-          onClick={() => exportFile('bankrolledge_bets.csv', buildBetsCsv(app.bets), 'text/csv')}
-        >
-          Export CSV
-        </button>
-        <button type="button" className="btn btn-outline" onClick={() => input.current?.click()}>
-          Import CSV
-        </button>
-        <input
-          ref={input}
-          type="file"
-          accept=".csv,text/csv"
-          hidden
-          aria-hidden="true"
-          tabIndex={-1}
-          onChange={onPick}
-        />
-      </div>
-      {message && <p className="muted small" style={{ margin: 0 }}>{message}</p>}
-      <ConfirmDialog
-        open={pendingCsv !== null}
-        title="Import bets?"
-        message="Bets from this CSV are ADDED to your existing bets (nothing is deleted). Rows that can't be read are skipped."
-        confirmLabel="Import"
-        onConfirm={doImport}
-        onCancel={() => setPendingCsv(null)}
-      />
-    </SectionCard>
-  );
-}
