@@ -248,9 +248,11 @@ const NAV = [
 
 export function NavBar() {
   const { settings } = useAppState();
+  const canSession = settings.showPoker || settings.showTableGames;
   // Play and More always show; the middle tabs follow Settings → Display.
+  // No session-capable feature = no Sessions tab, whatever the tab toggle says.
   const visible = NAV.filter((item) => {
-    if (item.to === '/sessions') return settings.showSessionsTab;
+    if (item.to === '/sessions') return settings.showSessionsTab && canSession;
     if (item.to === '/bets') return settings.showSports;
     if (item.to === '/stats') return settings.showDashboardTab;
     return true;

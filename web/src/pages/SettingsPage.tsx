@@ -205,6 +205,7 @@ export default function SettingsPage() {
         </label>
       </SectionCard>
 
+      {app.settings.showPoker && (
       <SectionCard title="Default view">
         <p className="muted" style={{ margin: 0 }}>
           Focus the app on the games you play. Applied to session lists, stats and new sessions.
@@ -228,6 +229,7 @@ export default function SettingsPage() {
           ))}
         </div>
       </SectionCard>
+      )}
 
       {app.settings.showSports && (
       <SectionCard title="Sports betting">
@@ -276,60 +278,66 @@ export default function SettingsPage() {
       </SectionCard>
       )}
 
-      <VenuesStakesCard />
+      {(app.settings.showPoker || app.settings.showTableGames) && <VenuesStakesCard />}
 
       <SectionCard title="CSV export & import">
         <p className="muted" style={{ margin: 0 }}>
-          Spreadsheet-friendly CSVs. Sessions ({app.sessions.length}) use the same format as the
-          Android app; sports bets ({app.bets.length}) have their own format. Imports ADD to your
-          existing data.
+          Spreadsheet-friendly CSVs. Imports ADD to your existing data.
         </p>
-        <div className="overline">Sessions</div>
-        <div className="row">
-          <button
-            type="button"
-            className="btn btn-outline"
-            disabled={app.sessions.length === 0}
-            onClick={() => exportFile('bankrolledge_export.csv', buildCsv(app.sessions), 'text/csv')}
-          >
-            Export
-          </button>
-          <button type="button" className="btn btn-outline" onClick={() => csvInput.current?.click()}>
-            Import CSV
-          </button>
-          <input
-            ref={csvInput}
-            type="file"
-            accept=".csv,text/csv"
-            hidden
-            aria-hidden="true"
-            tabIndex={-1}
-            onChange={(e) => readPicked(e, setPendingCsv)}
-          />
-        </div>
-        <div className="overline">Sports bets</div>
-        <div className="row">
-          <button
-            type="button"
-            className="btn btn-outline"
-            disabled={app.bets.length === 0}
-            onClick={() => exportFile('bankrolledge_bets.csv', buildBetsCsv(app.bets), 'text/csv')}
-          >
-            Export
-          </button>
-          <button type="button" className="btn btn-outline" onClick={() => betsCsvInput.current?.click()}>
-            Import CSV
-          </button>
-          <input
-            ref={betsCsvInput}
-            type="file"
-            accept=".csv,text/csv"
-            hidden
-            aria-hidden="true"
-            tabIndex={-1}
-            onChange={(e) => readPicked(e, setPendingBetsCsv)}
-          />
-        </div>
+        {(app.settings.showPoker || app.settings.showTableGames) && (
+          <>
+            <div className="overline">Sessions ({app.sessions.length})</div>
+            <div className="row">
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={app.sessions.length === 0}
+                onClick={() => exportFile('bankrolledge_export.csv', buildCsv(app.sessions), 'text/csv')}
+              >
+                Export
+              </button>
+              <button type="button" className="btn btn-outline" onClick={() => csvInput.current?.click()}>
+                Import CSV
+              </button>
+              <input
+                ref={csvInput}
+                type="file"
+                accept=".csv,text/csv"
+                hidden
+                aria-hidden="true"
+                tabIndex={-1}
+                onChange={(e) => readPicked(e, setPendingCsv)}
+              />
+            </div>
+          </>
+        )}
+        {app.settings.showSports && (
+          <>
+            <div className="overline">Sports bets ({app.bets.length})</div>
+            <div className="row">
+              <button
+                type="button"
+                className="btn btn-outline"
+                disabled={app.bets.length === 0}
+                onClick={() => exportFile('bankrolledge_bets.csv', buildBetsCsv(app.bets), 'text/csv')}
+              >
+                Export
+              </button>
+              <button type="button" className="btn btn-outline" onClick={() => betsCsvInput.current?.click()}>
+                Import CSV
+              </button>
+              <input
+                ref={betsCsvInput}
+                type="file"
+                accept=".csv,text/csv"
+                hidden
+                aria-hidden="true"
+                tabIndex={-1}
+                onChange={(e) => readPicked(e, setPendingBetsCsv)}
+              />
+            </div>
+          </>
+        )}
       </SectionCard>
 
       <SectionCard title="Backup & restore">
@@ -396,7 +404,7 @@ export default function SettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.13.0 — works fully offline; all data stays on this device. Install it from your
+          1.14.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>
@@ -435,20 +443,27 @@ function ToggleRow({
   label,
   hint,
   checked,
+  disabled = false,
   onChange,
 }: {
   label: string;
   hint?: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="toggle-row">
+    <label className="toggle-row" style={disabled ? { opacity: 0.55 } : undefined}>
       <span>
         {label}
         {hint && <span className="hint" style={{ display: 'block' }}>{hint}</span>}
       </span>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
     </label>
   );
 }
@@ -457,6 +472,7 @@ function ToggleRow({
 function DisplayCard() {
   const app = useAppState();
   const s = app.settings;
+  const enabledFeatures = [s.showPoker, s.showTableGames, s.showSports].filter(Boolean).length;
   return (
     <SectionCard title="Display">
       <span className="overline">Theme</span>
@@ -482,29 +498,38 @@ function DisplayCard() {
       <span className="overline" style={{ marginTop: 8 }}>Features</span>
       <ToggleRow
         label="Poker"
-        hint="Cash games, tournaments, sit & gos and home games"
+        hint="Cash games, tournaments, sit & gos, home games and the poker tools"
         checked={s.showPoker}
+        disabled={s.showPoker && enabledFeatures === 1}
         onChange={(v) => app.updateSettings({ showPoker: v })}
       />
       <ToggleRow
         label="Table games"
         hint="Blackjack, craps and other casino games"
         checked={s.showTableGames}
+        disabled={s.showTableGames && enabledFeatures === 1}
         onChange={(v) => app.updateSettings({ showTableGames: v })}
       />
       <ToggleRow
         label="Sports betting"
-        hint="Hides the Sports tab and all betting features"
+        hint="The Sports tab and all betting features"
         checked={s.showSports}
+        disabled={s.showSports && enabledFeatures === 1}
         onChange={(v) => app.updateSettings({ showSports: v })}
       />
+      <p className="muted small" style={{ margin: 0 }}>
+        Everything tied to a feature (tabs, filters, tools, presets, settings) hides with it.
+        At least one feature always stays on.
+      </p>
 
       <span className="overline" style={{ marginTop: 8 }}>Tabs</span>
-      <ToggleRow
-        label="Sessions tab"
-        checked={s.showSessionsTab}
-        onChange={(v) => app.updateSettings({ showSessionsTab: v })}
-      />
+      {(s.showPoker || s.showTableGames) && (
+        <ToggleRow
+          label="Sessions tab"
+          checked={s.showSessionsTab}
+          onChange={(v) => app.updateSettings({ showSessionsTab: v })}
+        />
+      )}
       <ToggleRow
         label="Dashboard tab"
         checked={s.showDashboardTab}
@@ -542,6 +567,7 @@ function DisplayCard() {
 }
 
 function VenuesStakesCard() {
+  const { settings } = useAppState();
   const venues = useStoreList(venueStore);
   const stakes = useStoreList(stakeStore);
   const poker = stakes.items
@@ -632,6 +658,7 @@ function VenuesStakesCard() {
         </div>
       </div>
 
+      {settings.showPoker && (
       <div className="col" style={{ gap: 8 }}>
         <span className="overline">Cash game stakes</span>
         {poker.length === 0 && (
@@ -672,7 +699,9 @@ function VenuesStakesCard() {
           <button type="button" className="btn" onClick={addPoker}>Add</button>
         </div>
       </div>
+      )}
 
+      {settings.showTableGames && (
       <div className="col" style={{ gap: 8 }}>
         <span className="overline">Table game stakes</span>
         {table.length === 0 && (
@@ -713,6 +742,7 @@ function VenuesStakesCard() {
           <button type="button" className="btn" onClick={addTable}>Add</button>
         </div>
       </div>
+      )}
     </SectionCard>
   );
 }

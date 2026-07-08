@@ -37,10 +37,10 @@ export default function StatsPage() {
   const currency = app.settings.currency;
   const { filter, settings } = app;
   const [tab, setTab] = useState<DetailTab>('TRENDS');
-  const [discipline, setDiscipline] = useState<Discipline>(
-    settings.showPoker || settings.showTableGames ? 'POKER' : 'SPORTS',
-  );
-  const sports = discipline === 'SPORTS';
+  const canSession = settings.showPoker || settings.showTableGames;
+  const [discipline, setDiscipline] = useState<Discipline>(canSession ? 'POKER' : 'SPORTS');
+  // No session-capable features left = the dashboard is sports-only.
+  const sports = discipline === 'SPORTS' || !canSession;
 
   const betsInRange = useMemo(() => {
     const from = rangeStart(filter.range, Date.now());
@@ -104,18 +104,19 @@ export default function StatsPage() {
             {label}
           </button>
         ))}
-        {(['LIVE', 'ONLINE'] as VenueType[]).map((v) => (
-          <button
-            key={v}
-            type="button"
-            className="chip"
-            aria-pressed={!sports && filter.venueType === v}
-            onClick={() => toggleVenue(v)}
-          >
-            {v === 'LIVE' ? 'Live' : 'Online'}
-          </button>
-        ))}
-        {settings.showSports && (
+        {canSession &&
+          (['LIVE', 'ONLINE'] as VenueType[]).map((v) => (
+            <button
+              key={v}
+              type="button"
+              className="chip"
+              aria-pressed={!sports && filter.venueType === v}
+              onClick={() => toggleVenue(v)}
+            >
+              {v === 'LIVE' ? 'Live' : 'Online'}
+            </button>
+          ))}
+        {settings.showSports && canSession && (
           <button
             type="button"
             className="chip"

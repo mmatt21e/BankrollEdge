@@ -29,8 +29,16 @@ export default function App() {
 
   // Bottom nav + FAB only on top-level destinations.
   const topLevel = ['/', '/sessions', '/bets', '/stats', '/tools'].includes(location.pathname);
+  const canSession = settings.showPoker || settings.showTableGames;
+  const onPlay = location.pathname === '/';
+  const onSessions = location.pathname === '/sessions';
   const onBets = location.pathname === '/bets';
-  const showFab = location.pathname === '/' || location.pathname === '/sessions' || onBets;
+  // With poker and table games both off, adding a bet is the only + action.
+  const fabAddsBet = onBets || (onPlay && !canSession);
+  const showFab =
+    (onPlay && (canSession || settings.showSports)) ||
+    (onSessions && canSession) ||
+    (onBets && settings.showSports);
 
   return (
     <>
@@ -44,8 +52,8 @@ export default function App() {
         <button
           type="button"
           className="fab"
-          aria-label={onBets ? 'Add bet' : 'Add session'}
-          onClick={() => navigate(onBets ? '/bet/new' : '/session/new')}
+          aria-label={fabAddsBet ? 'Add bet' : 'Add session'}
+          onClick={() => navigate(fabAddsBet ? '/bet/new' : '/session/new')}
         >
           +
         </button>
