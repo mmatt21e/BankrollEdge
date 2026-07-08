@@ -22,7 +22,7 @@ const MANAGE: HubLink[] = [
     to: '/settings',
     icon: '⚙️',
     name: 'Settings',
-    blurb: 'Currency, defaults, presets, privacy, backup and CSV.',
+    blurb: 'General, display, poker, table games and sports settings.',
   },
 ];
 
