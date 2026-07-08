@@ -1,7 +1,9 @@
-// Statistics, split into two sub-views so nothing is a mile-long scroll:
-// Overview (headline tiles, health, charts, variance) and Breakdowns
-// (profit grouped by every dimension). A date-range chip row applies to both.
+// The Stats tab, redesigned as a Dashboard: quick filter chips up top, then
+// the always-visible dashboard core (profit chart, headline tiles, daily
+// results heatmap, sports snapshot), then detail tabs — Trends / Breakdowns /
+// Variance — for the deeper statistics.
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import { DATE_RANGE_LABELS, DateRange } from '../domain/filter';
 import {
@@ -13,6 +15,7 @@ import {
   itmRate,
   isLossSide,
 } from '../domain/stats';
+import { recordLabel } from '../domain/bets';
 import {
   money,
   signedMoney,
@@ -21,38 +24,40 @@ import {
   compactMoney,
   hourLabel,
 } from '../domain/format';
-import { Session, stakesLabel } from '../models/types';
-import { BarChart } from '../components/charts';
+import { Session, SessionType, VenueType, stakesLabel } from '../models/types';
+import { BarChart, CumulativeProfitChart, DailyHeatmap } from '../components/charts';
 import { StatTileGrid, BreakdownList, SectionCard, profitClass } from '../components/common';
+
+type DetailTab = 'TRENDS' | 'BREAKDOWNS' | 'VARIANCE';
+
+const QUICK_TYPES: [SessionType, string][] = [
+  ['CASH', 'Cash'],
+  ['TOURNAMENT', 'Tournaments'],
+  ['TABLE', 'Table games'],
+];
 
 export default function StatsPage() {
   const app = useAppState();
   const stats = app.filteredStats;
   const currency = app.settings.currency;
   const { filter } = app;
-  const [view, setView] = useState<'OVERVIEW' | 'BREAKDOWNS'>('OVERVIEW');
+  const [tab, setTab] = useState<DetailTab>('TRENDS');
+
+  const toggleType = (t: SessionType) => {
+    const next = filter.type === t ? null : t;
+    app.setFilter({
+      ...filter,
+      type: next,
+      game: next === 'TABLE' ? null : filter.game,
+      tableGame: next === 'TABLE' ? filter.tableGame : null,
+    });
+  };
+  const toggleVenue = (v: VenueType) =>
+    app.setFilter({ ...filter, venueType: filter.venueType === v ? null : v });
 
   return (
     <main className="page">
-      <h1>Statistics</h1>
-
-      <div className="segmented" role="group" aria-label="Statistics view">
-        {(
-          [
-            ['OVERVIEW', 'Overview'],
-            ['BREAKDOWNS', 'Breakdowns'],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={view === value}
-            onClick={() => setView(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <h1>Dashboard</h1>
 
       <div className="chips" role="group" aria-label="Date range">
         {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
@@ -68,16 +73,127 @@ export default function StatsPage() {
         ))}
       </div>
 
-      {view === 'OVERVIEW' ? (
-        <OverviewView stats={stats} currency={currency} sessions={app.sessions} bankroll={app.bankroll} />
-      ) : (
-        <BreakdownsView stats={stats} currency={currency} />
+      <div className="chips" role="group" aria-label="Quick filters">
+        {QUICK_TYPES.map(([t, label]) => (
+          <button
+            key={t}
+            type="button"
+            className="chip"
+            aria-pressed={filter.type === t}
+            onClick={() => toggleType(t)}
+          >
+            {label}
+          </button>
+        ))}
+        {(['LIVE', 'ONLINE'] as VenueType[]).map((v) => (
+          <button
+            key={v}
+            type="button"
+            className="chip"
+            aria-pressed={filter.venueType === v}
+            onClick={() => toggleVenue(v)}
+          >
+            {v === 'LIVE' ? 'Live' : 'Online'}
+          </button>
+        ))}
+      </div>
+
+      <section className="card col" style={{ gap: 8 }}>
+        <div className="row-between">
+          <div>
+            <div className="overline">Profit</div>
+            <div
+              className={`money ${profitClass(stats.totalProfit)}`}
+              style={{ fontSize: '1.4rem', fontWeight: 800 }}
+            >
+              {signedMoney(stats.totalProfit, currency)}
+            </div>
+          </div>
+          <span className="muted small">{stats.sessionCount} sessions</span>
+        </div>
+        <CumulativeProfitChart points={stats.cumulative} currency={currency} />
+      </section>
+
+      <StatTileGrid
+        tiles={[
+          { label: 'Per hour', value: perHour(hourlyRate(stats), currency), className: profitClass(hourlyRate(stats)) },
+          { label: 'Win rate', value: percent(winRate(stats)) },
+          { label: 'ROI', value: percent(roi(stats)), className: profitClass(roi(stats)) },
+          { label: 'Avg / session', value: signedMoney(avgProfit(stats), currency), className: profitClass(avgProfit(stats)) },
+          { label: 'Hours', value: stats.totalHours.toFixed(1) },
+          { label: 'Sessions', value: String(stats.sessionCount) },
+        ]}
+      />
+
+      <SectionCard title="Daily results">
+        <p className="muted small" style={{ margin: 0 }}>
+          Last 16 weeks — deeper color = bigger result.
+        </p>
+        <DailyHeatmap sessions={app.filteredSessions} currency={currency} />
+      </SectionCard>
+
+      <SportsSnapshot />
+
+      <div className="segmented" role="group" aria-label="Detailed statistics">
+        {(
+          [
+            ['TRENDS', 'Trends'],
+            ['BREAKDOWNS', 'Breakdowns'],
+            ['VARIANCE', 'Variance'],
+          ] as [DetailTab, string][]
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={tab === value}
+            onClick={() => setTab(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'TRENDS' && (
+        <TrendsView stats={stats} currency={currency} sessions={app.sessions} bankroll={app.bankroll} />
       )}
+      {tab === 'BREAKDOWNS' && <BreakdownsView stats={stats} currency={currency} />}
+      {tab === 'VARIANCE' && <VarianceCard stats={stats} currency={currency} />}
     </main>
   );
 }
 
-function OverviewView({
+/** Settled record + net from the Sports tab, at a glance; hidden with no bets. */
+function SportsSnapshot() {
+  const app = useAppState();
+  const navigate = useNavigate();
+  if (app.bets.length === 0) return null;
+  const stats = app.betStats;
+  const currency = app.settings.currency;
+  return (
+    <button
+      type="button"
+      className="card row-between"
+      style={{ cursor: 'pointer', textAlign: 'left', width: '100%' }}
+      onClick={() => navigate('/bets')}
+      aria-label="Sports betting results"
+    >
+      <div>
+        <div className="overline">Sports ›</div>
+        <div className="muted small" style={{ marginTop: 2 }}>
+          {recordLabel(stats)} record
+        </div>
+      </div>
+      <span
+        className={`money ${profitClass(stats.netProfit)}`}
+        style={{ fontSize: '1.15rem', fontWeight: 700 }}
+      >
+        {signedMoney(stats.netProfit, currency)}
+      </span>
+    </button>
+  );
+}
+
+function TrendsView({
   stats,
   currency,
   sessions,
@@ -90,17 +206,6 @@ function OverviewView({
 }) {
   return (
     <>
-      <StatTileGrid
-        tiles={[
-          { label: 'Profit', value: signedMoney(stats.totalProfit, currency), className: profitClass(stats.totalProfit) },
-          { label: 'Per hour', value: perHour(hourlyRate(stats), currency), className: profitClass(hourlyRate(stats)) },
-          { label: 'ROI', value: percent(roi(stats)), className: profitClass(roi(stats)) },
-          { label: 'Win rate', value: percent(winRate(stats)) },
-          { label: 'Avg / session', value: signedMoney(avgProfit(stats), currency), className: profitClass(avgProfit(stats)) },
-          { label: 'Hours', value: stats.totalHours.toFixed(1) },
-        ]}
-      />
-
       <BankrollHealth bankroll={bankroll} sessions={sessions} currency={currency} />
 
       <SectionCard title="Profit by month">
@@ -126,8 +231,6 @@ function OverviewView({
           emptyMessage="Log sessions to see your best playing hours."
         />
       </SectionCard>
-
-      <VarianceCard stats={stats} currency={currency} />
 
       <SectionCard title={stats.tableCount > 0 ? 'Poker vs table games' : 'Cash vs tournaments'}>
         <div className="row" style={{ alignItems: 'flex-start' }}>

@@ -19,6 +19,16 @@
   --primary-container: #d9e7de;
   --outline: #c3cdc7;
 
+  /* Daily-results heatmap ramps (deeper = bigger result). */
+  --heat-p1: #cdeedd;
+  --heat-p2: #83d4ab;
+  --heat-p3: #2aa565;
+  --heat-p4: #14713f;
+  --heat-l1: #f6d3d3;
+  --heat-l2: #eb9a9a;
+  --heat-l3: #d64545;
+  --cell-empty: #e5ebe7;
+
   --radius: 12px;
   --space: 16px;
   --touch: 44px;
@@ -38,6 +48,15 @@
     --outline: #33443b;
     --profit: #3ddc84;
     --loss: #ff6b6b;
+
+    --heat-p1: #17372a;
+    --heat-p2: #1d5c3d;
+    --heat-p3: #26a862;
+    --heat-p4: #4fd191;
+    --heat-l1: #3d1d1d;
+    --heat-l2: #7e2f2f;
+    --heat-l3: #e35050;
+    --cell-empty: #182a21;
   }
 }
 
@@ -260,6 +279,19 @@ button { font: inherit; }
 
 .bar-track { height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 3px; }
+
+/* ---------- Daily-results heatmap ---------- */
+
+.heat-scroll { overflow-x: auto; padding-bottom: 2px; }
+.heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 0.7rem;
+  color: var(--on-surface-variant);
+}
+.heat-legend .sw { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
 
 /* ---------- Bottom navigation ---------- */
 

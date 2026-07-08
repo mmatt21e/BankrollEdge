@@ -1,6 +1,8 @@
-// SVG ports of the Android Canvas charts (CumulativeProfitChart, BarChart).
+// SVG ports of the Android Canvas charts (CumulativeProfitChart, BarChart)
+// plus the daily-results calendar heatmap.
 import { ProfitPoint } from '../domain/stats';
-import { compactMoney } from '../domain/format';
+import { compactMoney, signedMoney, formatDate } from '../domain/format';
+import { Session, profit } from '../models/types';
 
 const PROFIT = 'var(--profit)';
 const LOSS = 'var(--loss)';
@@ -131,6 +133,117 @@ export function BarChart({
             {i % labelStep === 0 || i === entries.length - 1 ? e.label : ''}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** GitHub-style calendar of daily results: deeper green/red = bigger day,
+ *  grey = didn't play. Each cell carries a native title tooltip. */
+export function DailyHeatmap({
+  sessions,
+  weeks = 16,
+  currency,
+}: {
+  sessions: Session[];
+  weeks?: number;
+  currency: string;
+}) {
+  const byDay = new Map<number, number>();
+  for (const s of sessions) {
+    const d = new Date(s.startTime);
+    d.setHours(0, 0, 0, 0);
+    byDay.set(d.getTime(), (byDay.get(d.getTime()) ?? 0) + profit(s));
+  }
+
+  const CELL = 14;
+  const GAP = 3;
+  const LABEL_W = 20;
+  const LABEL_H = 13;
+  const W = LABEL_W + weeks * (CELL + GAP) - GAP;
+  const H = LABEL_H + 7 * (CELL + GAP) - GAP;
+
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  const start = new Date(end);
+  start.setDate(start.getDate() - start.getDay() - (weeks - 1) * 7);
+
+  const heat = (v: number | undefined): string => {
+    if (v === undefined) return 'var(--cell-empty)';
+    if (v >= 0) {
+      return v > 500 ? 'var(--heat-p4)' : v > 250 ? 'var(--heat-p3)' : v > 90 ? 'var(--heat-p2)' : 'var(--heat-p1)';
+    }
+    return v < -350 ? 'var(--heat-l3)' : v < -120 ? 'var(--heat-l2)' : 'var(--heat-l1)';
+  };
+
+  const cells = [];
+  const monthLabels = [];
+  let lastMonth = '';
+  for (let w = 0; w < weeks; w++) {
+    for (let d = 0; d < 7; d++) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + w * 7 + d);
+      if (day.getTime() > end.getTime()) continue;
+      const v = byDay.get(day.getTime());
+      const x = LABEL_W + w * (CELL + GAP);
+      const y = LABEL_H + d * (CELL + GAP);
+      cells.push(
+        <rect key={`${w}-${d}`} x={x} y={y} width={CELL} height={CELL} rx={3.5} fill={heat(v)}>
+          <title>
+            {v === undefined
+              ? `${formatDate(day.getTime())} — no session`
+              : `${formatDate(day.getTime())} — ${signedMoney(v, currency)}`}
+          </title>
+        </rect>,
+      );
+      const m = day.toLocaleDateString(undefined, { month: 'short' });
+      if (d === 0 && m !== lastMonth && day.getDate() <= 7) {
+        lastMonth = m;
+        monthLabels.push(
+          <text key={m + w} x={x} y={9} fontSize={10} fill="var(--on-surface-variant)">
+            {m}
+          </text>,
+        );
+      }
+    }
+  }
+
+  const legendSteps = [
+    'var(--heat-l3)', 'var(--heat-l2)', 'var(--heat-l1)', 'var(--cell-empty)',
+    'var(--heat-p1)', 'var(--heat-p2)', 'var(--heat-p3)', 'var(--heat-p4)',
+  ];
+
+  return (
+    <div>
+      <div className="heat-scroll">
+        <svg
+          width={W}
+          height={H}
+          role="img"
+          aria-label={`Daily results calendar, last ${weeks} weeks`}
+        >
+          {(['M', 'W', 'F'] as const).map((label, i) => (
+            <text
+              key={label}
+              x={0}
+              y={LABEL_H + (1 + i * 2) * (CELL + GAP) + CELL - 4}
+              fontSize={10}
+              fill="var(--on-surface-variant)"
+            >
+              {label}
+            </text>
+          ))}
+          {monthLabels}
+          {cells}
+        </svg>
+      </div>
+      <div className="heat-legend" aria-hidden="true">
+        <span>Loss</span>
+        {legendSteps.map((c, i) => (
+          <span key={i} className="sw" style={{ background: c }} />
+        ))}
+        <span>Win</span>
+        <span style={{ marginLeft: 8 }}>· grey = didn't play</span>
       </div>
     </div>
   );
