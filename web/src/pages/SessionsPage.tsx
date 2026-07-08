@@ -29,6 +29,9 @@ export default function SessionsPage() {
   const { filter } = app;
   const stats = app.filteredStats;
   const currency = app.settings.currency;
+  const visibleTypes = SESSION_TYPES.filter((t) =>
+    t === 'TABLE' ? app.settings.showTableGames : app.settings.showPoker,
+  );
 
   const advancedCount =
     (filter.venueType !== null ? 1 : 0) +
@@ -85,7 +88,7 @@ export default function SessionsPage() {
         >
           All types
         </button>
-        {SESSION_TYPES.map((t) => (
+        {visibleTypes.map((t) => (
           <button
             key={t}
             type="button"

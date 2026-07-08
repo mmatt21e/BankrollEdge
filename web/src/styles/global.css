@@ -60,6 +60,52 @@
   }
 }
 
+/* Explicit theme choice (Settings → Display) overrides the device setting.
+   The attribute is stamped on <html> by the app. */
+:root[data-theme='light'] {
+  --bg: #f7f9f7;
+  --surface: #ffffff;
+  --surface-variant: #e7ede9;
+  --on-bg: #0f1e17;
+  --on-surface-variant: #4a5750;
+  --primary: #16543a;
+  --on-primary: #f5f1e6;
+  --primary-container: #d9e7de;
+  --outline: #c3cdc7;
+  --profit: #1e9e5a;
+  --loss: #d64545;
+  --heat-p1: #cdeedd;
+  --heat-p2: #83d4ab;
+  --heat-p3: #2aa565;
+  --heat-p4: #14713f;
+  --heat-l1: #f6d3d3;
+  --heat-l2: #eb9a9a;
+  --heat-l3: #d64545;
+  --cell-empty: #e5ebe7;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1e17;
+  --surface: #12211a;
+  --surface-variant: #1b2f26;
+  --on-bg: #f5f1e6;
+  --on-surface-variant: #9aa5a0;
+  --primary: #e0b646;
+  --on-primary: #0f1e17;
+  --primary-container: #16543a;
+  --outline: #33443b;
+  --profit: #3ddc84;
+  --loss: #ff6b6b;
+  --heat-p1: #17372a;
+  --heat-p2: #1d5c3d;
+  --heat-p3: #26a862;
+  --heat-p4: #4fd191;
+  --heat-l1: #3d1d1d;
+  --heat-l2: #7e2f2f;
+  --heat-l3: #e35050;
+  --cell-empty: #182a21;
+}
+
 * { box-sizing: border-box; }
 
 html { height: 100%; }
@@ -164,6 +210,8 @@ button { font: inherit; }
 .field textarea { resize: vertical; }
 
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+/* Wrapped variant: every chip visible, no sideways swiping. */
+.chips-wrap { flex-wrap: wrap; overflow-x: visible; padding-bottom: 0; }
 .chip {
   flex: 0 0 auto;
   min-height: 36px;
@@ -395,6 +443,25 @@ button { font: inherit; }
 }
 
 .empty { text-align: center; padding: 32px 16px; color: var(--on-surface-variant); }
+
+/* ---------- Settings toggle rows ---------- */
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--touch);
+  cursor: pointer;
+}
+.toggle-row .hint { font-size: 0.78rem; color: var(--on-surface-variant); }
+.toggle-row input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
 
 /* ---------- Collapsible sections ---------- */
 

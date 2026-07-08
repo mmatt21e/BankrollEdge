@@ -2,7 +2,6 @@
 // plus the daily-results calendar heatmap.
 import { ProfitPoint } from '../domain/stats';
 import { compactMoney, signedMoney, formatDate } from '../domain/format';
-import { Session, profit } from '../models/types';
 
 const PROFIT = 'var(--profit)';
 const LOSS = 'var(--loss)';
@@ -10,12 +9,14 @@ const LOSS = 'var(--loss)';
 export function CumulativeProfitChart({
   points,
   currency,
+  emptyMessage = 'Log at least two sessions to see your profit graph.',
 }: {
   points: ProfitPoint[];
   currency: string;
+  emptyMessage?: string;
 }) {
   if (points.length < 2) {
-    return <p className="muted">Log at least two sessions to see your profit graph.</p>;
+    return <p className="muted">{emptyMessage}</p>;
   }
   const W = 600;
   const H = 200;
@@ -138,22 +139,27 @@ export function BarChart({
   );
 }
 
+export interface HeatPoint {
+  time: number;
+  value: number;
+}
+
 /** GitHub-style calendar of daily results: deeper green/red = bigger day,
  *  grey = didn't play. Each cell carries a native title tooltip. */
 export function DailyHeatmap({
-  sessions,
+  points,
   weeks = 16,
   currency,
 }: {
-  sessions: Session[];
+  points: HeatPoint[];
   weeks?: number;
   currency: string;
 }) {
   const byDay = new Map<number, number>();
-  for (const s of sessions) {
-    const d = new Date(s.startTime);
+  for (const p of points) {
+    const d = new Date(p.time);
     d.setHours(0, 0, 0, 0);
-    byDay.set(d.getTime(), (byDay.get(d.getTime()) ?? 0) + profit(s));
+    byDay.set(d.getTime(), (byDay.get(d.getTime()) ?? 0) + p.value);
   }
 
   const CELL = 14;

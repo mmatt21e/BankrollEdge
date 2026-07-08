@@ -50,7 +50,7 @@ export const isFilterActive = (f: SessionFilter): boolean =>
   f.venueType !== null || f.location !== null || f.tag !== null ||
   f.range !== 'ALL' || f.query.trim() !== '';
 
-function rangeStart(range: DateRange, now: number): number | null {
+export function rangeStart(range: DateRange, now: number): number | null {
   const d = new Date(now);
   switch (range) {
     case 'ALL':

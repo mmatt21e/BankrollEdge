@@ -51,6 +51,8 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
         defaultSessionType: backup.settings.defaultSessionType,
         betUnitValue: backup.settings.betUnitValue,
         oddsFormat: backup.settings.oddsFormat,
+        separateBankrolls: backup.settings.separateBankrolls,
+        startingSportsBankroll: backup.settings.startingSportsBankroll,
       },
       sessions: backup.sessions.map(({ id: _id, ...rest }) => rest),
       transactions: backup.transactions.map(({ id: _id, ...rest }) => rest),
@@ -80,13 +82,16 @@ export function backupFromJson(json: string): Backup {
   }
   const s = (root.settings ?? {}) as Record<string, unknown>;
   const rawDefault = str(s.defaultSessionType, 'ALL');
-  const settings: AppSettings = {
+  // Display/feature preferences are device-local and stay out of backups.
+  const settings: Partial<AppSettings> = {
     startingBankroll: num(s.startingBankroll),
     currency: str(s.currency, 'USD'),
     defaultSessionType:
       rawDefault === 'CASH' || rawDefault === 'TOURNAMENT' ? rawDefault : 'ALL',
     betUnitValue: num(s.betUnitValue),
     oddsFormat: str(s.oddsFormat) === 'DECIMAL' ? 'DECIMAL' : 'AMERICAN',
+    separateBankrolls: s.separateBankrolls === true,
+    startingSportsBankroll: num(s.startingSportsBankroll),
   };
 
   const sessions = (Array.isArray(root.sessions) ? root.sessions : []).map((raw) => {

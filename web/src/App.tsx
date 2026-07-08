@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useRoutes } from 'react-router-dom';
 import { routes } from './routes/routes';
 import { NavBar } from './components/common';
 import { PinLock } from './components/PinLock';
-import { useOnline } from './hooks/useAppState';
+import { useAppState, useOnline } from './hooks/useAppState';
 import { hasPin, loadHideBalances } from './storage/settings';
 
 export default function App() {
@@ -11,12 +11,19 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const online = useOnline();
+  const { settings } = useAppState();
   const [locked, setLocked] = useState(hasPin);
 
   // "Hide balances" masks every money value app-wide via a body class.
   useEffect(() => {
     document.body.classList.toggle('privacy-hide', loadHideBalances());
   }, [location]);
+
+  // Theme override from Settings → Display; SYSTEM follows the device.
+  useEffect(() => {
+    if (settings.theme === 'SYSTEM') delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = settings.theme.toLowerCase();
+  }, [settings.theme]);
 
   if (locked) return <PinLock onUnlock={() => setLocked(false)} />;
 

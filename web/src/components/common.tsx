@@ -2,6 +2,7 @@
 // bottom navigation. Ports of the Android components/ package.
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useAppState } from '../hooks/useAppState';
 import {
   Session,
   GAME_TYPE_LABELS,
@@ -194,6 +195,12 @@ export function TopBar({ title, onBack, action }: { title: string; onBack: () =>
 /** Crisp stroke icons for the bottom nav (unicode glyphs render unevenly). */
 function NavIcon({ name }: { name: string }) {
   const paths: Record<string, ReactNode> = {
+    play: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M10 8.8v6.4l5.4-3.2z" />
+      </>
+    ),
     home: <path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z" />,
     sessions: (
       <>
@@ -232,7 +239,7 @@ function NavIcon({ name }: { name: string }) {
 }
 
 const NAV = [
-  { to: '/', label: 'Home', icon: 'home' },
+  { to: '/', label: 'Play', icon: 'play' },
   { to: '/sessions', label: 'Sessions', icon: 'sessions' },
   { to: '/bets', label: 'Sports', icon: 'bets' },
   { to: '/stats', label: 'Dashboard', icon: 'stats' },
@@ -240,9 +247,17 @@ const NAV = [
 ];
 
 export function NavBar() {
+  const { settings } = useAppState();
+  // Play and More always show; the middle tabs follow Settings → Display.
+  const visible = NAV.filter((item) => {
+    if (item.to === '/sessions') return settings.showSessionsTab;
+    if (item.to === '/bets') return settings.showSports;
+    if (item.to === '/stats') return settings.showDashboardTab;
+    return true;
+  });
   return (
     <nav className="navbar" aria-label="Main navigation">
-      {NAV.map((item) => (
+      {visible.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}

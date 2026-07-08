@@ -4,7 +4,7 @@
 import { ChangeEvent, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useStoreList } from '../hooks/useAppState';
-import { SessionType, stakePresetLabel } from '../models/types';
+import { SessionType, ThemeMode, stakePresetLabel } from '../models/types';
 import { buildCsv, parseCsv } from '../domain/csv';
 import { buildBetsCsv, parseBetsCsv } from '../domain/bets';
 import { backupToJson, backupFromJson } from '../domain/backup';
@@ -36,6 +36,9 @@ export default function SettingsPage() {
   );
   const [unitText, setUnitText] = useState(
     app.settings.betUnitValue === 0 ? '' : String(app.settings.betUnitValue),
+  );
+  const [sportsBankrollText, setSportsBankrollText] = useState(
+    app.settings.startingSportsBankroll === 0 ? '' : String(app.settings.startingSportsBankroll),
   );
   const [message, setMessage] = useState('');
   const [pendingCsv, setPendingCsv] = useState<string | null>(null);
@@ -112,13 +115,14 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <SectionCard title="Starting bankroll">
+      <SectionCard title="Bankroll">
         <p className="muted" style={{ margin: 0 }}>
-          Added to your session profits and transactions to show your current bankroll.
+          Your starting bankroll is added to session profits and transactions to show your
+          current bankroll.
         </p>
         <div className="row">
           <label className="field grow">
-            <span>Amount ({app.settings.currency})</span>
+            <span>Starting amount ({app.settings.currency})</span>
             <input
               type="text"
               inputMode="decimal"
@@ -137,7 +141,55 @@ export default function SettingsPage() {
             Save
           </button>
         </div>
+        {app.settings.showSports && (
+          <>
+            <div className="segmented" role="group" aria-label="Bankroll mode">
+              {(
+                [
+                  [false, 'One bankroll for all'],
+                  [true, 'Separate sports roll'],
+                ] as [boolean, string][]
+              ).map(([value, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  aria-pressed={app.settings.separateBankrolls === value}
+                  onClick={() => app.updateSettings({ separateBankrolls: value })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {app.settings.separateBankrolls && (
+              <div className="row">
+                <label className="field grow">
+                  <span>Sports starting bankroll ({app.settings.currency})</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={sportsBankrollText}
+                    onChange={(e) => setSportsBankrollText(e.target.value.replace(/[^0-9.]/g, ''))}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ alignSelf: 'flex-end' }}
+                  onClick={() =>
+                    app.updateSettings({
+                      startingSportsBankroll: Number.parseFloat(sportsBankrollText) || 0,
+                    })
+                  }
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </SectionCard>
+
+      <DisplayCard />
 
       <SectionCard title="Default currency">
         <label className="field">
@@ -177,6 +229,7 @@ export default function SettingsPage() {
         </div>
       </SectionCard>
 
+      {app.settings.showSports && (
       <SectionCard title="Sports betting">
         <p className="muted" style={{ margin: 0 }}>
           Unit size shows your betting results in units alongside money; the odds format applies
@@ -221,6 +274,7 @@ export default function SettingsPage() {
           ))}
         </div>
       </SectionCard>
+      )}
 
       <VenuesStakesCard />
 
@@ -342,7 +396,7 @@ export default function SettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.12.0 — works fully offline; all data stays on this device. Install it from your
+          1.13.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>
@@ -374,6 +428,116 @@ export default function SettingsPage() {
       />
     </main>
     </>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="toggle-row">
+      <span>
+        {label}
+        {hint && <span className="hint" style={{ display: 'block' }}>{hint}</span>}
+      </span>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    </label>
+  );
+}
+
+/** Theme, feature switches, nav tabs and dashboard cards. */
+function DisplayCard() {
+  const app = useAppState();
+  const s = app.settings;
+  return (
+    <SectionCard title="Display">
+      <span className="overline">Theme</span>
+      <div className="segmented" role="group" aria-label="Theme">
+        {(
+          [
+            ['SYSTEM', 'System'],
+            ['LIGHT', 'Light'],
+            ['DARK', 'Dark'],
+          ] as [ThemeMode, string][]
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={s.theme === value}
+            onClick={() => app.updateSettings({ theme: value })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <span className="overline" style={{ marginTop: 8 }}>Features</span>
+      <ToggleRow
+        label="Poker"
+        hint="Cash games, tournaments, sit & gos and home games"
+        checked={s.showPoker}
+        onChange={(v) => app.updateSettings({ showPoker: v })}
+      />
+      <ToggleRow
+        label="Table games"
+        hint="Blackjack, craps and other casino games"
+        checked={s.showTableGames}
+        onChange={(v) => app.updateSettings({ showTableGames: v })}
+      />
+      <ToggleRow
+        label="Sports betting"
+        hint="Hides the Sports tab and all betting features"
+        checked={s.showSports}
+        onChange={(v) => app.updateSettings({ showSports: v })}
+      />
+
+      <span className="overline" style={{ marginTop: 8 }}>Tabs</span>
+      <ToggleRow
+        label="Sessions tab"
+        checked={s.showSessionsTab}
+        onChange={(v) => app.updateSettings({ showSessionsTab: v })}
+      />
+      <ToggleRow
+        label="Dashboard tab"
+        checked={s.showDashboardTab}
+        onChange={(v) => app.updateSettings({ showDashboardTab: v })}
+      />
+      <p className="muted small" style={{ margin: 0 }}>
+        Play and More always stay in the navigation.
+      </p>
+
+      <span className="overline" style={{ marginTop: 8 }}>Dashboard cards</span>
+      <ToggleRow
+        label="Profit chart"
+        checked={s.dashChart}
+        onChange={(v) => app.updateSettings({ dashChart: v })}
+      />
+      <ToggleRow
+        label="Stat tiles"
+        checked={s.dashTiles}
+        onChange={(v) => app.updateSettings({ dashTiles: v })}
+      />
+      <ToggleRow
+        label="Daily results calendar"
+        checked={s.dashHeatmap}
+        onChange={(v) => app.updateSettings({ dashHeatmap: v })}
+      />
+      {s.showSports && (
+        <ToggleRow
+          label="Sports snapshot"
+          checked={s.dashSports}
+          onChange={(v) => app.updateSettings({ dashSports: v })}
+        />
+      )}
+    </SectionCard>
   );
 }
 

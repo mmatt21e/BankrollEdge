@@ -218,7 +218,11 @@ export default function EditorPage() {
       durationMinutes: duration,
       currency: app.settings.currency,
       sessionType:
-        app.settings.defaultSessionType !== 'ALL' ? app.settings.defaultSessionType : 'CASH',
+        app.settings.defaultSessionType !== 'ALL'
+          ? app.settings.defaultSessionType
+          : app.settings.showPoker
+            ? 'CASH'
+            : 'TABLE',
     });
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -359,7 +363,11 @@ export default function EditorPage() {
             value={form.sessionType}
             onChange={(e) => set({ sessionType: e.target.value as SessionType })}
           >
-            {SESSION_TYPES.map((t) => (
+            {SESSION_TYPES.filter(
+              (t) =>
+                t === form.sessionType ||
+                (t === 'TABLE' ? app.settings.showTableGames : app.settings.showPoker),
+            ).map((t) => (
               <option key={t} value={t}>{SESSION_TYPE_LABELS[t]}</option>
             ))}
           </select>

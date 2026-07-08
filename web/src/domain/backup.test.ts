@@ -1,17 +1,20 @@
 // Port of Android BackupManagerTest.
 import { describe, it, expect } from 'vitest';
 import { backupToJson, backupFromJson } from './backup';
-import { emptyBet, emptySession, profit, signedAmount } from '../models/types';
+import { DEFAULT_SETTINGS, emptyBet, emptySession, profit, signedAmount } from '../models/types';
 
 describe('backup', () => {
   it('round-trips sessions, transactions and settings', () => {
     const backup = {
       settings: {
+        ...DEFAULT_SETTINGS,
         startingBankroll: 1500,
         currency: 'EUR',
         defaultSessionType: 'CASH' as const,
         betUnitValue: 50,
         oddsFormat: 'DECIMAL' as const,
+        separateBankrolls: true,
+        startingSportsBankroll: 200,
       },
       sessions: [
         {
@@ -157,13 +160,7 @@ describe('backup', () => {
 describe('table game backup fields', () => {
   it('round-trips table fields and rejects unknown table games', () => {
     const backup = {
-      settings: {
-        startingBankroll: 0,
-        currency: 'USD',
-        defaultSessionType: 'ALL' as const,
-        betUnitValue: 0,
-        oddsFormat: 'AMERICAN' as const,
-      },
+      settings: { ...DEFAULT_SETTINGS },
       sessions: [
         {
           ...emptySession(1_700_000_123_456),

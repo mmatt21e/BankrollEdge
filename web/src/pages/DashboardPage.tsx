@@ -21,7 +21,12 @@ export default function DashboardPage() {
   const app = useAppState();
   const navigate = useNavigate();
   const stats = app.allStats;
-  const currency = app.settings.currency;
+  const { settings } = app;
+  const currency = settings.currency;
+  // Bets count toward the headline delta only when they share the bankroll.
+  const includeBets = settings.showSports && !settings.separateBankrolls;
+  const allTime = stats.totalProfit + (includeBets ? app.betStats.netProfit : 0);
+  const showSportsRoll = settings.showSports && settings.separateBankrolls;
 
   return (
     <main className="page">
@@ -32,17 +37,25 @@ export default function DashboardPage() {
         aria-label="Manage bankroll"
       >
         <div className="overline" style={{ color: 'var(--gold-500)' }}>
-          Current bankroll ›
+          {showSportsRoll ? 'Poker bankroll ›' : 'Current bankroll ›'}
         </div>
         <h1 className="money" style={{ fontSize: '2.4rem' }}>{money(app.bankroll, currency)}</h1>
-        <div className={`muted ${profitClass(stats.totalProfit + app.betStats.netProfit)}`}>
-          {signedMoney(stats.totalProfit + app.betStats.netProfit, currency)} all-time
+        <div className={`muted ${profitClass(allTime)}`}>
+          {signedMoney(allTime, currency)} all-time
         </div>
+        {showSportsRoll && (
+          <div className="muted" style={{ marginTop: 4 }}>
+            <span className="overline" style={{ color: 'var(--gold-500)' }}>Sports bankroll</span>{' '}
+            <span className="money" style={{ fontWeight: 700 }}>
+              {money(app.sportsBankroll, currency)}
+            </span>
+          </div>
+        )}
       </button>
 
       <TimerCard />
 
-      <OpenBetsCard />
+      {settings.showSports && <OpenBetsCard />}
 
       <ProfitChartCard />
 

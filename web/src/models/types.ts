@@ -304,6 +304,8 @@ export interface Transaction {
 
 export type OddsFormat = 'AMERICAN' | 'DECIMAL';
 
+export type ThemeMode = 'SYSTEM' | 'LIGHT' | 'DARK';
+
 export interface AppSettings {
   startingBankroll: number;
   currency: string;
@@ -312,6 +314,24 @@ export interface AppSettings {
   betUnitValue: number;
   /** How odds are entered and displayed. */
   oddsFormat: OddsFormat;
+  /** Light/dark override; SYSTEM follows the device setting. */
+  theme: ThemeMode;
+  // Feature switches — turning one off hides that discipline everywhere.
+  showPoker: boolean;
+  showTableGames: boolean;
+  showSports: boolean;
+  // Bottom-nav tabs that may be hidden (Play and More always show).
+  showSessionsTab: boolean;
+  showDashboardTab: boolean;
+  // Dashboard cards.
+  dashChart: boolean;
+  dashTiles: boolean;
+  dashHeatmap: boolean;
+  dashSports: boolean;
+  /** true = poker/table and sports are tracked as two separate bankrolls. */
+  separateBankrolls: boolean;
+  /** Starting bankroll for the sports side when bankrolls are separate. */
+  startingSportsBankroll: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -320,6 +340,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultSessionType: 'ALL',
   betUnitValue: 0,
   oddsFormat: 'AMERICAN',
+  theme: 'SYSTEM',
+  showPoker: true,
+  showTableGames: true,
+  showSports: true,
+  showSessionsTab: true,
+  showDashboardTab: true,
+  dashChart: true,
+  dashTiles: true,
+  dashHeatmap: true,
+  dashSports: true,
+  separateBankrolls: false,
+  startingSportsBankroll: 0,
 };
 
 export function emptySession(now: number): Session {

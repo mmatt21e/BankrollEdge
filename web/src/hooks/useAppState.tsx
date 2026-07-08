@@ -57,6 +57,8 @@ export interface AppState {
   allStats: Statistics;
   filteredStats: Statistics;
   bankroll: number;
+  /** The sports-side roll when bankrolls are kept separate. */
+  sportsBankroll: number;
   availableLocations: string[];
   availableTags: string[];
   timerStart: number; // 0 = not running
@@ -239,8 +241,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const id = await betStore.save({ ...b, id: 0 });
       restoredBets.push({ ...b, id });
     }
-    saveSettings(backup.settings);
-    setSettings(backup.settings);
+    // Only data-related settings roam in backups; display/feature preferences
+    // (theme, tabs, dashboard cards) stay as this device has them.
+    setSettings((prev) => {
+      const merged: AppSettings = {
+        ...prev,
+        startingBankroll: backup.settings.startingBankroll,
+        currency: backup.settings.currency,
+        defaultSessionType: backup.settings.defaultSessionType,
+        betUnitValue: backup.settings.betUnitValue,
+        oddsFormat: backup.settings.oddsFormat,
+        separateBankrolls: backup.settings.separateBankrolls,
+        startingSportsBankroll: backup.settings.startingSportsBankroll,
+      };
+      saveSettings(merged);
+      return merged;
+    });
     setSessions(restoredSessions.sort((a, b) => b.startTime - a.startTime));
     setTransactions(restoredTx.sort((a, b) => b.time - a.time));
     setBets(restoredBets.sort((a, z) => z.placedAt - a.placedAt));
@@ -265,9 +281,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       filter,
       allStats,
       filteredStats: computeStats(filteredSessions),
-      // Settled bet results roll into the same bankroll as poker/table sessions.
+      // Settled bets roll into the same bankroll unless the user keeps
+      // separate rolls (or has the sports feature hidden entirely).
       bankroll:
-        bankrollOf(allStats, settings.startingBankroll, transactionsNet) + betStats.netProfit,
+        bankrollOf(allStats, settings.startingBankroll, transactionsNet) +
+        (settings.showSports && !settings.separateBankrolls ? betStats.netProfit : 0),
+      sportsBankroll: settings.startingSportsBankroll + betStats.netProfit,
       availableLocations: [...new Set(sessions.map((s) => s.location).filter(Boolean))].sort(),
       availableTags: [...new Set(sessions.flatMap((s) => s.tags))].sort(),
       timerStart,
