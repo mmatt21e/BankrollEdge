@@ -1,9 +1,8 @@
-// Settings hub — each area lives on its own sub-page so no single screen
-// is a wall of cards. Feature-gated areas (Poker, Table games, Sports)
-// only appear while their feature switch is on.
-import { Link, useNavigate } from 'react-router-dom';
+// Settings tab — manage bankroll first, then every settings area directly.
+// Feature-gated areas (Poker, Table games, Sports) only appear while their
+// feature switch is on; Display always shows so features can be re-enabled.
+import { Link } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
-import { TopBar } from '../components/common';
 
 interface SettingsLink {
   to: string;
@@ -14,9 +13,14 @@ interface SettingsLink {
 
 export default function SettingsPage() {
   const { settings } = useAppState();
-  const navigate = useNavigate();
 
   const links: SettingsLink[] = [
+    {
+      to: '/bankroll',
+      icon: '🏦',
+      name: 'Manage bankroll',
+      blurb: 'Deposits, withdrawals and your bankroll history.',
+    },
     {
       to: '/settings/general',
       icon: '⚙️',
@@ -56,22 +60,20 @@ export default function SettingsPage() {
   ];
 
   return (
-    <>
-      <TopBar title="Settings" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
-        <div className="col">
-          {links.map((l) => (
-            <Link key={l.to} to={l.to} className="session-row" style={{ textDecoration: 'none' }}>
-              <span aria-hidden="true" style={{ fontSize: '1.6rem' }}>{l.icon}</span>
-              <span className="grow col" style={{ gap: 2 }}>
-                <span className="title">{l.name}</span>
-                <span className="muted small">{l.blurb}</span>
-              </span>
-              <span aria-hidden="true" className="muted">›</span>
-            </Link>
-          ))}
-        </div>
-      </main>
-    </>
+    <main className="page">
+      <h1>Settings</h1>
+      <div className="col">
+        {links.map((l) => (
+          <Link key={l.to} to={l.to} className="session-row" style={{ textDecoration: 'none' }}>
+            <span aria-hidden="true" style={{ fontSize: '1.6rem' }}>{l.icon}</span>
+            <span className="grow col" style={{ gap: 2 }}>
+              <span className="title">{l.name}</span>
+              <span className="muted small">{l.blurb}</span>
+            </span>
+            <span aria-hidden="true" className="muted">›</span>
+          </Link>
+        ))}
+      </div>
+    </main>
   );
 }

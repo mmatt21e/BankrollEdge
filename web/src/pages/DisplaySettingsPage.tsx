@@ -106,7 +106,8 @@ export default function DisplaySettingsPage() {
             onChange={(v) => app.updateSettings({ showDashboardTab: v })}
           />
           <p className="muted small" style={{ margin: 0 }}>
-            Play and More always stay in the navigation.
+            Play and Settings always stay in the navigation; the Tools tab follows the poker
+            feature.
           </p>
         </SectionCard>
 

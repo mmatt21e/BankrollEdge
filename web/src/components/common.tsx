@@ -212,11 +212,13 @@ function NavIcon({ name }: { name: string }) {
       <path d="M4 8a2 2 0 0 0 2-2h12a2 2 0 0 0 2 2v3a2 2 0 0 0 0 2v3a2 2 0 0 0-2 2H6a2 2 0 0 0-2-2v-3a2 2 0 0 0 0-2zM14 6v12" />
     ),
     stats: <path d="M5 20V12M10 20V6M15 20v-5M20 20V9" />,
-    more: (
+    tools: (
+      <path d="M20.7 6.4a5 5 0 0 1-6.3 6.3l-6.2 6.2a2 2 0 0 1-2.8-2.8l6.2-6.2a5 5 0 0 1 6.3-6.3l-3 3 .7 2.1 2.1.7z" />
+    ),
+    settings: (
       <>
-        <circle cx="6" cy="12" r="1.6" />
-        <circle cx="12" cy="12" r="1.6" />
-        <circle cx="18" cy="12" r="1.6" />
+        <circle cx="12" cy="12" r="3.1" />
+        <path d="M12 2.9v2.6M12 18.5v2.6M2.9 12h2.6M18.5 12h2.6M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8" />
       </>
     ),
   };
@@ -243,18 +245,20 @@ const NAV = [
   { to: '/sessions', label: 'Sessions', icon: 'sessions' },
   { to: '/bets', label: 'Sports', icon: 'bets' },
   { to: '/stats', label: 'Dashboard', icon: 'stats' },
-  { to: '/tools', label: 'More', icon: 'more' },
+  { to: '/tools', label: 'Tools', icon: 'tools' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
 ];
 
 export function NavBar() {
   const { settings } = useAppState();
   const canSession = settings.showPoker || settings.showTableGames;
-  // Play and More always show; the middle tabs follow Settings → Display.
+  // Play and Settings always show; the rest follow the feature/tab switches.
   // No session-capable feature = no Sessions tab, whatever the tab toggle says.
   const visible = NAV.filter((item) => {
     if (item.to === '/sessions') return settings.showSessionsTab && canSession;
     if (item.to === '/bets') return settings.showSports;
     if (item.to === '/stats') return settings.showDashboardTab;
+    if (item.to === '/tools') return settings.showPoker;
     return true;
   });
   return (

@@ -1,8 +1,6 @@
-// "More" hub — bankroll management, settings and the poker utilities live
-// here so the bottom nav stays focused on the core tracking loop. The poker
-// tools follow the poker feature switch (Settings → Display).
+// Tools tab — the poker utilities. The whole tab follows the poker feature
+// switch (Settings → Display); bankroll and settings live on the Settings tab.
 import { Link } from 'react-router-dom';
-import { useAppState } from '../hooks/useAppState';
 
 interface HubLink {
   to: string;
@@ -10,21 +8,6 @@ interface HubLink {
   name: string;
   blurb: string;
 }
-
-const MANAGE: HubLink[] = [
-  {
-    to: '/bankroll',
-    icon: '🏦',
-    name: 'Manage bankroll',
-    blurb: 'Deposits, withdrawals and your starting bankroll history.',
-  },
-  {
-    to: '/settings',
-    icon: '⚙️',
-    name: 'Settings',
-    blurb: 'General, display, poker, table games and sports settings.',
-  },
-];
 
 const TOOLS: HubLink[] = [
   {
@@ -91,25 +74,14 @@ function HubRow({ link }: { link: HubLink }) {
 }
 
 export default function ToolsPage() {
-  const { settings } = useAppState();
   return (
     <main className="page">
-      <h1>More</h1>
+      <h1>Tools</h1>
       <div className="col">
-        {MANAGE.map((l) => (
+        {TOOLS.map((l) => (
           <HubRow key={l.to} link={l} />
         ))}
       </div>
-      {settings.showPoker && (
-        <>
-          <h2>Tools</h2>
-          <div className="col">
-            {TOOLS.map((l) => (
-              <HubRow key={l.to} link={l} />
-            ))}
-          </div>
-        </>
-      )}
     </main>
   );
 }
