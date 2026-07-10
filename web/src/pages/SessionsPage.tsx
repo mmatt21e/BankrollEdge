@@ -5,12 +5,10 @@ import { useAppState } from '../hooks/useAppState';
 import {
   SESSION_TYPES,
   SESSION_TYPE_LABELS,
-  GAME_TYPES,
-  GAME_TYPE_LABELS,
-  TABLE_GAMES,
-  TABLE_GAME_LABELS,
   GameType,
   TableGameType,
+  pokerGameOptions,
+  tableGameOptions,
   profit,
 } from '../models/types';
 import { DATE_RANGE_LABELS, DateRange } from '../domain/filter';
@@ -167,8 +165,8 @@ export default function SessionsPage() {
                 }
               >
                 <option value="">Any game</option>
-                {TABLE_GAMES.map((g) => (
-                  <option key={g} value={g}>{TABLE_GAME_LABELS[g]}</option>
+                {tableGameOptions(app.settings).map((g) => (
+                  <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
             </label>
@@ -182,8 +180,8 @@ export default function SessionsPage() {
                 }
               >
                 <option value="">Any game</option>
-                {GAME_TYPES.map((g) => (
-                  <option key={g} value={g}>{GAME_TYPE_LABELS[g]}</option>
+                {pokerGameOptions(app.settings).map((g) => (
+                  <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
             </label>

@@ -3,7 +3,8 @@
 // user data (and Android-app backups) remain fully compatible.
 
 export type SessionType = 'CASH' | 'TOURNAMENT' | 'SNG' | 'HOME' | 'TABLE' | 'OTHER';
-export type GameType = 'NLH' | 'PLO' | 'PLO5' | 'LHE' | 'MIXED' | 'STUD' | 'OTHER';
+/** Built-in key (NLH, PLO, …) or a user-added game name stored verbatim. */
+export type GameType = string;
 export type VenueType = 'LIVE' | 'ONLINE';
 
 export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
@@ -15,19 +16,9 @@ export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   OTHER: 'Other',
 };
 
-/** Casino table/pit games tracked against the same bankroll as poker. */
-export type TableGameType =
-  | 'BLACKJACK'
-  | 'CRAPS'
-  | 'ROULETTE'
-  | 'BACCARAT'
-  | 'PAI_GOW'
-  | 'THREE_CARD'
-  | 'ULTIMATE_TH'
-  | 'LET_IT_RIDE'
-  | 'VIDEO_POKER'
-  | 'SLOTS'
-  | 'OTHER';
+/** Casino table/pit games tracked against the same bankroll as poker.
+ *  Built-in key or a user-added game name stored verbatim. */
+export type TableGameType = string;
 
 export const TABLE_GAME_LABELS: Record<TableGameType, string> = {
   BLACKJACK: 'Blackjack',
@@ -62,6 +53,38 @@ export const VENUE_TYPE_LABELS: Record<VenueType, string> = {
 
 export const GAME_TYPES = Object.keys(GAME_TYPE_LABELS) as GameType[];
 export const SESSION_TYPES = Object.keys(SESSION_TYPE_LABELS) as SessionType[];
+
+/** Display name for a poker game — built-in label, or the custom name itself. */
+export const gameTypeLabel = (g: GameType): string => GAME_TYPE_LABELS[g] ?? g;
+/** Display name for a table game — built-in label, or the custom name itself. */
+export const tableGameLabel = (t: TableGameType): string => TABLE_GAME_LABELS[t] ?? t;
+
+export interface GameOption {
+  value: string;
+  label: string;
+}
+
+/** Selectable poker games: built-ins the user hasn't removed, plus their own. */
+export function pokerGameOptions(settings: AppSettings): GameOption[] {
+  return [
+    ...GAME_TYPES.filter((g) => !settings.hiddenPokerGames.includes(g)).map((g) => ({
+      value: g,
+      label: GAME_TYPE_LABELS[g],
+    })),
+    ...settings.customPokerGames.map((name) => ({ value: name, label: name })),
+  ];
+}
+
+/** Selectable table games: built-ins the user hasn't removed, plus their own. */
+export function tableGameOptions(settings: AppSettings): GameOption[] {
+  return [
+    ...TABLE_GAMES.filter((g) => !settings.hiddenTableGames.includes(g)).map((g) => ({
+      value: g,
+      label: TABLE_GAME_LABELS[g],
+    })),
+    ...settings.customTableGames.map((name) => ({ value: name, label: name })),
+  ];
+}
 
 // --- Optional session-quality fields (0 / '' = not recorded) ---
 export type SleepQuality = '' | 'POOR' | 'OK' | 'GOOD';
@@ -332,6 +355,14 @@ export interface AppSettings {
   separateBankrolls: boolean;
   /** Starting bankroll for the sports side when bankrolls are separate. */
   startingSportsBankroll: number;
+  /** User-added poker games (names double as stored keys). */
+  customPokerGames: string[];
+  /** Built-in poker game keys the user removed from pickers. */
+  hiddenPokerGames: string[];
+  /** User-added table games (names double as stored keys). */
+  customTableGames: string[];
+  /** Built-in table game keys the user removed from pickers. */
+  hiddenTableGames: string[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -352,6 +383,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dashSports: true,
   separateBankrolls: false,
   startingSportsBankroll: 0,
+  customPokerGames: [],
+  hiddenPokerGames: [],
+  customTableGames: [],
+  hiddenTableGames: [],
 };
 
 export function emptySession(now: number): Session {

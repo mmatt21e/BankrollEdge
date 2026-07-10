@@ -28,7 +28,7 @@ import {
   impliedProbability,
 } from '../domain/bets';
 import { money, signedMoney, percent } from '../domain/format';
-import { ConfirmDialog, TopBar, profitClass } from '../components/common';
+import { ConfirmDialog, MoneyInput, TopBar, profitClass } from '../components/common';
 
 interface LegForm {
   pick: string;
@@ -385,12 +385,11 @@ export default function BetEditorPage() {
 
         <div className="row">
           <label className="field grow">
-            <span>Stake ({form.currency})</span>
-            <input
-              type="text"
-              inputMode="decimal"
+            <span>Stake</span>
+            <MoneyInput
+              currency={form.currency}
               value={form.stake}
-              onChange={(e) => set({ stake: e.target.value.replace(/[^0-9.]/g, '') })}
+              onChange={(v) => set({ stake: v })}
             />
           </label>
           <label className="field grow" style={{ justifyContent: 'flex-end' }}>
@@ -427,12 +426,11 @@ export default function BetEditorPage() {
 
         {form.status === 'CASHED_OUT' && (
           <label className="field">
-            <span>Cash-out amount returned ({form.currency})</span>
-            <input
-              type="text"
-              inputMode="decimal"
+            <span>Cash-out amount returned</span>
+            <MoneyInput
+              currency={form.currency}
               value={form.cashOutAmount}
-              onChange={(e) => set({ cashOutAmount: e.target.value.replace(/[^0-9.]/g, '') })}
+              onChange={(v) => set({ cashOutAmount: v })}
             />
           </label>
         )}

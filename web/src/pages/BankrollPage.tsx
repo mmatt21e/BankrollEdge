@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import { signedAmount, Transaction } from '../models/types';
 import { money, signedMoney, formatDate } from '../domain/format';
-import { TopBar, profitClass } from '../components/common';
+import { MoneyInput, TopBar, profitClass } from '../components/common';
 
 export default function BankrollPage() {
   const app = useAppState();
@@ -61,13 +61,8 @@ export default function BankrollPage() {
         <section className="card col">
           <h2>Add money in or out</h2>
           <label className="field">
-            <span>Amount ({currency})</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-            />
+            <span>Amount</span>
+            <MoneyInput value={amount} onChange={setAmount} />
           </label>
           <label className="field">
             <span>Note (optional)</span>

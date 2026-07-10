@@ -11,6 +11,8 @@ import {
   GAME_TYPES,
   SESSION_TYPES,
   TABLE_GAMES,
+  gameTypeLabel,
+  tableGameLabel,
   profit,
   stakesLabel,
   isTableSession,
@@ -55,7 +57,7 @@ export function buildCsv(sessions: Session[]): string {
       [
         formatIso(s.startTime),
         SESSION_TYPE_LABELS[s.sessionType],
-        GAME_TYPE_LABELS[s.gameType],
+        gameTypeLabel(s.gameType),
         escape(s.location),
         escape(stakesLabel(s)),
         s.durationMinutes,
@@ -75,7 +77,7 @@ export function buildCsv(sessions: Session[]): string {
         s.handsPlayed,
         s.tableSize,
         escape(s.tags.join(';')),
-        isTableSession(s) ? TABLE_GAME_LABELS[s.tableGame] : '',
+        isTableSession(s) ? tableGameLabel(s.tableGame) : '',
         s.tableMinBet,
         s.tableMaxBet,
         s.unitValue,
@@ -173,12 +175,13 @@ function parseType(value: string): SessionType {
 }
 
 function parseGame(value: string): GameType {
+  if (value.trim() === '') return 'OTHER';
   return (
     GAME_TYPES.find(
       (g) =>
         g.toLowerCase() === value.toLowerCase() ||
         GAME_TYPE_LABELS[g].toLowerCase() === value.toLowerCase(),
-    ) ?? 'OTHER'
+    ) ?? value.trim() // custom game — keep the name as entered
   );
 }
 
@@ -189,7 +192,7 @@ function parseTableGame(value: string): TableGameType {
       (g) =>
         g.toLowerCase() === value.toLowerCase() ||
         TABLE_GAME_LABELS[g].toLowerCase() === value.toLowerCase(),
-    ) ?? 'OTHER'
+    ) ?? value.trim() // custom game — keep the name as entered
   );
 }
 

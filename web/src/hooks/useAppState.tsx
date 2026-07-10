@@ -253,6 +253,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         oddsFormat: backup.settings.oddsFormat,
         separateBankrolls: backup.settings.separateBankrolls,
         startingSportsBankroll: backup.settings.startingSportsBankroll,
+        customPokerGames: backup.settings.customPokerGames,
+        hiddenPokerGames: backup.settings.hiddenPokerGames,
+        customTableGames: backup.settings.customTableGames,
+        hiddenTableGames: backup.settings.hiddenTableGames,
       };
       saveSettings(merged);
       return merged;

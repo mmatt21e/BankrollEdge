@@ -7,7 +7,7 @@ import { buildCsv, parseCsv } from '../domain/csv';
 import { buildBetsCsv, parseBetsCsv } from '../domain/bets';
 import { backupToJson, backupFromJson } from '../domain/backup';
 import { exportFile, readFileAsText } from '../services/files';
-import { ConfirmDialog, SectionCard, TopBar } from '../components/common';
+import { ConfirmDialog, MoneyInput, SectionCard, TopBar } from '../components/common';
 import {
   eventStore,
   handNoteStore,
@@ -118,13 +118,8 @@ export default function GeneralSettingsPage() {
         </p>
         <div className="row">
           <label className="field grow">
-            <span>Starting amount ({app.settings.currency})</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={bankrollText}
-              onChange={(e) => setBankrollText(e.target.value.replace(/[^0-9.]/g, ''))}
-            />
+            <span>Starting amount</span>
+            <MoneyInput value={bankrollText} onChange={setBankrollText} />
           </label>
           <button
             type="button"
@@ -159,13 +154,8 @@ export default function GeneralSettingsPage() {
             {app.settings.separateBankrolls && (
               <div className="row">
                 <label className="field grow">
-                  <span>Sports starting bankroll ({app.settings.currency})</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={sportsBankrollText}
-                    onChange={(e) => setSportsBankrollText(e.target.value.replace(/[^0-9.]/g, ''))}
-                  />
+                  <span>Sports starting bankroll</span>
+                  <MoneyInput value={sportsBankrollText} onChange={setSportsBankrollText} />
                 </label>
                 <button
                   type="button"
@@ -325,7 +315,7 @@ export default function GeneralSettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.16.0 — works fully offline; all data stays on this device. Install it from your
+          1.17.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>

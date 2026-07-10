@@ -5,8 +5,8 @@ import {
   GameType,
   TableGameType,
   VenueType,
-  GAME_TYPE_LABELS,
-  TABLE_GAME_LABELS,
+  gameTypeLabel,
+  tableGameLabel,
   isTableSession,
   stakesLabel,
   tableStakesLabel,
@@ -67,8 +67,8 @@ export function rangeStart(range: DateRange, now: number): number | null {
 function matches(s: Session, q: string): boolean {
   const needle = q.toLowerCase();
   const gameLabel = isTableSession(s)
-    ? TABLE_GAME_LABELS[s.tableGame]
-    : GAME_TYPE_LABELS[s.gameType];
+    ? tableGameLabel(s.tableGame)
+    : gameTypeLabel(s.gameType);
   const stakes = isTableSession(s) ? tableStakesLabel(s) : stakesLabel(s);
   return (
     s.location.toLowerCase().includes(needle) ||

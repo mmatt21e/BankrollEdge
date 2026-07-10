@@ -19,6 +19,19 @@ const currencyFmt = (code: string): Intl.NumberFormat => {
 export const money = (amount: number, code: string): string =>
   currencyFmt(code).format(amount);
 
+/** Just the symbol for a currency code: USD → $, EUR → €, JPY → ¥. */
+export function currencySymbol(code: string): string {
+  try {
+    return (
+      new Intl.NumberFormat(undefined, { style: 'currency', currency: code })
+        .formatToParts(1)
+        .find((p) => p.type === 'currency')?.value ?? '$'
+    );
+  } catch {
+    return '$';
+  }
+}
+
 /** Always shows the sign: "+$1,250.00" / "-$40.00". */
 export const signedMoney = (amount: number, code: string): string =>
   `${amount < 0 ? '-' : '+'}${currencyFmt(code).format(Math.abs(amount))}`;

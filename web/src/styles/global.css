@@ -209,6 +209,18 @@ button { font: inherit; }
 }
 .field textarea { resize: vertical; }
 
+/* Money input with a currency-symbol prefix. */
+.money-input { position: relative; display: block; width: 100%; }
+.money-input .money-prefix {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--on-surface-variant);
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 /* Wrapped variant: every chip visible, no sideways swiping. */
 .chips-wrap { flex-wrap: wrap; overflow-x: visible; padding-bottom: 0; }

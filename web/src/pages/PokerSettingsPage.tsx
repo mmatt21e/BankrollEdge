@@ -1,9 +1,16 @@
-// Settings → Poker: default view and cash-game stakes presets.
+// Settings → Poker: default view, the poker-games pick list, and cash-game
+// stakes presets.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useStoreList } from '../hooks/useAppState';
-import { SessionType, stakePresetLabel } from '../models/types';
-import { SectionCard, TopBar } from '../components/common';
+import {
+  GAME_TYPES,
+  GAME_TYPE_LABELS,
+  SessionType,
+  stakePresetLabel,
+} from '../models/types';
+import { MoneyInput, SectionCard, TopBar } from '../components/common';
+import { GameListEditor } from '../components/GameListEditor';
 import { stakeStore } from '../storage/db';
 
 export default function PokerSettingsPage() {
@@ -39,6 +46,17 @@ export default function PokerSettingsPage() {
           </div>
         </SectionCard>
 
+        <GameListEditor
+          title="Poker games"
+          description="The games offered when you log a poker session. Remove ones you never play or add your own."
+          builtins={GAME_TYPES.map((g) => ({ value: g, label: GAME_TYPE_LABELS[g] }))}
+          hidden={app.settings.hiddenPokerGames}
+          custom={app.settings.customPokerGames}
+          onChange={({ hidden, custom }) =>
+            app.updateSettings({ hiddenPokerGames: hidden, customPokerGames: custom })
+          }
+        />
+
         <PokerStakesCard />
       </main>
     </>
@@ -52,7 +70,6 @@ function PokerStakesCard() {
     .sort((a, b) => a.smallBlind - b.smallBlind || a.bigBlind - b.bigBlind);
   const [sb, setSb] = useState('');
   const [bb, setBb] = useState('');
-  const dec = (v: string) => v.replace(/[^0-9.]/g, '');
 
   const add = async () => {
     const a = Number.parseFloat(sb) || 0;
@@ -87,22 +104,10 @@ function PokerStakesCard() {
       ))}
       <div className="row">
         <label className="field grow">
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="Small blind"
-            value={sb}
-            onChange={(e) => setSb(dec(e.target.value))}
-          />
+          <MoneyInput value={sb} onChange={setSb} placeholder="Small blind" ariaLabel="Small blind" />
         </label>
         <label className="field grow">
-          <input
-            type="text"
-            inputMode="decimal"
-            placeholder="Big blind"
-            value={bb}
-            onChange={(e) => setBb(dec(e.target.value))}
-          />
+          <MoneyInput value={bb} onChange={setBb} placeholder="Big blind" ariaLabel="Big blind" />
         </label>
         <button type="button" className="btn" onClick={add}>Add</button>
       </div>

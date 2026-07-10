@@ -5,15 +5,15 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
   Session,
-  GAME_TYPE_LABELS,
-  TABLE_GAME_LABELS,
+  gameTypeLabel,
+  tableGameLabel,
   isTableSession,
   profit,
   stakesLabel,
   tableStakesLabel,
 } from '../models/types';
 import { GroupStat, groupHourlyRate } from '../domain/stats';
-import { signedMoney, perHour, formatDate, duration } from '../domain/format';
+import { signedMoney, perHour, formatDate, duration, currencySymbol } from '../domain/format';
 
 export const profitClass = (v: number): string => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
 
@@ -42,11 +42,11 @@ export function SessionRow({ session }: { session: Session }) {
   let title: string;
   if (isTableSession(session)) {
     const range = tableStakesLabel(session);
-    const game = TABLE_GAME_LABELS[session.tableGame];
+    const game = tableGameLabel(session.tableGame);
     title = range ? `${game} ${range}` : game;
   } else {
     const stakes = stakesLabel(session);
-    const game = GAME_TYPE_LABELS[session.gameType];
+    const game = gameTypeLabel(session.gameType);
     title =
       session.sessionType === 'CASH'
         ? stakes ? `${stakes} ${game}` : game
@@ -275,6 +275,42 @@ export function NavBar() {
         </NavLink>
       ))}
     </nav>
+  );
+}
+
+// ---------- Money input ----------
+
+/** Decimal input with the currency symbol shown as a prefix, so the user
+ *  never has to type it. Falls back to the app's default currency. */
+export function MoneyInput({
+  value,
+  onChange,
+  currency,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  /** Overrides the app default (e.g. the session's own currency). */
+  currency?: string;
+  placeholder?: string;
+  ariaLabel?: string;
+}) {
+  const { settings } = useAppState();
+  const sym = currencySymbol(currency ?? settings.currency);
+  return (
+    <span className="money-input">
+      <span className="money-prefix" aria-hidden="true">{sym}</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={value}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        style={{ paddingLeft: `${18 + sym.length * 9}px` }}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ''))}
+      />
+    </span>
   );
 }
 

@@ -196,10 +196,14 @@ describe('table game backup fields', () => {
     expect(s.unitsMax).toBe(8);
     expect(profit(s)).toBeCloseTo(150, 9);
 
-    // An unknown table game name from a foreign/newer file falls back safely.
+    // An unknown table game name is kept verbatim (custom user-added games),
+    // while an empty one falls back to the model default.
     const tampered = JSON.parse(backupToJson(backup, 1_700_000_000_000));
     tampered.sessions[0].tableGame = 'SIC_BO_FUTURE';
     const reread = backupFromJson(JSON.stringify(tampered));
-    expect(reread.sessions[0].tableGame).toBe('BLACKJACK');
+    expect(reread.sessions[0].tableGame).toBe('SIC_BO_FUTURE');
+    tampered.sessions[0].tableGame = '';
+    const rereadEmpty = backupFromJson(JSON.stringify(tampered));
+    expect(rereadEmpty.sessions[0].tableGame).toBe('BLACKJACK');
   });
 });

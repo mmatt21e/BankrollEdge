@@ -8,8 +8,8 @@ import {
   cashed,
   isTournamentStyle,
   isTableSession,
-  GAME_TYPE_LABELS,
-  TABLE_GAME_LABELS,
+  gameTypeLabel,
+  tableGameLabel,
   SESSION_TYPE_LABELS,
   VENUE_TYPE_LABELS,
   GAME_QUALITY_LABELS,
@@ -251,7 +251,7 @@ export function computeStats(sessions: Session[]): Statistics {
     profitBuckets: profitBuckets(sessions),
     cumulative,
     byGameType: groupBy(sessions, (s) =>
-      isTableSession(s) ? TABLE_GAME_LABELS[s.tableGame] : GAME_TYPE_LABELS[s.gameType],
+      isTableSession(s) ? tableGameLabel(s.tableGame) : gameTypeLabel(s.gameType),
     ),
     byLocation: groupBy(sessions, (s) => s.location.trim() || 'Unspecified'),
     byStakes: groupBy(

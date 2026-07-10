@@ -1,12 +1,14 @@
-// Settings → Table games: table-stakes presets.
+// Settings → Table games: the table-games pick list and table-stakes presets.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useStoreList } from '../hooks/useAppState';
-import { stakePresetLabel } from '../models/types';
-import { SectionCard, TopBar } from '../components/common';
+import { useAppState, useStoreList } from '../hooks/useAppState';
+import { TABLE_GAMES, TABLE_GAME_LABELS, stakePresetLabel } from '../models/types';
+import { MoneyInput, SectionCard, TopBar } from '../components/common';
+import { GameListEditor } from '../components/GameListEditor';
 import { stakeStore } from '../storage/db';
 
 export default function TableGamesSettingsPage() {
+  const app = useAppState();
   const navigate = useNavigate();
   const stakes = useStoreList(stakeStore);
   const table = stakes.items
@@ -14,7 +16,6 @@ export default function TableGamesSettingsPage() {
     .sort((a, b) => a.minBet - b.minBet || a.maxBet - b.maxBet);
   const [min, setMin] = useState('');
   const [max, setMax] = useState('');
-  const dec = (v: string) => v.replace(/[^0-9.]/g, '');
 
   const add = async () => {
     const a = Number.parseFloat(min) || 0;
@@ -29,6 +30,17 @@ export default function TableGamesSettingsPage() {
     <>
       <TopBar title="Table games" onBack={() => navigate(-1)} />
       <main className="page" style={{ paddingTop: 0 }}>
+        <GameListEditor
+          title="Table games"
+          description="The games offered when you log a table-game session. Remove ones you never play or add your own."
+          builtins={TABLE_GAMES.map((g) => ({ value: g, label: TABLE_GAME_LABELS[g] }))}
+          hidden={app.settings.hiddenTableGames}
+          custom={app.settings.customTableGames}
+          onChange={({ hidden, custom }) =>
+            app.updateSettings({ hiddenTableGames: hidden, customTableGames: custom })
+          }
+        />
+
         <SectionCard title="Table game stakes">
           <p className="muted" style={{ margin: 0 }}>
             Saved min/max bet spreads appear as one-tap choices when you log a table-game
@@ -52,22 +64,10 @@ export default function TableGamesSettingsPage() {
           ))}
           <div className="row">
             <label className="field grow">
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="Min bet"
-                value={min}
-                onChange={(e) => setMin(dec(e.target.value))}
-              />
+              <MoneyInput value={min} onChange={setMin} placeholder="Min bet" ariaLabel="Min bet" />
             </label>
             <label className="field grow">
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="Max bet"
-                value={max}
-                onChange={(e) => setMax(dec(e.target.value))}
-              />
+              <MoneyInput value={max} onChange={setMax} placeholder="Max bet" ariaLabel="Max bet" />
             </label>
             <button type="button" className="btn" onClick={add}>Add</button>
           </div>

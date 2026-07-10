@@ -15,9 +15,7 @@ import {
   emptySession,
   normalizeSession,
   normalizeBet,
-  GAME_TYPES,
   SESSION_TYPES,
-  TABLE_GAMES,
 } from '../models/types';
 
 // v2 adds optional session fields plus the tool collections; v3 adds sports
@@ -53,6 +51,10 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
         oddsFormat: backup.settings.oddsFormat,
         separateBankrolls: backup.settings.separateBankrolls,
         startingSportsBankroll: backup.settings.startingSportsBankroll,
+        customPokerGames: backup.settings.customPokerGames,
+        hiddenPokerGames: backup.settings.hiddenPokerGames,
+        customTableGames: backup.settings.customTableGames,
+        hiddenTableGames: backup.settings.hiddenTableGames,
       },
       sessions: backup.sessions.map(({ id: _id, ...rest }) => rest),
       transactions: backup.transactions.map(({ id: _id, ...rest }) => rest),
@@ -73,6 +75,8 @@ const num = (v: unknown, fallback = 0): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 const str = (v: unknown, fallback = ''): string =>
   typeof v === 'string' ? v : fallback;
+const strArray = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 
 /** @throws Error on malformed input or a foreign JSON file. */
 export function backupFromJson(json: string): Backup {
@@ -92,6 +96,10 @@ export function backupFromJson(json: string): Backup {
     oddsFormat: str(s.oddsFormat) === 'DECIMAL' ? 'DECIMAL' : 'AMERICAN',
     separateBankrolls: s.separateBankrolls === true,
     startingSportsBankroll: num(s.startingSportsBankroll),
+    customPokerGames: strArray(s.customPokerGames),
+    hiddenPokerGames: strArray(s.hiddenPokerGames),
+    customTableGames: strArray(s.customTableGames),
+    hiddenTableGames: strArray(s.hiddenTableGames),
   };
 
   const sessions = (Array.isArray(root.sessions) ? root.sessions : []).map((raw) => {
@@ -102,7 +110,9 @@ export function backupFromJson(json: string): Backup {
     return normalizeSession({
       ...base,
       sessionType: SESSION_TYPES.includes(st as never) ? (st as Session['sessionType']) : 'CASH',
-      gameType: GAME_TYPES.includes(g as never) ? (g as Session['gameType']) : 'NLH',
+      // Custom (user-added) game names are stored verbatim, so any non-empty
+      // string is valid here.
+      gameType: g.trim() !== '' ? g : 'NLH',
       venueType: str(o.venueType) === 'ONLINE' ? 'ONLINE' : 'LIVE',
       location: str(o.location),
       startTime: num(o.startTime),
@@ -118,9 +128,7 @@ export function backupFromJson(json: string): Backup {
       expenses: num(o.expenses),
       position: num(o.position),
       fieldSize: num(o.fieldSize),
-      tableGame: TABLE_GAMES.includes(str(o.tableGame) as never)
-        ? (str(o.tableGame) as Session['tableGame'])
-        : 'BLACKJACK',
+      tableGame: str(o.tableGame).trim() !== '' ? str(o.tableGame) : 'BLACKJACK',
       tableMinBet: num(o.tableMinBet),
       tableMaxBet: num(o.tableMaxBet),
       unitValue: num(o.unitValue),

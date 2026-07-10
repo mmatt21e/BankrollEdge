@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
-import { SectionCard, TopBar } from '../components/common';
+import { MoneyInput, SectionCard, TopBar } from '../components/common';
 
 export default function SportsSettingsPage() {
   const app = useAppState();
@@ -21,13 +21,8 @@ export default function SportsSettingsPage() {
           </p>
           <div className="row">
             <label className="field grow">
-              <span>Unit size ({app.settings.currency})</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={unitText}
-                onChange={(e) => setUnitText(e.target.value.replace(/[^0-9.]/g, ''))}
-              />
+              <span>Unit size</span>
+              <MoneyInput value={unitText} onChange={setUnitText} />
             </label>
             <button
               type="button"

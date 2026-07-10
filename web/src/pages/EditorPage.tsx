@@ -17,17 +17,17 @@ import {
   YesNo,
   SESSION_TYPES,
   SESSION_TYPE_LABELS,
-  GAME_TYPES,
-  GAME_TYPE_LABELS,
-  TABLE_GAMES,
-  TABLE_GAME_LABELS,
   emptySession,
   isTournamentStyle,
   profit,
+  gameTypeLabel,
+  tableGameLabel,
+  pokerGameOptions,
+  tableGameOptions,
 } from '../models/types';
 import { money, signedMoney, signedUnits } from '../domain/format';
 import { stakeStore, venueStore } from '../storage/db';
-import { ConfirmDialog, TopBar, profitClass } from '../components/common';
+import { ConfirmDialog, MoneyInput, TopBar, profitClass } from '../components/common';
 import { StakesPicker, VenuePicker } from '../components/pickers';
 
 interface FormState {
@@ -291,7 +291,19 @@ export default function EditorPage() {
     navigate(-1);
   };
 
+  // Money fields show the session currency's symbol; plain decimal fields
+  // (unit counts) don't.
   const moneyField = (label: string, key: keyof FormState) => (
+    <label className="field grow" key={key}>
+      <span>{label}</span>
+      <MoneyInput
+        currency={form.currency}
+        value={form[key] as string}
+        onChange={(v) => set({ [key]: v } as Partial<FormState>)}
+      />
+    </label>
+  );
+  const decimalField = (label: string, key: keyof FormState) => (
     <label className="field grow" key={key}>
       <span>{label}</span>
       <input
@@ -302,6 +314,16 @@ export default function EditorPage() {
       />
     </label>
   );
+  const amountField = inUnits ? decimalField : moneyField;
+
+  const pokerGames = pokerGameOptions(app.settings);
+  const pokerGamesAll = pokerGames.some((o) => o.value === form.gameType)
+    ? pokerGames
+    : [...pokerGames, { value: form.gameType, label: gameTypeLabel(form.gameType) }];
+  const tableGames = tableGameOptions(app.settings);
+  const tableGamesAll = tableGames.some((o) => o.value === form.tableGame)
+    ? tableGames
+    : [...tableGames, { value: form.tableGame, label: tableGameLabel(form.tableGame) }];
   const intField = (label: string, key: keyof FormState) => (
     <label className="field grow" key={key}>
       <span>{label}</span>
@@ -393,8 +415,8 @@ export default function EditorPage() {
               value={form.tableGame}
               onChange={(e) => set({ tableGame: e.target.value as TableGameType })}
             >
-              {TABLE_GAMES.map((g) => (
-                <option key={g} value={g}>{TABLE_GAME_LABELS[g]}</option>
+              {tableGamesAll.map((g) => (
+                <option key={g.value} value={g.value}>{g.label}</option>
               ))}
             </select>
           </label>
@@ -405,8 +427,8 @@ export default function EditorPage() {
               value={form.gameType}
               onChange={(e) => set({ gameType: e.target.value as GameType })}
             >
-              {GAME_TYPES.map((g) => (
-                <option key={g} value={g}>{GAME_TYPE_LABELS[g]}</option>
+              {pokerGamesAll.map((g) => (
+                <option key={g.value} value={g.value}>{g.label}</option>
               ))}
             </select>
           </label>
@@ -487,8 +509,8 @@ export default function EditorPage() {
               <div className="col" style={{ marginTop: 10 }}>
                 {moneyField('Unit value (what 1 unit is worth)', 'unitValue')}
                 <div className="row">
-                  {moneyField('Min bet (units)', 'unitsMin')}
-                  {moneyField('Max bet (units)', 'unitsMax')}
+                  {decimalField('Min bet (units)', 'unitsMin')}
+                  {decimalField('Max bet (units)', 'unitsMax')}
                 </div>
                 {unitValue > 0 && (f(form.unitsMin) > 0 || f(form.unitsMax) > 0) && (
                   <p className="muted small" style={{ margin: 0 }}>
@@ -517,18 +539,18 @@ export default function EditorPage() {
           </>
         )}
 
-        {moneyField(
+        {amountField(
           isTournament ? 'Buy-in (entry + fee)' : inUnits ? 'Buy-in (units)' : 'Buy-in (total)',
           'buyIn',
         )}
-        {moneyField(
+        {amountField(
           isTournament ? 'Rebuys / re-entries'
             : inUnits ? 'Additional buy-ins (units)'
             : 'Additional buy-ins',
           'rebuysAddons',
         )}
         {isTournament && moneyField('Add-ons', 'addOns')}
-        {moneyField(
+        {amountField(
           isTournament ? 'Prize won' : inUnits ? 'Cash out (units)' : 'Cash out',
           'cashOut',
         )}
