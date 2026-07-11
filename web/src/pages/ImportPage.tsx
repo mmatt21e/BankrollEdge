@@ -28,7 +28,7 @@ import {
   profit,
 } from '../models/types';
 import { signedMoney, formatDate } from '../domain/format';
-import { readFileAsText } from '../services/files';
+import { readFileAsText, describeCsvProblem, formatBytes } from '../services/files';
 import { SectionCard, TopBar, profitClass } from '../components/common';
 
 interface PreviewRow {
@@ -70,23 +70,45 @@ export default function ImportPage() {
     setMapping({});
   };
 
-  const load = (text: string) => {
+  /** Validates the text and, if it's usable, loads it. On any problem it sets
+   *  a specific message and returns false. [source] names the origin for the
+   *  message, e.g. '“trades.csv”' or 'the pasted text'. */
+  const load = (text: string, source: string): boolean => {
+    const problem = describeCsvProblem(text, source);
+    if (problem) {
+      setMessage(`Couldn't use ${source}: ${problem}.`);
+      return false;
+    }
     const { headers: h, rows: r } = analyzeCsv(text);
+    if (h.length === 0) {
+      setMessage(`No columns found in ${source}. Make sure it's a comma-separated CSV with a header row.`);
+      return false;
+    }
+    if (h.length === 1 && !text.includes(',')) {
+      setMessage(
+        `${source} has only one column — it may use tabs or semicolons instead of commas. Re-export it as comma-separated (CSV) and try again.`,
+      );
+      return false;
+    }
     setRaw(text);
     setHeaders(h);
     setRows(r);
     setMapping(kind === 'bets' ? guessBetMapping(h) : guessMapping(h));
     setMessage('');
+    return true;
   };
 
   const onPickFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    const named = `“${file.name}”`;
     try {
-      load(await readFileAsText(file));
-    } catch {
-      setMessage("Couldn't read that file.");
+      const text = await readFileAsText(file);
+      load(text, named);
+    } catch (err) {
+      // Surface the actual reason (empty, unreadable cloud file, denied, …).
+      setMessage(`Couldn't read ${named} (${formatBytes(file.size)}): ${(err as Error).message}.`);
     }
   };
 
@@ -214,7 +236,7 @@ export default function ImportPage() {
                 className="btn btn-outline"
                 style={{ marginTop: 8 }}
                 disabled={raw.trim() === ''}
-                onClick={() => load(raw)}
+                onClick={() => load(raw, 'the pasted text')}
               >
                 Load pasted text
               </button>
