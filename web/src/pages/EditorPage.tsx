@@ -316,11 +316,11 @@ export default function EditorPage() {
   );
   const amountField = inUnits ? decimalField : moneyField;
 
-  const pokerGames = pokerGameOptions(app.settings);
+  const pokerGames = pokerGameOptions(app.settings, app.recordedPokerGames);
   const pokerGamesAll = pokerGames.some((o) => o.value === form.gameType)
     ? pokerGames
     : [...pokerGames, { value: form.gameType, label: gameTypeLabel(form.gameType) }];
-  const tableGames = tableGameOptions(app.settings);
+  const tableGames = tableGameOptions(app.settings, app.recordedTableGames);
   const tableGamesAll = tableGames.some((o) => o.value === form.tableGame)
     ? tableGames
     : [...tableGames, { value: form.tableGame, label: tableGameLabel(form.tableGame) }];

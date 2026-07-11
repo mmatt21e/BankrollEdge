@@ -61,6 +61,10 @@ export interface AppState {
   sportsBankroll: number;
   availableLocations: string[];
   availableTags: string[];
+  /** Poker game types present in the data (recorded or imported), distinct. */
+  recordedPokerGames: string[];
+  /** Table game types present in the data (recorded or imported), distinct. */
+  recordedTableGames: string[];
   timerStart: number; // 0 = not running
 
   saveSession(session: Session): Promise<void>;
@@ -333,6 +337,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       sportsBankroll: settings.startingSportsBankroll + betStats.netProfit,
       availableLocations: [...new Set(sessions.map((s) => s.location).filter(Boolean))].sort(),
       availableTags: [...new Set(sessions.flatMap((s) => s.tags))].sort(),
+      recordedPokerGames: [
+        ...new Set(sessions.filter((s) => s.sessionType !== 'TABLE').map((s) => s.gameType).filter(Boolean)),
+      ].sort(),
+      recordedTableGames: [
+        ...new Set(sessions.filter((s) => s.sessionType === 'TABLE').map((s) => s.tableGame).filter(Boolean)),
+      ].sort(),
       timerStart,
       saveSession,
       deleteSession,

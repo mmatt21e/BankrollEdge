@@ -64,26 +64,55 @@ export interface GameOption {
   label: string;
 }
 
-/** Selectable poker games: built-ins the user hasn't removed, plus their own. */
-export function pokerGameOptions(settings: AppSettings): GameOption[] {
-  return [
-    ...GAME_TYPES.filter((g) => !settings.hiddenPokerGames.includes(g)).map((g) => ({
-      value: g,
-      label: GAME_TYPE_LABELS[g],
-    })),
-    ...settings.customPokerGames.map((name) => ({ value: name, label: name })),
-  ];
+/** Appends any recorded/imported values not already present, so game types
+ *  that came in from a data import always appear (even if not configured or
+ *  the built-in was hidden). */
+function withRecorded(
+  options: GameOption[],
+  recorded: string[],
+  label: (value: string) => string,
+): GameOption[] {
+  const present = new Set(options.map((o) => o.value));
+  const out = [...options];
+  for (const value of recorded) {
+    if (value && !present.has(value)) {
+      out.push({ value, label: label(value) });
+      present.add(value);
+    }
+  }
+  return out;
 }
 
-/** Selectable table games: built-ins the user hasn't removed, plus their own. */
-export function tableGameOptions(settings: AppSettings): GameOption[] {
-  return [
-    ...TABLE_GAMES.filter((g) => !settings.hiddenTableGames.includes(g)).map((g) => ({
-      value: g,
-      label: TABLE_GAME_LABELS[g],
-    })),
-    ...settings.customTableGames.map((name) => ({ value: name, label: name })),
-  ];
+/** Selectable poker games: built-ins the user hasn't removed, their own custom
+ *  games, plus any [recorded] in the data (recorded/imported). */
+export function pokerGameOptions(settings: AppSettings, recorded: string[] = []): GameOption[] {
+  return withRecorded(
+    [
+      ...GAME_TYPES.filter((g) => !settings.hiddenPokerGames.includes(g)).map((g) => ({
+        value: g,
+        label: GAME_TYPE_LABELS[g],
+      })),
+      ...settings.customPokerGames.map((name) => ({ value: name, label: name })),
+    ],
+    recorded,
+    gameTypeLabel,
+  );
+}
+
+/** Selectable table games: built-ins the user hasn't removed, their own custom
+ *  games, plus any [recorded] in the data (recorded/imported). */
+export function tableGameOptions(settings: AppSettings, recorded: string[] = []): GameOption[] {
+  return withRecorded(
+    [
+      ...TABLE_GAMES.filter((g) => !settings.hiddenTableGames.includes(g)).map((g) => ({
+        value: g,
+        label: TABLE_GAME_LABELS[g],
+      })),
+      ...settings.customTableGames.map((name) => ({ value: name, label: name })),
+    ],
+    recorded,
+    tableGameLabel,
+  );
 }
 
 // --- Optional session-quality fields (0 / '' = not recorded) ---

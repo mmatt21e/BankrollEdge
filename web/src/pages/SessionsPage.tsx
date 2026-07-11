@@ -165,7 +165,7 @@ export default function SessionsPage() {
                 }
               >
                 <option value="">Any game</option>
-                {tableGameOptions(app.settings).map((g) => (
+                {tableGameOptions(app.settings, app.recordedTableGames).map((g) => (
                   <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
@@ -180,7 +180,7 @@ export default function SessionsPage() {
                 }
               >
                 <option value="">Any game</option>
-                {pokerGameOptions(app.settings).map((g) => (
+                {pokerGameOptions(app.settings, app.recordedPokerGames).map((g) => (
                   <option key={g.value} value={g.value}>{g.label}</option>
                 ))}
               </select>
