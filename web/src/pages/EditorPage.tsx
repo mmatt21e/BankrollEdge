@@ -209,8 +209,27 @@ export default function EditorPage() {
     .filter((s) => s.kind === 'TABLE')
     .sort((a, b) => a.minBet - b.minBet || a.maxBet - b.maxBet);
 
+  // A live session that's being logged carries its captured setup (game,
+  // venue, stakes, buy-in) in the active-session draft — prefill from it.
+  const draft = params.get('live') === '1' ? app.activeSession : null;
   const [form, setForm] = useState<FormState>(() => {
     if (existing) return fromSession(existing);
+    if (draft) {
+      const duration = Number(params.get('duration')) || 0;
+      return fromSession({
+        ...emptySession(draft.startedAt),
+        durationMinutes: duration,
+        sessionType: draft.sessionType,
+        gameType: draft.gameType,
+        tableGame: draft.tableGame,
+        venueType: draft.venueType,
+        location: draft.location,
+        smallBlind: draft.smallBlind,
+        bigBlind: draft.bigBlind,
+        buyIn: draft.buyIn,
+        currency: draft.currency,
+      });
+    }
     const start = Number(params.get('start')) || Date.now();
     const duration = Number(params.get('duration')) || 0;
     return fromSession({
@@ -282,6 +301,8 @@ export default function EditorPage() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     await app.saveSession(toSession(form, sessionId));
+    // The live session is now logged — retire its draft so the timer resets.
+    if (draft) app.clearSession();
     navigate(-1);
   };
 

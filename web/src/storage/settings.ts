@@ -1,9 +1,10 @@
 // localStorage persistence for settings + live-timer start — the PWA
 // equivalent of Android SharedPreferences. Nothing here is sensitive.
-import { AppSettings, DEFAULT_SETTINGS } from '../models/types';
+import { ActiveSession, AppSettings, DEFAULT_SETTINGS } from '../models/types';
 
 const SETTINGS_KEY = 'bankrolledge_settings';
 const TIMER_KEY = 'bankrolledge_timer_start';
+const ACTIVE_KEY = 'bankrolledge_active_session';
 
 export function loadSettings(): AppSettings {
   try {
@@ -29,6 +30,21 @@ export function loadTimerStart(): number {
 export function saveTimerStart(startMillis: number): void {
   if (startMillis > 0) localStorage.setItem(TIMER_KEY, String(startMillis));
   else localStorage.removeItem(TIMER_KEY);
+}
+
+/** The in-progress session's setup (game, venue, stakes…), or null when idle. */
+export function loadActiveSession(): ActiveSession | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_KEY);
+    return raw ? (JSON.parse(raw) as ActiveSession) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveActiveSession(session: ActiveSession | null): void {
+  if (session) localStorage.setItem(ACTIVE_KEY, JSON.stringify(session));
+  else localStorage.removeItem(ACTIVE_KEY);
 }
 
 // --- Privacy controls (device-local by design; never included in backups) ---

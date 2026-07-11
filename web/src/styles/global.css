@@ -418,6 +418,8 @@ button { font: inherit; }
   padding: 20px;
   max-width: 420px;
   width: 100%;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;

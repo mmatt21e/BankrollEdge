@@ -18,9 +18,22 @@ import {
   formatDateTime,
 } from '../domain/format';
 import { computeInsights } from '../domain/insights';
-import { SportsBet } from '../models/types';
+import {
+  ActiveSession,
+  SportsBet,
+  SessionType,
+  GameType,
+  TableGameType,
+  VenueType,
+  SESSION_TYPES,
+  SESSION_TYPE_LABELS,
+  gameTypeLabel,
+  tableGameLabel,
+  pokerGameOptions,
+  tableGameOptions,
+} from '../models/types';
 import { CumulativeProfitChart } from '../components/charts';
-import { StatTileGrid, SessionRow, profitClass } from '../components/common';
+import { MoneyInput, StatTileGrid, SessionRow, profitClass } from '../components/common';
 
 export default function DashboardPage() {
   const app = useAppState();
@@ -301,35 +314,56 @@ function Insights() {
 function TimerCard() {
   const app = useAppState();
   const navigate = useNavigate();
-  const running = app.timerStart > 0;
+  const [setupOpen, setSetupOpen] = useState(false);
+  const active = app.activeSession;
+  const running = !!active;
   const now = useNow(running);
 
   // Idle: a slim one-line action, not a full card — the screen's space
-  // belongs to results, not to a button.
-  if (!running) {
+  // belongs to results, not to a button. Tapping it captures the session
+  // setup up front so the details are recorded from the moment you sit down.
+  if (!running || !active) {
     return (
-      <button type="button" className="live-start" onClick={app.startTimer}>
-        <span aria-hidden="true">▶</span> Start live session
-      </button>
+      <>
+        <button type="button" className="live-start" onClick={() => setSetupOpen(true)}>
+          <span aria-hidden="true">▶</span> Start live session
+        </button>
+        <StartSessionDialog
+          open={setupOpen}
+          onCancel={() => setSetupOpen(false)}
+          onStart={(setup) => {
+            app.startSession(setup);
+            setSetupOpen(false);
+          }}
+        />
+      </>
     );
   }
 
+  const isTable = active.sessionType === 'TABLE';
+  const gameLabel = isTable ? tableGameLabel(active.tableGame) : gameTypeLabel(active.gameType);
+  const stakes =
+    !isTable && (active.smallBlind > 0 || active.bigBlind > 0)
+      ? `${money(active.smallBlind, active.currency)}/${money(active.bigBlind, active.currency)}`
+      : '';
+  const summary = [gameLabel, stakes, active.location].filter(Boolean).join(' · ');
+
   const stopAndLog = () => {
-    const start = app.timerStart;
-    const minutes = Math.max(0, Math.floor((Date.now() - start) / 60000));
-    app.clearTimer();
-    navigate(`/session/new?start=${start}&duration=${minutes}`);
+    const minutes = Math.max(0, Math.floor((Date.now() - active.startedAt) / 60000));
+    // The draft prefills the editor; it's cleared once the session is saved.
+    navigate(`/session/new?live=1&duration=${minutes}`);
   };
 
   return (
     <section className="card col" style={{ background: 'var(--primary-container)' }}>
       <div className="overline">Live session</div>
       <div className="money" style={{ fontSize: '2rem', fontWeight: 700 }} role="timer">
-        {elapsedClock(now - app.timerStart)}
+        {elapsedClock(now - active.startedAt)}
       </div>
-      <div className="muted">Started {formatDateTime(app.timerStart)}</div>
+      {summary && <div style={{ fontWeight: 600 }}>{summary}</div>}
+      <div className="muted">Started {formatDateTime(active.startedAt)}</div>
       <div className="row">
-        <button type="button" className="btn btn-outline grow" onClick={app.clearTimer}>
+        <button type="button" className="btn btn-outline grow" onClick={app.clearSession}>
           Discard
         </button>
         <button type="button" className="btn grow" onClick={stopAndLog}>
@@ -337,5 +371,187 @@ function TimerCard() {
         </button>
       </div>
     </section>
+  );
+}
+
+interface SetupState {
+  sessionType: SessionType;
+  gameType: GameType;
+  tableGame: TableGameType;
+  venueType: VenueType;
+  location: string;
+  smallBlind: string;
+  bigBlind: string;
+  buyIn: string;
+}
+
+/** Captures the session's setup the moment it starts, so game, venue, stakes
+ *  and buy-in are recorded up front rather than reconstructed at stop time. */
+function StartSessionDialog({
+  open,
+  onCancel,
+  onStart,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onStart: (setup: Omit<ActiveSession, 'startedAt'>) => void;
+}) {
+  const app = useAppState();
+  const { settings } = app;
+  const [form, setForm] = useState<SetupState>(() => ({
+    sessionType:
+      settings.defaultSessionType !== 'ALL'
+        ? settings.defaultSessionType
+        : settings.showPoker
+          ? 'CASH'
+          : 'TABLE',
+    gameType: 'NLH',
+    tableGame: 'BLACKJACK',
+    venueType: 'LIVE',
+    location: '',
+    smallBlind: '',
+    bigBlind: '',
+    buyIn: '',
+  }));
+
+  if (!open) return null;
+
+  const set = (patch: Partial<SetupState>) => setForm((prev) => ({ ...prev, ...patch }));
+  const num = (v: string) => {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const isTable = form.sessionType === 'TABLE';
+  const pokerGames = pokerGameOptions(settings, app.recordedPokerGames);
+  const tableGames = tableGameOptions(settings, app.recordedTableGames);
+
+  const start = () => {
+    onStart({
+      sessionType: form.sessionType,
+      gameType: form.gameType,
+      tableGame: form.tableGame,
+      venueType: form.venueType,
+      location: form.location.trim(),
+      smallBlind: isTable ? 0 : num(form.smallBlind),
+      bigBlind: isTable ? 0 : num(form.bigBlind),
+      buyIn: num(form.buyIn),
+      currency: settings.currency,
+    });
+  };
+
+  return (
+    <div
+      className="dialog-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+    >
+      <div role="dialog" aria-modal="true" aria-label="Start live session" className="dialog">
+        <h2>Start live session</h2>
+
+        <label className="field">
+          <span>Session type</span>
+          <select
+            value={form.sessionType}
+            onChange={(e) => set({ sessionType: e.target.value as SessionType })}
+          >
+            {SESSION_TYPES.filter(
+              (t) =>
+                t === form.sessionType ||
+                (t === 'TABLE' ? settings.showTableGames : settings.showPoker),
+            ).map((t) => (
+              <option key={t} value={t}>{SESSION_TYPE_LABELS[t]}</option>
+            ))}
+          </select>
+        </label>
+
+        <div className="segmented" role="group" aria-label="Live or online">
+          {(['LIVE', 'ONLINE'] as VenueType[]).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={form.venueType === v}
+              onClick={() => set({ venueType: v })}
+            >
+              {v === 'LIVE' ? 'Live' : 'Online'}
+            </button>
+          ))}
+        </div>
+
+        {isTable ? (
+          <label className="field">
+            <span>Table game</span>
+            <select
+              value={form.tableGame}
+              onChange={(e) => set({ tableGame: e.target.value as TableGameType })}
+            >
+              {tableGames.map((g) => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label className="field">
+            <span>Game</span>
+            <select
+              value={form.gameType}
+              onChange={(e) => set({ gameType: e.target.value as GameType })}
+            >
+              {pokerGames.map((g) => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <label className="field">
+          <span>Venue / location</span>
+          <input
+            type="text"
+            value={form.location}
+            placeholder="e.g. Bellagio"
+            onChange={(e) => set({ location: e.target.value })}
+          />
+        </label>
+
+        {!isTable && (
+          <div className="row">
+            <label className="field grow">
+              <span>Small blind</span>
+              <MoneyInput
+                currency={settings.currency}
+                value={form.smallBlind}
+                onChange={(v) => set({ smallBlind: v })}
+              />
+            </label>
+            <label className="field grow">
+              <span>Big blind</span>
+              <MoneyInput
+                currency={settings.currency}
+                value={form.bigBlind}
+                onChange={(v) => set({ bigBlind: v })}
+              />
+            </label>
+          </div>
+        )}
+
+        <label className="field">
+          <span>Buy-in</span>
+          <MoneyInput
+            currency={settings.currency}
+            value={form.buyIn}
+            onChange={(v) => set({ buyIn: v })}
+          />
+        </label>
+
+        <div className="actions">
+          <button type="button" className="btn btn-outline" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="btn" onClick={start}>
+            ▶ Start
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

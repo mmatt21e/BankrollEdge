@@ -64,6 +64,22 @@ export interface GameOption {
   label: string;
 }
 
+/** The setup captured when a live session STARTS. It's held in localStorage
+ *  (not the sessions store) so an in-progress session doesn't count toward
+ *  stats until it's completed and saved. */
+export interface ActiveSession {
+  startedAt: number;
+  sessionType: SessionType;
+  gameType: GameType;
+  tableGame: TableGameType;
+  venueType: VenueType;
+  location: string;
+  smallBlind: number;
+  bigBlind: number;
+  buyIn: number;
+  currency: string;
+}
+
 /** Appends any recorded/imported values not already present, so game types
  *  that came in from a data import always appear (even if not configured or
  *  the built-in was hidden). */

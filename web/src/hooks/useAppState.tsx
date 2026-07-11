@@ -11,6 +11,7 @@ import {
   ReactNode,
 } from 'react';
 import {
+  ActiveSession,
   AppSettings,
   BetStatus,
   Session,
@@ -40,7 +41,8 @@ import {
   loadSettings,
   saveSettings,
   loadTimerStart,
-  saveTimerStart,
+  loadActiveSession,
+  saveActiveSession,
 } from '../storage/settings';
 
 export interface AppState {
@@ -65,7 +67,9 @@ export interface AppState {
   recordedPokerGames: string[];
   /** Table game types present in the data (recorded or imported), distinct. */
   recordedTableGames: string[];
-  timerStart: number; // 0 = not running
+  timerStart: number; // 0 = not running (derived from activeSession)
+  /** The in-progress session's captured setup, or null when idle. */
+  activeSession: ActiveSession | null;
 
   saveSession(session: Session): Promise<void>;
   deleteSession(id: number): Promise<void>;
@@ -80,8 +84,8 @@ export interface AppState {
   deleteTransaction(id: number): Promise<void>;
   updateSettings(patch: Partial<AppSettings>): void;
   setFilter(filter: SessionFilter): void;
-  startTimer(): void;
-  clearTimer(): void;
+  startSession(setup: Omit<ActiveSession, 'startedAt'>): void;
+  clearSession(): void;
   importSessions(sessions: Session[]): Promise<number>;
   restoreBackup(backup: Backup): Promise<void>;
   /** Permanently deletes logged data for a category (or everything). Returns
@@ -94,13 +98,36 @@ export type ClearScope = 'poker' | 'table' | 'sports' | 'all';
 
 const AppStateContext = createContext<AppState | null>(null);
 
+/** Builds a minimal draft from a legacy timestamp-only running timer, using
+ *  settings for the currency so the editor prefills sensibly. */
+function bareActiveSession(startedAt: number, settings: AppSettings): ActiveSession {
+  return {
+    startedAt,
+    sessionType: 'CASH',
+    gameType: 'NLH',
+    tableGame: 'BLACKJACK',
+    venueType: 'LIVE',
+    location: '',
+    smallBlind: 0,
+    bigBlind: 0,
+    buyIn: 0,
+    currency: settings.currency,
+  };
+}
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bets, setBets] = useState<SportsBet[]>([]);
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
-  const [timerStart, setTimerStart] = useState<number>(loadTimerStart);
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(() => {
+    const saved = loadActiveSession();
+    if (saved) return saved;
+    // Migrate a legacy timestamp-only running timer into a bare draft.
+    const legacy = loadTimerStart();
+    return legacy > 0 ? bareActiveSession(legacy, loadSettings()) : null;
+  });
   const [filter, setFilter] = useState<SessionFilter>(() => {
     const def = loadSettings().defaultSessionType;
     return { ...EMPTY_FILTER, type: def === 'ALL' ? null : def };
@@ -194,15 +221,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const startTimer = useCallback(() => {
-    const now = Date.now();
-    saveTimerStart(now);
-    setTimerStart(now);
+  /** Begin a live session, capturing its setup now. Persisted so it survives
+   *  app restarts and can prefill the editor when the session ends. */
+  const startSession = useCallback((setup: Omit<ActiveSession, 'startedAt'>) => {
+    const session: ActiveSession = { ...setup, startedAt: Date.now() };
+    saveActiveSession(session);
+    setActiveSession(session);
   }, []);
 
-  const clearTimer = useCallback(() => {
-    saveTimerStart(0);
-    setTimerStart(0);
+  const clearSession = useCallback(() => {
+    saveActiveSession(null);
+    setActiveSession(null);
   }, []);
 
   /** CSV import: APPENDS to existing data. Returns the number imported. */
@@ -343,7 +372,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       recordedTableGames: [
         ...new Set(sessions.filter((s) => s.sessionType === 'TABLE').map((s) => s.tableGame).filter(Boolean)),
       ].sort(),
-      timerStart,
+      timerStart: activeSession?.startedAt ?? 0,
+      activeSession,
       saveSession,
       deleteSession,
       getSession: (id: number) => sessions.find((s) => s.id === id),
@@ -356,17 +386,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       deleteTransaction,
       updateSettings,
       setFilter,
-      startTimer,
-      clearTimer,
+      startSession,
+      clearSession,
       importSessions,
       restoreBackup,
       clearData,
     };
   }, [
-    ready, sessions, transactions, bets, settings, filter, timerStart,
+    ready, sessions, transactions, bets, settings, filter, activeSession,
     saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
     addTransaction, deleteTransaction,
-    updateSettings, startTimer, clearTimer, importSessions, restoreBackup, clearData,
+    updateSettings, startSession, clearSession, importSessions, restoreBackup, clearData,
   ]);
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
