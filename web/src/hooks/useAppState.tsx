@@ -85,6 +85,8 @@ export interface AppState {
   updateSettings(patch: Partial<AppSettings>): void;
   setFilter(filter: SessionFilter): void;
   startSession(setup: Omit<ActiveSession, 'startedAt'>): void;
+  /** Adds a rebuy amount to the running session's draft. */
+  addRebuy(amount: number): void;
   clearSession(): void;
   importSessions(sessions: Session[]): Promise<number>;
   restoreBackup(backup: Backup): Promise<void>;
@@ -111,6 +113,7 @@ function bareActiveSession(startedAt: number, settings: AppSettings): ActiveSess
     smallBlind: 0,
     bigBlind: 0,
     buyIn: 0,
+    rebuys: 0,
     currency: settings.currency,
   };
 }
@@ -227,6 +230,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const session: ActiveSession = { ...setup, startedAt: Date.now() };
     saveActiveSession(session);
     setActiveSession(session);
+  }, []);
+
+  /** Add a rebuy / re-entry to the in-progress session, accumulating its
+   *  amount so it prefills the editor when the session is logged. */
+  const addRebuy = useCallback((amount: number) => {
+    if (!(amount > 0)) return;
+    setActiveSession((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, rebuys: prev.rebuys + amount };
+      saveActiveSession(next);
+      return next;
+    });
   }, []);
 
   const clearSession = useCallback(() => {
@@ -387,6 +402,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateSettings,
       setFilter,
       startSession,
+      addRebuy,
       clearSession,
       importSessions,
       restoreBackup,
@@ -396,7 +412,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     ready, sessions, transactions, bets, settings, filter, activeSession,
     saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
     addTransaction, deleteTransaction,
-    updateSettings, startSession, clearSession, importSessions, restoreBackup, clearData,
+    updateSettings, startSession, addRebuy, clearSession, importSessions, restoreBackup, clearData,
   ]);
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

@@ -36,7 +36,11 @@ export function saveTimerStart(startMillis: number): void {
 export function loadActiveSession(): ActiveSession | null {
   try {
     const raw = localStorage.getItem(ACTIVE_KEY);
-    return raw ? (JSON.parse(raw) as ActiveSession) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ActiveSession;
+    // Default fields added after a draft may have been persisted.
+    if (typeof parsed.rebuys !== 'number') parsed.rebuys = 0;
+    return parsed;
   } catch {
     return null;
   }

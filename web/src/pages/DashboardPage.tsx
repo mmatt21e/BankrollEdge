@@ -315,6 +315,7 @@ function TimerCard() {
   const app = useAppState();
   const navigate = useNavigate();
   const [setupOpen, setSetupOpen] = useState(false);
+  const [rebuyOpen, setRebuyOpen] = useState(false);
   const active = app.activeSession;
   const running = !!active;
   const now = useNow(running);
@@ -362,6 +363,22 @@ function TimerCard() {
       </div>
       {summary && <div style={{ fontWeight: 600 }}>{summary}</div>}
       <div className="muted">Started {formatDateTime(active.startedAt)}</div>
+      {(active.buyIn > 0 || active.rebuys > 0) && (
+        <div className="muted">
+          Buy-in {money(active.buyIn, active.currency)}
+          {active.rebuys > 0 && <> · Rebuys {money(active.rebuys, active.currency)}</>}
+          {active.rebuys > 0 && (
+            <> · In {money(active.buyIn + active.rebuys, active.currency)}</>
+          )}
+        </div>
+      )}
+      <button
+        type="button"
+        className="btn btn-outline"
+        onClick={() => setRebuyOpen(true)}
+      >
+        + Add rebuy
+      </button>
       <div className="row">
         <button type="button" className="btn btn-outline grow" onClick={app.clearSession}>
           Discard
@@ -370,7 +387,60 @@ function TimerCard() {
           ■ Stop &amp; log
         </button>
       </div>
+      <RebuyDialog
+        open={rebuyOpen}
+        currency={active.currency}
+        onCancel={() => setRebuyOpen(false)}
+        onAdd={(amount) => {
+          app.addRebuy(amount);
+          setRebuyOpen(false);
+        }}
+      />
     </section>
+  );
+}
+
+/** Prompts for a rebuy / re-entry amount to add to the running session. */
+function RebuyDialog({
+  open,
+  currency,
+  onCancel,
+  onAdd,
+}: {
+  open: boolean;
+  currency: string;
+  onCancel: () => void;
+  onAdd: (amount: number) => void;
+}) {
+  const [amount, setAmount] = useState('');
+  if (!open) return null;
+  const value = Number.parseFloat(amount);
+  const valid = Number.isFinite(value) && value > 0;
+  return (
+    <div
+      className="dialog-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+    >
+      <div role="dialog" aria-modal="true" aria-label="Add rebuy" className="dialog">
+        <h2>Add rebuy</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          Adds to this session's total buy-in. Log the cash-out when you stop.
+        </p>
+        <label className="field">
+          <span>Rebuy amount</span>
+          <MoneyInput currency={currency} value={amount} onChange={setAmount} />
+        </label>
+        <div className="actions">
+          <button type="button" className="btn btn-outline" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="btn" disabled={!valid} onClick={() => onAdd(value)}>
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -435,6 +505,7 @@ function StartSessionDialog({
       smallBlind: isTable ? 0 : num(form.smallBlind),
       bigBlind: isTable ? 0 : num(form.bigBlind),
       buyIn: num(form.buyIn),
+      rebuys: 0,
       currency: settings.currency,
     });
   };

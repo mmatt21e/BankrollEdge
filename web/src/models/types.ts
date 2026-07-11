@@ -77,6 +77,8 @@ export interface ActiveSession {
   smallBlind: number;
   bigBlind: number;
   buyIn: number;
+  /** Total of any rebuys / re-entries added while the session is live. */
+  rebuys: number;
   currency: string;
 }
 

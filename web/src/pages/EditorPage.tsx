@@ -227,6 +227,7 @@ export default function EditorPage() {
         smallBlind: draft.smallBlind,
         bigBlind: draft.bigBlind,
         buyIn: draft.buyIn,
+        rebuysAddons: draft.rebuys,
         currency: draft.currency,
       });
     }
