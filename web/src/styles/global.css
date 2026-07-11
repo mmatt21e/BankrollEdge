@@ -623,3 +623,22 @@ body.privacy-hide .money {
   text-decoration: underline;
   min-height: var(--touch);
 }
+
+/* ---------- Import preview table ---------- */
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.preview-table th,
+.preview-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--outline);
+  white-space: nowrap;
+}
+.preview-table th {
+  text-align: left;
+  color: var(--on-surface-variant);
+  font-weight: 600;
+}

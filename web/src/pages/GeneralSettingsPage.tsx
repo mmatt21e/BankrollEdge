@@ -3,7 +3,7 @@
 import { ChangeEvent, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useStoreList } from '../hooks/useAppState';
-import { buildCsv, parseCsv } from '../domain/csv';
+import { buildCsv } from '../domain/csv';
 import { buildBetsCsv, parseBetsCsv } from '../domain/bets';
 import { backupToJson, backupFromJson } from '../domain/backup';
 import { exportFile, readFileAsText } from '../services/files';
@@ -37,10 +37,8 @@ export default function GeneralSettingsPage() {
     app.settings.startingSportsBankroll === 0 ? '' : String(app.settings.startingSportsBankroll),
   );
   const [message, setMessage] = useState('');
-  const [pendingCsv, setPendingCsv] = useState<string | null>(null);
   const [pendingBetsCsv, setPendingBetsCsv] = useState<string | null>(null);
   const [pendingBackup, setPendingBackup] = useState<string | null>(null);
-  const csvInput = useRef<HTMLInputElement>(null);
   const betsCsvInput = useRef<HTMLInputElement>(null);
   const backupInput = useRef<HTMLInputElement>(null);
 
@@ -55,19 +53,6 @@ export default function GeneralSettingsPage() {
       setPending(await readFileAsText(file));
     } catch {
       setMessage("Couldn't read that file.");
-    }
-  };
-
-  const doImportCsv = async () => {
-    const csv = pendingCsv!;
-    setPendingCsv(null);
-    try {
-      const parsed = parseCsv(csv);
-      const count = await app.importSessions(parsed.sessions);
-      const skipped = parsed.skippedRows > 0 ? ` (${parsed.skippedRows} rows skipped)` : '';
-      setMessage(`Imported ${count} sessions${skipped}.`);
-    } catch (err) {
-      setMessage(`Import failed: ${(err as Error).message}`);
     }
   };
 
@@ -207,19 +192,18 @@ export default function GeneralSettingsPage() {
               >
                 Export
               </button>
-              <button type="button" className="btn btn-outline" onClick={() => csvInput.current?.click()}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => navigate('/settings/import')}
+              >
                 Import CSV
               </button>
-              <input
-                ref={csvInput}
-                type="file"
-                accept=".csv,text/csv"
-                hidden
-                aria-hidden="true"
-                tabIndex={-1}
-                onChange={(e) => readPicked(e, setPendingCsv)}
-              />
             </div>
+            <p className="muted small" style={{ margin: 0 }}>
+              Import maps columns from any app's CSV — BankrollEdge, other poker trackers or a
+              spreadsheet.
+            </p>
           </>
         )}
         {app.settings.showSports && (
@@ -315,19 +299,11 @@ export default function GeneralSettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.17.0 — works fully offline; all data stays on this device. Install it from your
+          1.18.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>
 
-      <ConfirmDialog
-        open={pendingCsv !== null}
-        title="Import sessions?"
-        message="Sessions from this CSV are ADDED to your existing data (nothing is deleted). Rows that can't be read are skipped."
-        confirmLabel="Import"
-        onConfirm={doImportCsv}
-        onCancel={() => setPendingCsv(null)}
-      />
       <ConfirmDialog
         open={pendingBetsCsv !== null}
         title="Import bets?"

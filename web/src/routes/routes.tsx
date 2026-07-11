@@ -9,6 +9,7 @@ import DisplaySettingsPage from '../pages/DisplaySettingsPage';
 import PokerSettingsPage from '../pages/PokerSettingsPage';
 import TableGamesSettingsPage from '../pages/TableGamesSettingsPage';
 import SportsSettingsPage from '../pages/SportsSettingsPage';
+import ImportPage from '../pages/ImportPage';
 import EditorPage from '../pages/EditorPage';
 import BankrollPage from '../pages/BankrollPage';
 import ToolsPage from '../pages/ToolsPage';
@@ -35,6 +36,7 @@ export const routes: RouteObject[] = [
   { path: '/settings/poker', element: <PokerSettingsPage /> },
   { path: '/settings/table-games', element: <TableGamesSettingsPage /> },
   { path: '/settings/sports', element: <SportsSettingsPage /> },
+  { path: '/settings/import', element: <ImportPage /> },
   { path: '/session/new', element: <EditorPage /> },
   { path: '/session/:id', element: <EditorPage /> },
   { path: '/bet/new', element: <BetEditorPage /> },
