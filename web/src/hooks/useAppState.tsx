@@ -41,6 +41,7 @@ import {
   loadSettings,
   saveSettings,
   loadTimerStart,
+  saveTimerStart,
   loadActiveSession,
   saveActiveSession,
 } from '../storage/settings';
@@ -131,9 +132,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(() => {
     const saved = loadActiveSession();
     if (saved) return saved;
-    // Migrate a legacy timestamp-only running timer into a bare draft.
+    // Migrate a legacy timestamp-only running timer into a bare draft, then
+    // retire the legacy key so a cleared session can't resurrect on refresh.
     const legacy = loadTimerStart();
-    return legacy > 0 ? bareActiveSession(legacy, loadSettings()) : null;
+    if (legacy > 0) {
+      const migrated = bareActiveSession(legacy, loadSettings());
+      saveActiveSession(migrated);
+      saveTimerStart(0);
+      return migrated;
+    }
+    return null;
   });
   const [filter, setFilter] = useState<SessionFilter>(() => {
     const def = loadSettings().defaultSessionType;
@@ -233,6 +241,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const startSession = useCallback((setup: Omit<ActiveSession, 'startedAt'>) => {
     const session: ActiveSession = { ...setup, startedAt: Date.now() };
     saveActiveSession(session);
+    saveTimerStart(0); // never leave a stale legacy timer behind
     setActiveSession(session);
   }, []);
 
@@ -263,6 +272,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const clearSession = useCallback(() => {
     saveActiveSession(null);
+    saveTimerStart(0); // clear the legacy key too, so it can't resurrect
     setActiveSession(null);
   }, []);
 
