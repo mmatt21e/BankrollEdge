@@ -80,7 +80,13 @@ export interface AppState {
   clearTimer(): void;
   importSessions(sessions: Session[]): Promise<number>;
   restoreBackup(backup: Backup): Promise<void>;
+  /** Permanently deletes logged data for a category (or everything). Returns
+   *  the number of records removed. */
+  clearData(scope: ClearScope): Promise<number>;
 }
+
+/** Which logged data to wipe. 'all' also removes bankroll transactions. */
+export type ClearScope = 'poker' | 'table' | 'sports' | 'all';
 
 const AppStateContext = createContext<AppState | null>(null);
 
@@ -266,6 +272,40 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setBets(restoredBets.sort((a, z) => z.placedAt - a.placedAt));
   }, []);
 
+  /** Clears logged data by category. Poker = non-table sessions, Table =
+   *  table-game sessions, Sports = bets. 'all' also removes bankroll
+   *  transactions. Tool data (venues, blind structures, hand notes, …) is
+   *  never touched here. */
+  const clearData = useCallback(
+    async (scope: ClearScope): Promise<number> => {
+      let removed = 0;
+
+      if (scope === 'sports' || scope === 'all') {
+        removed += bets.length;
+        await betStore.clear();
+        setBets([]);
+      }
+
+      if (scope === 'all') {
+        removed += sessions.length + transactions.length;
+        await db.clearSessions();
+        await db.clearTransactions();
+        setSessions([]);
+        setTransactions([]);
+      } else if (scope === 'poker' || scope === 'table') {
+        const inScope = (s: Session) =>
+          scope === 'table' ? s.sessionType === 'TABLE' : s.sessionType !== 'TABLE';
+        const doomed = sessions.filter(inScope);
+        for (const s of doomed) await db.deleteSession(s.id);
+        removed += doomed.length;
+        setSessions((prev) => prev.filter((s) => !inScope(s)));
+      }
+
+      return removed;
+    },
+    [sessions, transactions, bets],
+  );
+
   const value = useMemo<AppState>(() => {
     const now = Date.now();
     const filteredSessions = applyFilter(filter, sessions, now);
@@ -310,12 +350,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       clearTimer,
       importSessions,
       restoreBackup,
+      clearData,
     };
   }, [
     ready, sessions, transactions, bets, settings, filter, timerStart,
     saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
     addTransaction, deleteTransaction,
-    updateSettings, startTimer, clearTimer, importSessions, restoreBackup,
+    updateSettings, startTimer, clearTimer, importSessions, restoreBackup, clearData,
   ]);
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

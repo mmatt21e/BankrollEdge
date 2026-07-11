@@ -2,7 +2,7 @@
 // JSON backup & restore, privacy and about.
 import { ChangeEvent, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppState, useStoreList } from '../hooks/useAppState';
+import { useAppState, useStoreList, type ClearScope } from '../hooks/useAppState';
 import { buildCsv } from '../domain/csv';
 import { buildBetsCsv } from '../domain/bets';
 import { backupToJson, backupFromJson } from '../domain/backup';
@@ -277,13 +277,15 @@ export default function GeneralSettingsPage() {
         </div>
       </SectionCard>
 
+      <ClearDataCard onResult={setMessage} />
+
       <PrivacyCard />
 
       <SectionCard title="About">
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.19.0 — works fully offline; all data stays on this device. Install it from your
+          1.20.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>
@@ -360,6 +362,79 @@ function VenuesCard() {
         </label>
         <button type="button" className="btn" onClick={addVenue}>Add</button>
       </div>
+    </SectionCard>
+  );
+}
+
+/** Danger zone: permanently delete logged results by category or all at once. */
+function ClearDataCard({ onResult }: { onResult: (msg: string) => void }) {
+  const app = useAppState();
+  const [pending, setPending] = useState<ClearScope | null>(null);
+
+  const pokerCount = app.sessions.filter((s) => s.sessionType !== 'TABLE').length;
+  const tableCount = app.sessions.filter((s) => s.sessionType === 'TABLE').length;
+  const sportsCount = app.bets.length;
+  const allCount = app.sessions.length + app.bets.length + app.transactions.length;
+
+  const NOUN: Record<ClearScope, string> = {
+    poker: 'poker sessions',
+    table: 'table-game sessions',
+    sports: 'sports bets',
+    all: 'sessions, bets and bankroll transactions',
+  };
+  const COUNT: Record<ClearScope, number> = {
+    poker: pokerCount,
+    table: tableCount,
+    sports: sportsCount,
+    all: allCount,
+  };
+
+  const run = async () => {
+    const scope = pending;
+    setPending(null);
+    if (!scope) return;
+    const n = await app.clearData(scope);
+    onResult(n === 0 ? 'Nothing to clear.' : `Cleared ${n} ${scope === 'all' ? 'records' : NOUN[scope]}.`);
+  };
+
+  const clearButton = (scope: ClearScope, text: string, count: number, danger = false) => (
+    <button
+      type="button"
+      className={`btn ${danger ? 'btn-danger' : 'btn-outline'}`}
+      disabled={count === 0}
+      onClick={() => setPending(scope)}
+    >
+      {text} ({count})
+    </button>
+  );
+
+  return (
+    <SectionCard title="Clear data">
+      <p className="muted" style={{ margin: 0 }}>
+        Permanently delete logged results by category, or everything at once. This can't be
+        undone — export a backup first if you're not sure. Saved venues, blind structures and
+        hand notes are not affected.
+      </p>
+      <div className="col" style={{ gap: 8 }}>
+        {app.settings.showPoker && clearButton('poker', 'Clear poker', pokerCount)}
+        {app.settings.showTableGames && clearButton('table', 'Clear table games', tableCount)}
+        {app.settings.showSports && clearButton('sports', 'Clear sports bets', sportsCount)}
+        {clearButton('all', 'Clear all data', allCount, true)}
+      </div>
+
+      <ConfirmDialog
+        open={pending !== null}
+        title="Clear this data?"
+        message={
+          pending
+            ? `This permanently deletes ${COUNT[pending]} ${NOUN[pending]}. This can't be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        danger
+        onConfirm={run}
+        onCancel={() => setPending(null)}
+      />
     </SectionCard>
   );
 }
