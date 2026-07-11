@@ -97,6 +97,14 @@ describe('computeStats', () => {
     expect(stats.totalInvested).toBeCloseTo(150, 9);
   });
 
+  it('adds bounty winnings (per-bounty × count) to tournament profit', () => {
+    const stats = computeStats([
+      // 200 prize + (25 × 4 bounties) - 100 buy-in = 200
+      { ...tournament(100, 200), bountyPerBounty: 25, bountyCount: 4 },
+    ]);
+    expect(stats.totalProfit).toBeCloseTo(200, 9);
+  });
+
   it('classifies SNGs as tournament-style and home games as cash-style', () => {
     const stats = computeStats([
       { ...cash(100, 300), sessionType: 'SNG' as const }, // +200 cashed

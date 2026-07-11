@@ -87,6 +87,8 @@ export interface AppState {
   startSession(setup: Omit<ActiveSession, 'startedAt'>): void;
   /** Adds a rebuy amount to the running session's draft. */
   addRebuy(amount: number): void;
+  /** Changes the running session's bounty count by delta (clamped at 0). */
+  adjustBounty(delta: number): void;
   clearSession(): void;
   importSessions(sessions: Session[]): Promise<number>;
   restoreBackup(backup: Backup): Promise<void>;
@@ -114,6 +116,8 @@ function bareActiveSession(startedAt: number, settings: AppSettings): ActiveSess
     bigBlind: 0,
     buyIn: 0,
     rebuys: 0,
+    bountyPerBounty: 0,
+    bountyCount: 0,
     currency: settings.currency,
   };
 }
@@ -239,6 +243,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setActiveSession((prev) => {
       if (!prev) return prev;
       const next = { ...prev, rebuys: prev.rebuys + amount };
+      saveActiveSession(next);
+      return next;
+    });
+  }, []);
+
+  /** Change the running session's bounty count by delta (clamped at 0),
+   *  for tournaments where you collect knockouts as you go. */
+  const adjustBounty = useCallback((delta: number) => {
+    setActiveSession((prev) => {
+      if (!prev) return prev;
+      const count = Math.max(0, prev.bountyCount + delta);
+      if (count === prev.bountyCount) return prev;
+      const next = { ...prev, bountyCount: count };
       saveActiveSession(next);
       return next;
     });
@@ -403,6 +420,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setFilter,
       startSession,
       addRebuy,
+      adjustBounty,
       clearSession,
       importSessions,
       restoreBackup,
@@ -412,7 +430,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     ready, sessions, transactions, bets, settings, filter, activeSession,
     saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
     addTransaction, deleteTransaction,
-    updateSettings, startSession, addRebuy, clearSession, importSessions, restoreBackup, clearData,
+    updateSettings, startSession, addRebuy, adjustBounty, clearSession, importSessions, restoreBackup, clearData,
   ]);
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

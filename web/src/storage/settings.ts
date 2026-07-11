@@ -40,6 +40,8 @@ export function loadActiveSession(): ActiveSession | null {
     const parsed = JSON.parse(raw) as ActiveSession;
     // Default fields added after a draft may have been persisted.
     if (typeof parsed.rebuys !== 'number') parsed.rebuys = 0;
+    if (typeof parsed.bountyPerBounty !== 'number') parsed.bountyPerBounty = 0;
+    if (typeof parsed.bountyCount !== 'number') parsed.bountyCount = 0;
     return parsed;
   } catch {
     return null;

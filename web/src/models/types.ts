@@ -79,6 +79,10 @@ export interface ActiveSession {
   buyIn: number;
   /** Total of any rebuys / re-entries added while the session is live. */
   rebuys: number;
+  /** Bounty/knockout value per bounty (tournaments; 0 = not a bounty event). */
+  bountyPerBounty: number;
+  /** Number of bounties collected so far while the session is live. */
+  bountyCount: number;
   currency: string;
 }
 
@@ -170,6 +174,10 @@ export interface Session {
   expenses: number;
   position: number; // tournament finish (0 = unset)
   fieldSize: number; // tournament entrants (0 = unknown)
+  /** Bounty/knockout value per bounty (0 = not a bounty event). */
+  bountyPerBounty: number;
+  /** Number of bounties / knockouts collected (0 = none). */
+  bountyCount: number;
 
   // Table-game fields (only meaningful when sessionType === 'TABLE').
   /** Which pit game was played. */
@@ -456,6 +464,8 @@ export function emptySession(now: number): Session {
     expenses: 0,
     position: 0,
     fieldSize: 0,
+    bountyPerBounty: 0,
+    bountyCount: 0,
     tableGame: 'BLACKJACK',
     tableMinBet: 0,
     tableMaxBet: 0,
@@ -489,10 +499,13 @@ export function normalizeSession(raw: Partial<Session> & { startTime?: number })
 /** Total money put in play (counts toward ROI denominator). */
 export const totalInvested = (s: Session): number => s.buyIn + s.rebuysAddons + s.addOns;
 
-/** Net result: returns minus money in play, tips and expenses.
+/** Total bounty/knockout winnings (per-bounty value × count). */
+export const bountyWon = (s: Session): number => s.bountyPerBounty * s.bountyCount;
+
+/** Net result: returns (incl. bounties) minus money in play, tips and expenses.
  *  Rake is informational only — it is already reflected in the cash-out. */
 export const profit = (s: Session): number =>
-  s.cashOut - totalInvested(s) - s.tips - s.expenses;
+  s.cashOut + bountyWon(s) - totalInvested(s) - s.tips - s.expenses;
 
 /** Tournament-style sessions (ROI / ITM semantics). */
 export const isTournamentStyle = (s: Session): boolean =>

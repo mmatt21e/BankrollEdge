@@ -342,12 +342,14 @@ function TimerCard() {
   }
 
   const isTable = active.sessionType === 'TABLE';
+  const isTournament = active.sessionType === 'TOURNAMENT' || active.sessionType === 'SNG';
   const gameLabel = isTable ? tableGameLabel(active.tableGame) : gameTypeLabel(active.gameType);
   const stakes =
-    !isTable && (active.smallBlind > 0 || active.bigBlind > 0)
+    !isTable && !isTournament && (active.smallBlind > 0 || active.bigBlind > 0)
       ? `${money(active.smallBlind, active.currency)}/${money(active.bigBlind, active.currency)}`
       : '';
   const summary = [gameLabel, stakes, active.location].filter(Boolean).join(' · ');
+  const bountyTotal = active.bountyPerBounty * active.bountyCount;
 
   const stopAndLog = () => {
     const minutes = Math.max(0, Math.floor((Date.now() - active.startedAt) / 60000));
@@ -370,6 +372,35 @@ function TimerCard() {
           {active.rebuys > 0 && (
             <> · In {money(active.buyIn + active.rebuys, active.currency)}</>
           )}
+        </div>
+      )}
+      {isTournament && (
+        <div className="row-between" style={{ alignItems: 'center' }}>
+          <span>
+            Bounties: <strong>{active.bountyCount}</strong>
+            {bountyTotal > 0 && (
+              <span className="muted"> · {money(bountyTotal, active.currency)}</span>
+            )}
+          </span>
+          <div className="row" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              aria-label="Remove a bounty"
+              disabled={active.bountyCount === 0}
+              onClick={() => app.adjustBounty(-1)}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              aria-label="Add a bounty"
+              onClick={() => app.adjustBounty(1)}
+            >
+              + Bounty
+            </button>
+          </div>
         </div>
       )}
       <button
@@ -453,6 +484,7 @@ interface SetupState {
   smallBlind: string;
   bigBlind: string;
   buyIn: string;
+  bountyPerBounty: string;
 }
 
 /** Captures the session's setup the moment it starts, so game, venue, stakes
@@ -482,6 +514,7 @@ function StartSessionDialog({
     smallBlind: '',
     bigBlind: '',
     buyIn: '',
+    bountyPerBounty: '',
   }));
 
   if (!open) return null;
@@ -492,6 +525,7 @@ function StartSessionDialog({
     return Number.isFinite(n) ? n : 0;
   };
   const isTable = form.sessionType === 'TABLE';
+  const isTournament = form.sessionType === 'TOURNAMENT' || form.sessionType === 'SNG';
   const pokerGames = pokerGameOptions(settings, app.recordedPokerGames);
   const tableGames = tableGameOptions(settings, app.recordedTableGames);
 
@@ -502,10 +536,12 @@ function StartSessionDialog({
       tableGame: form.tableGame,
       venueType: form.venueType,
       location: form.location.trim(),
-      smallBlind: isTable ? 0 : num(form.smallBlind),
-      bigBlind: isTable ? 0 : num(form.bigBlind),
+      smallBlind: isTable || isTournament ? 0 : num(form.smallBlind),
+      bigBlind: isTable || isTournament ? 0 : num(form.bigBlind),
       buyIn: num(form.buyIn),
       rebuys: 0,
+      bountyPerBounty: isTournament ? num(form.bountyPerBounty) : 0,
+      bountyCount: 0,
       currency: settings.currency,
     });
   };
@@ -584,7 +620,7 @@ function StartSessionDialog({
           />
         </label>
 
-        {!isTable && (
+        {!isTable && !isTournament && (
           <div className="row">
             <label className="field grow">
               <span>Small blind</span>
@@ -613,6 +649,17 @@ function StartSessionDialog({
             onChange={(v) => set({ buyIn: v })}
           />
         </label>
+
+        {isTournament && (
+          <label className="field">
+            <span>Bounty per knockout (optional)</span>
+            <MoneyInput
+              currency={settings.currency}
+              value={form.bountyPerBounty}
+              onChange={(v) => set({ bountyPerBounty: v })}
+            />
+          </label>
+        )}
 
         <div className="actions">
           <button type="button" className="btn btn-outline" onClick={onCancel}>

@@ -50,6 +50,8 @@ interface FormState {
   expenses: string;
   position: string;
   fieldSize: string;
+  bountyPerBounty: string;
+  bountyCount: string;
   tableGame: TableGameType;
   tableMinBet: string;
   tableMaxBet: string;
@@ -106,6 +108,8 @@ function fromSession(s: Session): FormState {
     expenses: numStr(s.expenses),
     position: s.position > 0 ? String(s.position) : '',
     fieldSize: s.fieldSize > 0 ? String(s.fieldSize) : '',
+    bountyPerBounty: numStr(s.bountyPerBounty),
+    bountyCount: s.bountyCount > 0 ? String(s.bountyCount) : '',
     tableGame: s.tableGame,
     tableMinBet: numStr(s.tableMinBet),
     tableMaxBet: numStr(s.tableMaxBet),
@@ -167,6 +171,8 @@ function toSession(form: FormState, id: number): Session {
     expenses: f(form.expenses),
     position: i(form.position),
     fieldSize: i(form.fieldSize),
+    bountyPerBounty: f(form.bountyPerBounty),
+    bountyCount: i(form.bountyCount),
     tableGame: form.tableGame,
     tableMinBet: f(form.tableMinBet),
     tableMaxBet: f(form.tableMaxBet),
@@ -228,6 +234,8 @@ export default function EditorPage() {
         bigBlind: draft.bigBlind,
         buyIn: draft.buyIn,
         rebuysAddons: draft.rebuys,
+        bountyPerBounty: draft.bountyPerBounty,
+        bountyCount: draft.bountyCount,
         currency: draft.currency,
       });
     }
@@ -578,10 +586,21 @@ export default function EditorPage() {
         )}
 
         {isTournament && (
-          <div className="row">
-            {intField('Finish position', 'position')}
-            {intField('Field size', 'fieldSize')}
-          </div>
+          <>
+            <div className="row">
+              {intField('Finish position', 'position')}
+              {intField('Field size', 'fieldSize')}
+            </div>
+            <div className="row">
+              {moneyField('Bounty per knockout', 'bountyPerBounty')}
+              {intField('Bounties collected', 'bountyCount')}
+            </div>
+            {f(form.bountyPerBounty) > 0 && i(form.bountyCount) > 0 && (
+              <p className="muted small" style={{ margin: 0 }}>
+                Bounty winnings: {money(f(form.bountyPerBounty) * i(form.bountyCount), form.currency)}
+              </p>
+            )}
+          </>
         )}
 
         <details className="card">
