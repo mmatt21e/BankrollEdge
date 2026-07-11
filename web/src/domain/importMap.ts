@@ -41,10 +41,10 @@ export type MapFieldKey =
   | 'tags'
   | 'notes';
 
-export type MapFieldGroup = 'Essentials' | 'Money' | 'Game details' | 'Extras';
+export type MapFieldGroup = string;
 
 export interface MapField {
-  key: MapFieldKey;
+  key: string;
   label: string;
   group: MapFieldGroup;
   hint?: string;
@@ -106,20 +106,21 @@ export function analyzeCsv(csv: string): { headers: string[]; rows: string[][] }
   return { headers: records[0].map((h) => h.trim()), rows: records.slice(1) };
 }
 
-/** Auto-match headers to fields. A header matches a field when its normalized
- *  form equals an alias, or overlaps an alias of >=4 chars either way. Each
- *  header is used at most once; fields are matched in MAP_FIELDS order. */
-export function guessMapping(headers: string[]): ColumnMapping {
+/** Generic header→field auto-matcher, shared by session and bet imports.
+ *  Exact alias matches win globally before any fuzzy match (so "Game Type"
+ *  maps to Game, not Session type — which "type" would fuzzily grab). A header
+ *  matches when its normalized form equals an alias, or overlaps a >=4-char
+ *  alias either way. Each header is used at most once; fields are tried in
+ *  their array order. */
+export function matchColumns(fields: MapField[], headers: string[]): Record<string, number> {
   const normed = headers.map(norm);
   const used = new Set<number>();
-  const mapping: ColumnMapping = {};
+  const mapping: Record<string, number> = {};
 
   const assign = (matches: (field: MapField, header: string) => boolean) => {
-    for (const field of MAP_FIELDS) {
+    for (const field of fields) {
       if (mapping[field.key] !== undefined) continue;
-      const i = normed.findIndex(
-        (h, idx) => !used.has(idx) && h !== '' && matches(field, h),
-      );
+      const i = normed.findIndex((h, idx) => !used.has(idx) && h !== '' && matches(field, h));
       if (i >= 0) {
         mapping[field.key] = i;
         used.add(i);
@@ -127,13 +128,14 @@ export function guessMapping(headers: string[]): ColumnMapping {
     }
   };
 
-  // Pass 1: exact alias matches win globally before any fuzzy match, so
-  // "Game Type" maps to Game, not Session type (which "type" would fuzzily grab).
   assign((field, h) => field.synonyms.includes(h));
-  // Pass 2: fuzzy overlap (>=4-char aliases) for whatever is still unmapped.
   assign((field, h) => field.synonyms.some((s) => s.length >= 4 && (h.includes(s) || s.includes(h))));
 
   return mapping;
+}
+
+export function guessMapping(headers: string[]): ColumnMapping {
+  return matchColumns(MAP_FIELDS, headers) as ColumnMapping;
 }
 
 // --- Value parsers (tolerant of formats from other apps) ---
