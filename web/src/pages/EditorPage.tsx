@@ -16,6 +16,7 @@ import {
   AlcoholLevel,
   GameQuality,
   YesNo,
+  StakePreset,
   SESSION_TYPES,
   SESSION_TYPE_LABELS,
   emptySession,
@@ -23,6 +24,7 @@ import {
   profit,
   gameTypeLabel,
   tableGameLabel,
+  stakePresetLabel,
   pokerGameOptions,
   tableGameOptions,
 } from '../models/types';
@@ -209,12 +211,21 @@ export default function EditorPage() {
 
   const venueList = useStoreList(venueStore);
   const stakeList = useStoreList(stakeStore);
-  const pokerPresets = stakeList.items
-    .filter((s) => s.kind === 'POKER')
-    .sort((a, b) => a.smallBlind - b.smallBlind || a.bigBlind - b.bigBlind);
-  const tablePresets = stakeList.items
-    .filter((s) => s.kind === 'TABLE')
-    .sort((a, b) => a.minBet - b.minBet || a.maxBet - b.maxBet);
+  // Presets offered in the picker = saved presets PLUS any stakes seen in the
+  // data (recorded or imported), deduped by label — the same treatment venues
+  // and games get, so imported stakes are pickable everywhere.
+  const mergePresets = (saved: StakePreset[], recorded: StakePreset[]) => {
+    const seen = new Set(saved.map(stakePresetLabel));
+    return [...saved, ...recorded.filter((p) => !seen.has(stakePresetLabel(p)))];
+  };
+  const pokerPresets = mergePresets(
+    stakeList.items.filter((s) => s.kind === 'POKER'),
+    app.recordedStakes.filter((s) => s.kind === 'POKER'),
+  ).sort((a, b) => a.smallBlind - b.smallBlind || a.bigBlind - b.bigBlind);
+  const tablePresets = mergePresets(
+    stakeList.items.filter((s) => s.kind === 'TABLE'),
+    app.recordedStakes.filter((s) => s.kind === 'TABLE'),
+  ).sort((a, b) => a.minBet - b.minBet || a.maxBet - b.maxBet);
 
   // A live session that's being logged carries its captured setup (game,
   // venue, stakes, buy-in) in the active-session draft — prefill from it.

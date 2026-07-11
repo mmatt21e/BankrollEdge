@@ -21,6 +21,7 @@ import {
   normalizeBet,
   normalizeSession,
   signedAmount,
+  StakePreset,
 } from '../models/types';
 import { harvestCustomGames, harvestStakes, harvestVenues } from '../domain/importHarvest';
 import { EMPTY_FILTER, SessionFilter, applyFilter } from '../domain/filter';
@@ -69,6 +70,8 @@ export interface AppState {
   recordedPokerGames: string[];
   /** Table game types present in the data (recorded or imported), distinct. */
   recordedTableGames: string[];
+  /** Stakes presets present in the data (recorded or imported), distinct. */
+  recordedStakes: StakePreset[];
   timerStart: number; // 0 = not running (derived from activeSession)
   /** The in-progress session's captured setup, or null when idle. */
   activeSession: ActiveSession | null;
@@ -434,6 +437,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       recordedTableGames: [
         ...new Set(sessions.filter((s) => s.sessionType === 'TABLE').map((s) => s.tableGame).filter(Boolean)),
       ].sort(),
+      // Distinct stakes present in the data — reuses the same harvest logic as
+      // import, so recorded/imported stakes are pickable like venues and games.
+      recordedStakes: harvestStakes(sessions, []),
       timerStart: activeSession?.startedAt ?? 0,
       activeSession,
       saveSession,

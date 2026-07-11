@@ -159,8 +159,11 @@ export function StakesPicker({
   }
 
   const currentLabel = a > 0 || b > 0 ? stakePresetLabel(toPreset(a, b)) : '';
-  const match = presets.find((p) => stakePresetLabel(p) === currentLabel);
-  const value = match ? String(match.id) : currentLabel ? 'current' : '';
+  // Options are keyed by label, not id, so presets recorded/imported from the
+  // data (which carry no saved id) sit alongside saved presets without clashing.
+  const labels = [...new Set(presets.map(stakePresetLabel))].filter((l) => l !== '—');
+  const match = labels.includes(currentLabel) ? currentLabel : '';
+  const value = match || (currentLabel ? 'current' : '');
   return (
     <select
       value={value}
@@ -169,7 +172,7 @@ export function StakesPicker({
         if (v === ADD) setAdding(true);
         else if (v === '') onSelect(0, 0);
         else if (v !== 'current') {
-          const p = presets.find((x) => String(x.id) === v);
+          const p = presets.find((x) => stakePresetLabel(x) === v);
           if (p) onSelect(kind === 'POKER' ? p.smallBlind : p.minBet, kind === 'POKER' ? p.bigBlind : p.maxBet);
         }
       }}
@@ -177,9 +180,9 @@ export function StakesPicker({
       <option value={ADD}>➕ Add new stakes…</option>
       <option value="">— none —</option>
       {!match && currentLabel && <option value="current">{currentLabel} (current)</option>}
-      {presets.map((p) => (
-        <option key={p.id} value={String(p.id)}>
-          {stakePresetLabel(p)}
+      {labels.map((label) => (
+        <option key={label} value={label}>
+          {label}
         </option>
       ))}
     </select>
