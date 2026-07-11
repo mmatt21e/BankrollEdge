@@ -22,6 +22,7 @@ import {
   normalizeSession,
   signedAmount,
 } from '../models/types';
+import { harvestCustomGames, harvestStakes, harvestVenues } from '../domain/importHarvest';
 import { EMPTY_FILTER, SessionFilter, applyFilter } from '../domain/filter';
 import { Statistics, computeStats, bankrollOf } from '../domain/stats';
 import { BetStats, computeBetStats } from '../domain/bets';
@@ -284,6 +285,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       saved.push({ ...s, id });
     }
     setSessions((prev) => [...prev, ...saved].sort((a, b) => b.startTime - a.startTime));
+
+    // Treat imported venues, stakes and game types as first-class: persist any
+    // new ones into the managed pick-lists / settings so they behave exactly
+    // like entries created in the app (and show in the management screens).
+    const [venues, stakes] = await Promise.all([venueStore.list(), stakeStore.list()]);
+    for (const v of harvestVenues(saved, venues)) await venueStore.save(v);
+    for (const p of harvestStakes(saved, stakes)) await stakeStore.save(p);
+    setSettings((prev) => {
+      const { poker, table } = harvestCustomGames(saved, prev.customPokerGames, prev.customTableGames);
+      if (!poker.length && !table.length) return prev;
+      const next: AppSettings = {
+        ...prev,
+        customPokerGames: [...prev.customPokerGames, ...poker],
+        customTableGames: [...prev.customTableGames, ...table],
+      };
+      saveSettings(next);
+      return next;
+    });
+
     return saved.length;
   }, []);
 
