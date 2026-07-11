@@ -11,6 +11,7 @@ import {
   GameType,
   TableGameType,
   VenueType,
+  Venue,
   SleepQuality,
   AlcoholLevel,
   GameQuality,
@@ -321,6 +322,16 @@ export default function EditorPage() {
     navigate(-1);
   };
 
+  // The venue dropdown offers saved venues PLUS every location seen in the
+  // data (recorded or imported), so imported venues are pickable everywhere.
+  const savedVenueNames = new Set(venueList.items.map((v) => v.name.toLowerCase()));
+  const mergedVenues: Venue[] = [
+    ...venueList.items,
+    ...app.availableLocations
+      .filter((loc) => !savedVenueNames.has(loc.toLowerCase()))
+      .map((name) => ({ id: 0, name })),
+  ];
+
   // Money fields show the session currency's symbol; plain decimal fields
   // (unit counts) don't.
   const moneyField = (label: string, key: keyof FormState) => (
@@ -468,7 +479,7 @@ export default function EditorPage() {
           <span>Venue / location</span>
           <VenuePicker
             value={form.location}
-            venues={venueList.items}
+            venues={mergedVenues}
             onSelect={(name) => set({ location: name })}
             onCreate={async (name) => {
               await venueList.save({ id: 0, name });

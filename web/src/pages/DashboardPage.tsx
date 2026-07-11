@@ -614,10 +614,16 @@ function StartSessionDialog({
           <span>Venue / location</span>
           <input
             type="text"
+            list="live-venue-options"
             value={form.location}
             placeholder="e.g. Bellagio"
             onChange={(e) => set({ location: e.target.value })}
           />
+          <datalist id="live-venue-options">
+            {app.availableLocations.map((loc) => (
+              <option key={loc} value={loc} />
+            ))}
+          </datalist>
         </label>
 
         {!isTable && !isTournament && (
