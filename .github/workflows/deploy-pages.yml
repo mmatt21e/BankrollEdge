@@ -4,7 +4,7 @@ name: Deploy PWA to GitHub Pages
 
 on:
   push:
-    branches: [claude/android-bankroll-tracker-wmlgkd]
+    branches: [bankroll-tracker]
     paths: ['web/**', '.github/workflows/deploy-pages.yml']
   workflow_dispatch:
 

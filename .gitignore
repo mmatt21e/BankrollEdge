@@ -12,7 +12,15 @@ local.properties
 *.apk
 *.aab
 /app/release
-.claude/settings.local.json
+
+# AI assistant local files
+.claude/
+.codex/
+CLAUDE.md
+CODEX.md
+AGENTS.md
+*.claude
+*.codex
 
 # Signing — never commit the keystore or its passwords
 *.jks
