@@ -147,10 +147,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
     return null;
   });
-  const [filter, setFilter] = useState<SessionFilter>(() => {
-    const def = loadSettings().defaultSessionType;
-    return { ...EMPTY_FILTER, type: def === 'ALL' ? null : def };
-  });
+  // The dashboard and session lists always open showing all games; the
+  // default-session-type setting only seeds the type for a NEW session.
+  const [filter, setFilter] = useState<SessionFilter>(() => ({ ...EMPTY_FILTER }));
 
   useEffect(() => {
     requestPersistence();
@@ -234,10 +233,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       saveSettings(next);
       return next;
     });
-    if (patch.defaultSessionType !== undefined) {
-      const t = patch.defaultSessionType;
-      setFilter((prev) => ({ ...prev, type: t === 'ALL' ? null : t }));
-    }
   }, []);
 
   /** Begin a live session, capturing its setup now. Persisted so it survives

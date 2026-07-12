@@ -21,12 +21,12 @@ export default function PokerSettingsPage() {
     <>
       <TopBar title="Poker" onBack={() => navigate(-1)} />
       <main className="page" style={{ paddingTop: 0 }}>
-        <SectionCard title="Default view">
+        <SectionCard title="Default session type">
           <p className="muted" style={{ margin: 0 }}>
-            Focus the app on the games you play. Applied to session lists, stats and new
-            sessions.
+            The type pre-selected when you log a new session. Lists and the dashboard always
+            open showing all games.
           </p>
-          <div className="segmented" role="group" aria-label="Default view">
+          <div className="segmented" role="group" aria-label="Default session type">
             {(
               [
                 ['ALL', 'All games'],
