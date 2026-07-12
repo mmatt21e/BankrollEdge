@@ -70,7 +70,7 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
   return (
     <main className="page">
       <div className="row-between">
-        <h1>{isTable ? 'Table Games' : 'Sessions'}</h1>
+        <h1>{isTable ? 'Table Games' : 'Poker'}</h1>
         <div className="col" style={{ gap: 0, alignItems: 'flex-end' }}>
           <span className={`money ${profitClass(stats.totalProfit)}`} style={{ fontWeight: 600 }}>
             {signedMoney(stats.totalProfit, currency)}
@@ -233,7 +233,7 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
           {scopeTotal === 0
             ? isTable
               ? 'No table-game sessions yet. Tap + to add one.'
-              : 'No sessions yet. Tap + to add one.'
+              : 'No poker sessions yet. Tap + to add one.'
             : 'No sessions match these filters.'}
         </p>
       ) : (

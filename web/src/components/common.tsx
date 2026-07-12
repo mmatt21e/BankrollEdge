@@ -208,6 +208,9 @@ function NavIcon({ name }: { name: string }) {
         <path d="M8 9h8M8 13h8M8 17h5" />
       </>
     ),
+    poker: (
+      <path d="M12 3c0 0-7 5.5-7 10a3.3 3.3 0 0 0 5.6 2.3c.1 1-.5 2.4-1.6 3.2h6c-1.1-.8-1.7-2.2-1.6-3.2A3.3 3.3 0 0 0 19 13c0-4.5-7-10-7-10z" />
+    ),
     bets: (
       <path d="M4 8a2 2 0 0 0 2-2h12a2 2 0 0 0 2 2v3a2 2 0 0 0 0 2v3a2 2 0 0 0-2 2H6a2 2 0 0 0-2-2v-3a2 2 0 0 0 0-2zM14 6v12" />
     ),
@@ -250,8 +253,8 @@ function NavIcon({ name }: { name: string }) {
 
 const NAV = [
   { to: '/', label: 'Play', icon: 'play' },
-  { to: '/sessions', label: 'Sessions', icon: 'sessions' },
-  { to: '/tables', label: 'Tables', icon: 'tables' },
+  { to: '/sessions', label: 'Poker', icon: 'poker' },
+  { to: '/tables', label: 'Table Games', icon: 'tables' },
   { to: '/bets', label: 'Sports', icon: 'bets' },
   { to: '/stats', label: 'Dashboard', icon: 'stats' },
   { to: '/tools', label: 'Tools', icon: 'tools' },
