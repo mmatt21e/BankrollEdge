@@ -254,7 +254,7 @@ function NavIcon({ name }: { name: string }) {
 const NAV = [
   { to: '/', label: 'Play', icon: 'play' },
   { to: '/sessions', label: 'Poker', icon: 'poker' },
-  { to: '/tables', label: 'Table Games', icon: 'tables' },
+  { to: '/tables', label: 'Table', icon: 'tables' },
   { to: '/bets', label: 'Sports', icon: 'bets' },
   { to: '/stats', label: 'Dashboard', icon: 'stats' },
   { to: '/tools', label: 'Tools', icon: 'tools' },
