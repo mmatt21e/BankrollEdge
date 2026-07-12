@@ -13,7 +13,7 @@ import {
   tableStakesLabel,
 } from '../models/types';
 import { GroupStat, groupHourlyRate } from '../domain/stats';
-import { signedMoney, perHour, formatDate, duration, currencySymbol } from '../domain/format';
+import { signedMoney, signedUnits, signedUnitsOrMoney, perHour, formatDate, duration, currencySymbol } from '../domain/format';
 
 export const profitClass = (v: number): string => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
 
@@ -38,7 +38,12 @@ export function StatTileGrid({ tiles }: { tiles: Tile[] }) {
 
 export function SessionRow({ session }: { session: Session }) {
   const navigate = useNavigate();
+  const { settings } = useAppState();
   const p = profit(session);
+  // Table-game results show in units when the user turned that display on.
+  const amountText = isTableSession(session)
+    ? signedUnitsOrMoney(p, session.currency, settings.showTableUnits, settings.tableUnitValue)
+    : signedMoney(p, session.currency);
   let title: string;
   if (isTableSession(session)) {
     const range = tableStakesLabel(session);
@@ -66,7 +71,7 @@ export function SessionRow({ session }: { session: Session }) {
       </span>
       <span className="col" style={{ gap: 2, alignItems: 'flex-end' }}>
         <span className={`title money ${profitClass(p)}`}>
-          {signedMoney(p, session.currency)}
+          {amountText}
         </span>
         {session.durationMinutes > 0 && (
           <span className="muted small">{duration(session.durationMinutes)}</span>
@@ -367,15 +372,20 @@ export function MonthHeader({
   label,
   total,
   currency,
+  unitValue,
 }: {
   label: string;
   total: number;
   currency: string;
+  /** When > 0, the subtotal shows in units instead of money. */
+  unitValue?: number;
 }) {
   return (
     <div className="month-header">
       <span>{label}</span>
-      <span className={`money ${profitClass(total)}`}>{signedMoney(total, currency)}</span>
+      <span className={`money ${profitClass(total)}`}>
+        {unitValue && unitValue > 0 ? signedUnits(total / unitValue) : signedMoney(total, currency)}
+      </span>
     </div>
   );
 }

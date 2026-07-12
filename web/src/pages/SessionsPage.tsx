@@ -15,7 +15,7 @@ import {
 } from '../models/types';
 import { DATE_RANGE_LABELS, DateRange, SessionFilter, applyFilter } from '../domain/filter';
 import { computeStats, hourlyRate } from '../domain/stats';
-import { signedMoney, perHour } from '../domain/format';
+import { signedMoney, signedUnits, perHour } from '../domain/format';
 import {
   FilterPanel,
   MonthHeader,
@@ -42,6 +42,12 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
   const list = applyFilter(effectiveFilter, app.sessions, Date.now()).filter(inScope);
   const stats = computeStats(list);
   const scopeTotal = app.sessions.filter(inScope).length;
+
+  // On the Table tab, results show in units when that display is turned on.
+  const unitDisplay =
+    isTable && app.settings.showTableUnits && app.settings.tableUnitValue > 0
+      ? app.settings.tableUnitValue
+      : 0;
 
   // Poker gets session-type chips (Cash / Tournament / …); table games have no
   // sub-types, so the chips pick a table game (Blackjack / Craps / …) instead.
@@ -73,7 +79,7 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
         <h1>{isTable ? 'Table Games' : 'Poker'}</h1>
         <div className="col" style={{ gap: 0, alignItems: 'flex-end' }}>
           <span className={`money ${profitClass(stats.totalProfit)}`} style={{ fontWeight: 600 }}>
-            {signedMoney(stats.totalProfit, currency)}
+            {unitDisplay ? signedUnits(stats.totalProfit / unitDisplay) : signedMoney(stats.totalProfit, currency)}
           </span>
           <span className="muted small">
             {stats.sessionCount} sessions • {perHour(hourlyRate(stats), currency)}
@@ -240,7 +246,7 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
         <div className="col">
           {months.map((m) => (
             <div key={m.key} className="col">
-              <MonthHeader label={m.label} total={m.total} currency={currency} />
+              <MonthHeader label={m.label} total={m.total} currency={currency} unitValue={unitDisplay} />
               {m.items.map((s) => (
                 <SessionRow key={s.id} session={s} />
               ))}

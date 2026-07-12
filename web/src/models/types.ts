@@ -418,6 +418,10 @@ export interface AppSettings {
   customTableGames: string[];
   /** Built-in table game keys the user removed from pickers. */
   hiddenTableGames: string[];
+  /** Show table-game amounts in units instead of dollars. */
+  showTableUnits: boolean;
+  /** What one unit is worth, used to display amounts in units. */
+  tableUnitValue: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -442,6 +446,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hiddenPokerGames: [],
   customTableGames: [],
   hiddenTableGames: [],
+  showTableUnits: false,
+  tableUnitValue: 0,
 };
 
 export function emptySession(now: number): Session {

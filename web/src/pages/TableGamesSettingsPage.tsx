@@ -41,6 +41,33 @@ export default function TableGamesSettingsPage() {
           }
         />
 
+        <SectionCard title="Unit display">
+          <label className="toggle-row">
+            <span>
+              Show amounts in units
+              <span className="hint" style={{ display: 'block' }}>
+                Table-game buy-ins, cash-outs and results display as units instead of dollars.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={app.settings.showTableUnits}
+              onChange={(e) => app.updateSettings({ showTableUnits: e.target.checked })}
+            />
+          </label>
+          {app.settings.showTableUnits && (
+            <label className="field">
+              <span>Value of one unit</span>
+              <MoneyInput
+                value={app.settings.tableUnitValue ? String(app.settings.tableUnitValue) : ''}
+                onChange={(v) => app.updateSettings({ tableUnitValue: Number.parseFloat(v) || 0 })}
+                placeholder="e.g. 25"
+                ariaLabel="Value of one unit"
+              />
+            </label>
+          )}
+        </SectionCard>
+
         <SectionCard title="Table game stakes">
           <p className="muted" style={{ margin: 0 }}>
             Saved min/max bet spreads appear as one-tap choices when you log a table-game

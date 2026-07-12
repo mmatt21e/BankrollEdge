@@ -65,6 +65,17 @@ export function signedUnits(units: number): string {
   return `${units < 0 ? '-' : '+'}${body}u`;
 }
 
+/** Signed amount as units when unit display is enabled (and a unit value is
+ *  set), otherwise as money — used for table-game amounts. */
+export function signedUnitsOrMoney(
+  amount: number,
+  currency: string,
+  showUnits: boolean,
+  unitValue: number,
+): string {
+  return showUnits && unitValue > 0 ? signedUnits(amount / unitValue) : signedMoney(amount, currency);
+}
+
 /** Minutes → "3h 20m" / "45m". */
 export function duration(minutes: number): string {
   const h = Math.floor(minutes / 60);
