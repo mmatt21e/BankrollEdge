@@ -154,14 +154,38 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     requestPersistence();
     Promise.all([db.loadSessions(), db.loadTransactions(), betStore.list()])
-      .then(([s, t, b]) => {
+      .then(async ([s, t, b]) => {
         // normalizeSession/normalizeBet fill newer-version defaults into old records.
-        setSessions(s.map(normalizeSession).sort((a, b) => b.startTime - a.startTime));
+        const normalized = s.map(normalizeSession).sort((a, b) => b.startTime - a.startTime);
+        setSessions(normalized);
         setTransactions(t.sort((a, b) => b.time - a.time));
         setBets(b.map(normalizeBet).sort((a, z) => z.placedAt - a.placedAt));
+        // Backfill the managed pick-lists from ALL existing sessions, so venues,
+        // stakes and game types from data imported/restored before the harvest
+        // existed become first-class managed entries (visible in Settings too).
+        await syncManagedPickLists(normalized);
       })
       .catch(() => undefined)
       .finally(() => setReady(true));
+  }, []);
+
+  /** Persists any venues, stakes and custom game types found in `list` that
+   *  aren't already saved — the shared backfill used on load and after import. */
+  const syncManagedPickLists = useCallback(async (list: Session[]) => {
+    const [venues, stakes] = await Promise.all([venueStore.list(), stakeStore.list()]);
+    for (const v of harvestVenues(list, venues)) await venueStore.save(v);
+    for (const p of harvestStakes(list, stakes)) await stakeStore.save(p);
+    setSettings((prev) => {
+      const { poker, table } = harvestCustomGames(list, prev.customPokerGames, prev.customTableGames);
+      if (!poker.length && !table.length) return prev;
+      const next: AppSettings = {
+        ...prev,
+        customPokerGames: [...prev.customPokerGames, ...poker],
+        customTableGames: [...prev.customTableGames, ...table],
+      };
+      saveSettings(next);
+      return next;
+    });
   }, []);
 
   const saveSession = useCallback(async (session: Session) => {
@@ -283,27 +307,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       saved.push({ ...s, id });
     }
     setSessions((prev) => [...prev, ...saved].sort((a, b) => b.startTime - a.startTime));
-
-    // Treat imported venues, stakes and game types as first-class: persist any
-    // new ones into the managed pick-lists / settings so they behave exactly
-    // like entries created in the app (and show in the management screens).
-    const [venues, stakes] = await Promise.all([venueStore.list(), stakeStore.list()]);
-    for (const v of harvestVenues(saved, venues)) await venueStore.save(v);
-    for (const p of harvestStakes(saved, stakes)) await stakeStore.save(p);
-    setSettings((prev) => {
-      const { poker, table } = harvestCustomGames(saved, prev.customPokerGames, prev.customTableGames);
-      if (!poker.length && !table.length) return prev;
-      const next: AppSettings = {
-        ...prev,
-        customPokerGames: [...prev.customPokerGames, ...poker],
-        customTableGames: [...prev.customTableGames, ...table],
-      };
-      saveSettings(next);
-      return next;
-    });
-
+    // Treat imported venues, stakes and game types as first-class managed
+    // entries so they show everywhere, including the Settings screens.
+    await syncManagedPickLists(saved);
     return saved.length;
-  }, []);
+  }, [syncManagedPickLists]);
 
   /** Backup restore: REPLACES all data (caller confirms with the user first). */
   const restoreBackup = useCallback(async (backup: Backup) => {
