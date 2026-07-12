@@ -257,24 +257,22 @@ function NavIcon({ name }: { name: string }) {
 }
 
 const NAV = [
-  { to: '/', label: 'Play', icon: 'play' },
+  { to: '/', label: 'Dashboard', icon: 'stats' },
   { to: '/sessions', label: 'Poker', icon: 'poker' },
   { to: '/tables', label: 'Table', icon: 'tables' },
   { to: '/bets', label: 'Sports', icon: 'bets' },
-  { to: '/stats', label: 'Dashboard', icon: 'stats' },
   { to: '/tools', label: 'Tools', icon: 'tools' },
   { to: '/settings', label: 'Settings', icon: 'settings' },
 ];
 
 export function NavBar() {
   const { settings } = useAppState();
-  // Play and Settings always show; the rest follow the feature/tab switches.
-  // Sessions is poker-only now; table games get their own Tables tab.
+  // Dashboard and Settings always show; the rest follow the feature/tab
+  // switches. Poker is poker-only; table games get their own Table tab.
   const visible = NAV.filter((item) => {
     if (item.to === '/sessions') return settings.showSessionsTab && settings.showPoker;
     if (item.to === '/tables') return settings.showSessionsTab && settings.showTableGames;
     if (item.to === '/bets') return settings.showSports;
-    if (item.to === '/stats') return settings.showDashboardTab;
     if (item.to === '/tools') return settings.showPoker;
     return true;
   });

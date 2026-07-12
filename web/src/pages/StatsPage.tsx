@@ -15,7 +15,7 @@ import {
   itmRate,
   isLossSide,
 } from '../domain/stats';
-import { BetStats, betProfit, betRoi, computeBetStats, isSettled, recordLabel } from '../domain/bets';
+import { BetStats, betProfit, betRoi, computeBetStats, isSettled, recordLabel, toWin } from '../domain/bets';
 import {
   money,
   signedMoney,
@@ -23,16 +23,20 @@ import {
   percent,
   compactMoney,
   hourLabel,
+  formatDate,
 } from '../domain/format';
-import { Session, SessionType, VenueType, profit, stakesLabel } from '../models/types';
+import { computeInsights } from '../domain/insights';
+import { Session, SportsBet, SessionType, VenueType, profit, stakesLabel } from '../models/types';
 import { BarChart, CumulativeProfitChart, DailyHeatmap } from '../components/charts';
-import { StatTileGrid, BreakdownList, SectionCard, profitClass } from '../components/common';
+import { StatTileGrid, BreakdownList, SectionCard, SessionRow, profitClass } from '../components/common';
+import { LiveSessionCard } from '../components/LiveSessionCard';
 
 type DetailTab = 'TRENDS' | 'BREAKDOWNS' | 'VARIANCE';
 type Discipline = 'POKER' | 'SPORTS';
 
 export default function StatsPage() {
   const app = useAppState();
+  const navigate = useNavigate();
   const stats = app.filteredStats;
   const currency = app.settings.currency;
   const { filter, settings } = app;
@@ -41,6 +45,13 @@ export default function StatsPage() {
   const [discipline, setDiscipline] = useState<Discipline>(canSession ? 'POKER' : 'SPORTS');
   // No session-capable features left = the dashboard is sports-only.
   const sports = discipline === 'SPORTS' || !canSession;
+
+  // Hero bankroll (all-time, unaffected by the dashboard filters below).
+  const allStats = app.allStats;
+  const includeBets = settings.showSports && !settings.separateBankrolls;
+  const allTime =
+    (canSession ? allStats.totalProfit : 0) + (includeBets ? app.betStats.netProfit : 0);
+  const showSportsRoll = settings.showSports && settings.separateBankrolls && canSession;
 
   const betsInRange = useMemo(() => {
     const from = rangeStart(filter.range, Date.now());
@@ -76,7 +87,37 @@ export default function StatsPage() {
 
   return (
     <main className="page">
-      <h1>Dashboard</h1>
+      <button
+        type="button"
+        onClick={() => navigate('/bankroll')}
+        style={{ all: 'unset', cursor: 'pointer' }}
+        aria-label="Manage bankroll"
+      >
+        <div className="overline" style={{ color: 'var(--gold-500)' }}>
+          {showSportsRoll ? 'Poker bankroll ›' : 'Current bankroll ›'}
+        </div>
+        <h1 className="money" style={{ fontSize: '2.4rem' }}>
+          {money(
+            !canSession && settings.separateBankrolls ? app.sportsBankroll : app.bankroll,
+            currency,
+          )}
+        </h1>
+        <div className={`muted ${profitClass(canSession ? allTime : app.betStats.netProfit)}`}>
+          {signedMoney(canSession ? allTime : app.betStats.netProfit, currency)} all-time
+        </div>
+        {showSportsRoll && (
+          <div className="muted" style={{ marginTop: 4 }}>
+            <span className="overline" style={{ color: 'var(--gold-500)' }}>Sports bankroll</span>{' '}
+            <span className="money" style={{ fontWeight: 700 }}>
+              {money(app.sportsBankroll, currency)}
+            </span>
+          </div>
+        )}
+      </button>
+
+      {canSession && <LiveSessionCard />}
+
+      {settings.showSports && <OpenBetsCard />}
 
       <div className="chips chips-wrap" role="group" aria-label="Date range">
         {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
@@ -202,6 +243,8 @@ export default function StatsPage() {
         </SectionCard>
       )}
 
+      {canSession && <Insights />}
+
       {!sports && settings.showSports && settings.dashSports && <SportsSnapshot />}
 
       <div className="segmented" role="group" aria-label="Detailed statistics">
@@ -238,7 +281,129 @@ export default function StatsPage() {
           {tab === 'VARIANCE' && <VarianceCard stats={stats} currency={currency} />}
         </>
       )}
+
+      <RecentActivity />
     </main>
+  );
+}
+
+/** Recent sessions (or bets, when sports-only) with a link to the full list. */
+function RecentActivity() {
+  const app = useAppState();
+  const navigate = useNavigate();
+  const { settings } = app;
+  const canSession = settings.showPoker || settings.showTableGames;
+
+  if (canSession) {
+    if (app.sessions.length === 0) return null;
+    return (
+      <>
+        <div className="row-between">
+          <h2>Recent sessions</h2>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => navigate(settings.showPoker ? '/sessions' : '/tables')}
+          >
+            See all
+          </button>
+        </div>
+        <div className="col">
+          {app.sessions.slice(0, 5).map((s) => (
+            <SessionRow key={s.id} session={s} />
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  if (!settings.showSports || app.bets.length === 0) return null;
+  return (
+    <>
+      <div className="row-between">
+        <h2>Recent bets</h2>
+        <button type="button" className="btn btn-outline" onClick={() => navigate('/bets')}>
+          See all
+        </button>
+      </div>
+      <div className="col">
+        {app.bets.slice(0, 5).map((b) => (
+          <RecentBetRow key={b.id} bet={b} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Compact bet row for the sports-only dashboard. */
+function RecentBetRow({ bet }: { bet: SportsBet }) {
+  const navigate = useNavigate();
+  const settled = isSettled(bet);
+  const p = betProfit(bet);
+  const title = bet.pick || bet.event || 'Bet';
+  return (
+    <button type="button" className="session-row" onClick={() => navigate(`/bet/${bet.id}`)}>
+      <span className="grow col" style={{ gap: 2 }}>
+        <span className="title">{title}</span>
+        <span className="muted small">
+          {[formatDate(bet.placedAt), bet.sportsbook].filter(Boolean).join(' • ')}
+        </span>
+      </span>
+      <span className="col" style={{ gap: 2, alignItems: 'flex-end' }}>
+        {settled ? (
+          <span className={`title money ${profitClass(p)}`}>{signedMoney(p, bet.currency)}</span>
+        ) : (
+          <>
+            <span className="title money">{money(bet.stake, bet.currency)}</span>
+            <span className="muted small money">to win {money(toWin(bet), bet.currency)}</span>
+          </>
+        )}
+      </span>
+    </button>
+  );
+}
+
+/** Pending sports bets at a glance; hidden when nothing is open. */
+function OpenBetsCard() {
+  const app = useAppState();
+  const navigate = useNavigate();
+  const { pendingCount, pendingStake, pendingToWin } = app.betStats;
+  if (pendingCount === 0) return null;
+  const currency = app.settings.currency;
+  return (
+    <button
+      type="button"
+      className="card row-between"
+      style={{ cursor: 'pointer', textAlign: 'left', width: '100%' }}
+      onClick={() => navigate('/bets')}
+      aria-label={`${pendingCount} open bets`}
+    >
+      <div className="grow">
+        <h2>
+          {pendingCount} open bet{pendingCount === 1 ? '' : 's'} ›
+        </h2>
+        <p className="muted" style={{ margin: '4px 0 0' }}>
+          {money(pendingStake, currency)} at risk • to win {money(pendingToWin, currency)}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+/** Top auto-generated insights from recent sessions. */
+function Insights() {
+  const app = useAppState();
+  const insights = computeInsights(app.sessions, app.settings.currency).slice(0, 3);
+  if (insights.length === 0) return null;
+  return (
+    <section className="col" aria-label="Insights">
+      <h2>Insights</h2>
+      {insights.map((ins) => (
+        <div key={ins.id} className={`insight ${ins.tone}`}>
+          {ins.text}
+        </div>
+      ))}
+    </section>
   );
 }
 

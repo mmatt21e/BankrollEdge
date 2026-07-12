@@ -100,13 +100,8 @@ export default function DisplaySettingsPage() {
               onChange={(v) => app.updateSettings({ showSessionsTab: v })}
             />
           )}
-          <ToggleRow
-            label="Dashboard tab"
-            checked={s.showDashboardTab}
-            onChange={(v) => app.updateSettings({ showDashboardTab: v })}
-          />
           <p className="muted small" style={{ margin: 0 }}>
-            Play and Settings always stay in the navigation; the Tools tab follows the poker
+            Dashboard and Settings always stay in the navigation; the Tools tab follows the poker
             feature.
           </p>
         </SectionCard>

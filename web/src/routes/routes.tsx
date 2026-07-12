@@ -1,6 +1,5 @@
 // Route table — top-level tabs plus the tool routes.
 import { RouteObject, Navigate } from 'react-router-dom';
-import DashboardPage from '../pages/DashboardPage';
 import SessionsPage from '../pages/SessionsPage';
 import StatsPage from '../pages/StatsPage';
 import SettingsPage from '../pages/SettingsPage';
@@ -25,11 +24,11 @@ import BetsPage from '../pages/BetsPage';
 import BetEditorPage from '../pages/BetEditorPage';
 
 export const routes: RouteObject[] = [
-  { path: '/', element: <DashboardPage /> },
+  { path: '/', element: <StatsPage /> },
   { path: '/sessions', element: <SessionsPage scope="POKER" /> },
   { path: '/tables', element: <SessionsPage scope="TABLE" /> },
   { path: '/bets', element: <BetsPage /> },
-  { path: '/stats', element: <StatsPage /> },
+  { path: '/stats', element: <Navigate to="/" replace /> },
   { path: '/tools', element: <ToolsPage /> },
   { path: '/settings', element: <SettingsPage /> },
   { path: '/settings/general', element: <GeneralSettingsPage /> },
