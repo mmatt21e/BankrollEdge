@@ -253,16 +253,22 @@ export default function EditorPage() {
     }
     const start = Number(params.get('start')) || Date.now();
     const duration = Number(params.get('duration')) || 0;
+    // The Sessions/Tables tabs pass ?type= so their + opens the right discipline.
+    const typeParam = params.get('type');
+    const forcedType = SESSION_TYPES.includes(typeParam as SessionType)
+      ? (typeParam as SessionType)
+      : null;
     return fromSession({
       ...emptySession(start),
       durationMinutes: duration,
       currency: app.settings.currency,
       sessionType:
-        app.settings.defaultSessionType !== 'ALL'
+        forcedType ??
+        (app.settings.defaultSessionType !== 'ALL'
           ? app.settings.defaultSessionType
           : app.settings.showPoker
             ? 'CASH'
-            : 'TABLE',
+            : 'TABLE'),
     });
   });
   const [confirmDelete, setConfirmDelete] = useState(false);

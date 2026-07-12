@@ -26,7 +26,8 @@ import BetEditorPage from '../pages/BetEditorPage';
 
 export const routes: RouteObject[] = [
   { path: '/', element: <DashboardPage /> },
-  { path: '/sessions', element: <SessionsPage /> },
+  { path: '/sessions', element: <SessionsPage scope="POKER" /> },
+  { path: '/tables', element: <SessionsPage scope="TABLE" /> },
   { path: '/bets', element: <BetsPage /> },
   { path: '/stats', element: <StatsPage /> },
   { path: '/tools', element: <ToolsPage /> },

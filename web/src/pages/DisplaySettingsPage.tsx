@@ -95,7 +95,7 @@ export default function DisplaySettingsPage() {
         <SectionCard title="Tabs">
           {(s.showPoker || s.showTableGames) && (
             <ToggleRow
-              label="Sessions tab"
+              label="Sessions & Tables tabs"
               checked={s.showSessionsTab}
               onChange={(v) => app.updateSettings({ showSessionsTab: v })}
             />

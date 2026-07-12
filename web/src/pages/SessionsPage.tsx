@@ -1,18 +1,20 @@
-// Sessions list: search + session-type chips stay up top; the rest of the
-// filters fold into a panel so the list, not the controls, owns the screen.
-// Sessions are grouped by month with a net-profit subtotal per month.
+// Sessions list, scoped to a discipline: the Sessions tab shows poker
+// (non-table) sessions, the Table Games tab shows table-game sessions. Search
+// and the advanced filters are shared; the primary chips and game options
+// follow the scope. Sessions are grouped by month with a net-profit subtotal.
 import { useAppState } from '../hooks/useAppState';
 import {
   SESSION_TYPES,
   SESSION_TYPE_LABELS,
+  Session,
   GameType,
   TableGameType,
   pokerGameOptions,
   tableGameOptions,
   profit,
 } from '../models/types';
-import { DATE_RANGE_LABELS, DateRange } from '../domain/filter';
-import { hourlyRate } from '../domain/stats';
+import { DATE_RANGE_LABELS, DateRange, SessionFilter, applyFilter } from '../domain/filter';
+import { computeStats, hourlyRate } from '../domain/stats';
 import { signedMoney, perHour } from '../domain/format';
 import {
   FilterPanel,
@@ -22,20 +24,35 @@ import {
   profitClass,
 } from '../components/common';
 
-export default function SessionsPage() {
+export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'TABLE' }) {
   const app = useAppState();
   const { filter } = app;
-  const stats = app.filteredStats;
+  const isTable = scope === 'TABLE';
   const currency = app.settings.currency;
-  const visibleTypes = SESSION_TYPES.filter((t) =>
-    t === 'TABLE' ? app.settings.showTableGames : app.settings.showPoker,
-  );
+
+  // Restrict the list to this tab's discipline and neutralise filter fields
+  // that belong to the other discipline, so poker/table filters never bleed.
+  const inScope = (s: Session) => (isTable ? s.sessionType === 'TABLE' : s.sessionType !== 'TABLE');
+  const effectiveFilter: SessionFilter = {
+    ...filter,
+    type: isTable ? null : filter.type === 'TABLE' ? null : filter.type,
+    game: isTable ? null : filter.game,
+    tableGame: isTable ? filter.tableGame : null,
+  };
+  const list = applyFilter(effectiveFilter, app.sessions, Date.now()).filter(inScope);
+  const stats = computeStats(list);
+  const scopeTotal = app.sessions.filter(inScope).length;
+
+  // Poker gets session-type chips (Cash / Tournament / …); table games have no
+  // sub-types, so the chips pick a table game (Blackjack / Craps / …) instead.
+  const pokerTypes = SESSION_TYPES.filter((t) => t !== 'TABLE');
+  const tableGames = tableGameOptions(app.settings, app.recordedTableGames);
 
   const advancedCount =
     (filter.venueType !== null ? 1 : 0) +
     (filter.tag !== null ? 1 : 0) +
     (filter.range !== 'ALL' ? 1 : 0) +
-    (filter.game !== null || filter.tableGame !== null ? 1 : 0) +
+    (!isTable && filter.game !== null ? 1 : 0) +
     (filter.location !== null ? 1 : 0);
 
   const clearAdvanced = () =>
@@ -45,16 +62,15 @@ export default function SessionsPage() {
       tag: null,
       range: 'ALL',
       game: null,
-      tableGame: null,
       location: null,
     });
 
-  const months = groupByMonth(app.filteredSessions, (s) => s.startTime, profit);
+  const months = groupByMonth(list, (s) => s.startTime, profit);
 
   return (
     <main className="page">
       <div className="row-between">
-        <h1>Sessions</h1>
+        <h1>{isTable ? 'Table Games' : 'Sessions'}</h1>
         <div className="col" style={{ gap: 0, alignItems: 'flex-end' }}>
           <span className={`money ${profitClass(stats.totalProfit)}`} style={{ fontWeight: 600 }}>
             {signedMoney(stats.totalProfit, currency)}
@@ -77,37 +93,66 @@ export default function SessionsPage() {
         </label>
       </div>
 
-      <div className="chips" role="group" aria-label="Session type filter">
-        <button
-          type="button"
-          className="chip"
-          aria-pressed={filter.type === null}
-          onClick={() => app.setFilter({ ...filter, type: null })}
-        >
-          All types
-        </button>
-        {visibleTypes.map((t) => (
+      {isTable ? (
+        <div className="chips" role="group" aria-label="Table game filter">
           <button
-            key={t}
             type="button"
             className="chip"
-            aria-pressed={filter.type === t}
-            onClick={() => {
-              const next = filter.type === t ? null : t;
-              // The game dropdowns only apply to their own discipline —
-              // drop the one that no longer matches the selected type.
-              app.setFilter({
-                ...filter,
-                type: next,
-                game: next === 'TABLE' ? null : filter.game,
-                tableGame: next === 'TABLE' ? filter.tableGame : null,
-              });
-            }}
+            aria-pressed={filter.tableGame === null}
+            onClick={() => app.setFilter({ ...filter, tableGame: null })}
           >
-            {SESSION_TYPE_LABELS[t]}
+            All games
           </button>
-        ))}
-      </div>
+          {tableGames.map((g) => (
+            <button
+              key={g.value}
+              type="button"
+              className="chip"
+              aria-pressed={filter.tableGame === g.value}
+              onClick={() =>
+                app.setFilter({
+                  ...filter,
+                  tableGame: (filter.tableGame === g.value ? null : g.value) as TableGameType | null,
+                })
+              }
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="chips" role="group" aria-label="Session type filter">
+          {/* A TABLE default type doesn't apply here, so treat it as "All". */}
+          {(() => {
+            const activeType = filter.type === 'TABLE' ? null : filter.type;
+            return (
+              <>
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={activeType === null}
+                  onClick={() => app.setFilter({ ...filter, type: null })}
+                >
+                  All types
+                </button>
+                {pokerTypes.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className="chip"
+                    aria-pressed={activeType === t}
+                    onClick={() =>
+                      app.setFilter({ ...filter, type: activeType === t ? null : t })
+                    }
+                  >
+                    {SESSION_TYPE_LABELS[t]}
+                  </button>
+                ))}
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       <FilterPanel activeCount={advancedCount} onClear={clearAdvanced}>
         <div className="chips" role="group" aria-label="Date range filter">
@@ -152,25 +197,7 @@ export default function SessionsPage() {
         </div>
 
         <div className="row">
-          {filter.type === 'TABLE' ? (
-            <label className="field grow">
-              <span>Table game</span>
-              <select
-                value={filter.tableGame ?? ''}
-                onChange={(e) =>
-                  app.setFilter({
-                    ...filter,
-                    tableGame: (e.target.value || null) as TableGameType | null,
-                  })
-                }
-              >
-                <option value="">Any game</option>
-                {tableGameOptions(app.settings, app.recordedTableGames).map((g) => (
-                  <option key={g.value} value={g.value}>{g.label}</option>
-                ))}
-              </select>
-            </label>
-          ) : (
+          {!isTable && (
             <label className="field grow">
               <span>Game</span>
               <select
@@ -201,10 +228,12 @@ export default function SessionsPage() {
         </div>
       </FilterPanel>
 
-      {app.filteredSessions.length === 0 ? (
+      {list.length === 0 ? (
         <p className="empty">
-          {app.sessions.length === 0
-            ? 'No sessions yet. Tap + to add one.'
+          {scopeTotal === 0
+            ? isTable
+              ? 'No table-game sessions yet. Tap + to add one.'
+              : 'No sessions yet. Tap + to add one.'
             : 'No sessions match these filters.'}
         </p>
       ) : (

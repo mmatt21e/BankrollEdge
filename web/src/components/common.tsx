@@ -212,6 +212,14 @@ function NavIcon({ name }: { name: string }) {
       <path d="M4 8a2 2 0 0 0 2-2h12a2 2 0 0 0 2 2v3a2 2 0 0 0 0 2v3a2 2 0 0 0-2 2H6a2 2 0 0 0-2-2v-3a2 2 0 0 0 0-2zM14 6v12" />
     ),
     stats: <path d="M5 20V12M10 20V6M15 20v-5M20 20V9" />,
+    tables: (
+      <>
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <circle cx="8.5" cy="8.5" r="1.1" fill="currentColor" stroke="none" />
+        <circle cx="15.5" cy="15.5" r="1.1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none" />
+      </>
+    ),
     tools: (
       <path d="M20.7 6.4a5 5 0 0 1-6.3 6.3l-6.2 6.2a2 2 0 0 1-2.8-2.8l6.2-6.2a5 5 0 0 1 6.3-6.3l-3 3 .7 2.1 2.1.7z" />
     ),
@@ -243,6 +251,7 @@ function NavIcon({ name }: { name: string }) {
 const NAV = [
   { to: '/', label: 'Play', icon: 'play' },
   { to: '/sessions', label: 'Sessions', icon: 'sessions' },
+  { to: '/tables', label: 'Tables', icon: 'tables' },
   { to: '/bets', label: 'Sports', icon: 'bets' },
   { to: '/stats', label: 'Dashboard', icon: 'stats' },
   { to: '/tools', label: 'Tools', icon: 'tools' },
@@ -251,11 +260,11 @@ const NAV = [
 
 export function NavBar() {
   const { settings } = useAppState();
-  const canSession = settings.showPoker || settings.showTableGames;
   // Play and Settings always show; the rest follow the feature/tab switches.
-  // No session-capable feature = no Sessions tab, whatever the tab toggle says.
+  // Sessions is poker-only now; table games get their own Tables tab.
   const visible = NAV.filter((item) => {
-    if (item.to === '/sessions') return settings.showSessionsTab && canSession;
+    if (item.to === '/sessions') return settings.showSessionsTab && settings.showPoker;
+    if (item.to === '/tables') return settings.showSessionsTab && settings.showTableGames;
     if (item.to === '/bets') return settings.showSports;
     if (item.to === '/stats') return settings.showDashboardTab;
     if (item.to === '/tools') return settings.showPoker;
@@ -271,7 +280,7 @@ export function NavBar() {
           className={({ isActive }) => (isActive ? 'active' : '')}
         >
           <NavIcon name={item.icon} />
-          {item.label}
+          <span className="nav-label">{item.label}</span>
         </NavLink>
       ))}
     </nav>

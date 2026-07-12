@@ -116,7 +116,11 @@ export default function DashboardPage() {
           <>
             <div className="row-between">
               <h2>Recent sessions</h2>
-              <button type="button" className="btn btn-outline" onClick={() => navigate('/sessions')}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => navigate(settings.showPoker ? '/sessions' : '/tables')}
+              >
                 See all
               </button>
             </div>

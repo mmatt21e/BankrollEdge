@@ -28,17 +28,34 @@ export default function App() {
   if (locked) return <PinLock onUnlock={() => setLocked(false)} />;
 
   // Bottom nav + FAB only on top-level destinations.
-  const topLevel = ['/', '/sessions', '/bets', '/stats', '/tools', '/settings'].includes(location.pathname);
+  const topLevel = ['/', '/sessions', '/tables', '/bets', '/stats', '/tools', '/settings'].includes(location.pathname);
   const canSession = settings.showPoker || settings.showTableGames;
   const onPlay = location.pathname === '/';
   const onSessions = location.pathname === '/sessions';
+  const onTables = location.pathname === '/tables';
   const onBets = location.pathname === '/bets';
   // With poker and table games both off, adding a bet is the only + action.
   const fabAddsBet = onBets || (onPlay && !canSession);
   const showFab =
     (onPlay && (canSession || settings.showSports)) ||
-    (onSessions && canSession) ||
+    (onSessions && settings.showPoker) ||
+    (onTables && settings.showTableGames) ||
     (onBets && settings.showSports);
+
+  // The Tables + adds a table session; the Sessions + adds a poker session
+  // (respecting the user's default poker type). Play/other tabs use defaults.
+  const pokerDefault =
+    settings.defaultSessionType !== 'ALL' && settings.defaultSessionType !== 'TABLE'
+      ? settings.defaultSessionType
+      : 'CASH';
+  const fabTarget = fabAddsBet
+    ? '/bet/new'
+    : onTables
+      ? '/session/new?type=TABLE'
+      : onSessions
+        ? `/session/new?type=${pokerDefault}`
+        : '/session/new';
+  const fabLabel = fabAddsBet ? 'Add bet' : onTables ? 'Add table session' : 'Add session';
 
   return (
     <>
@@ -52,8 +69,8 @@ export default function App() {
         <button
           type="button"
           className="fab"
-          aria-label={fabAddsBet ? 'Add bet' : 'Add session'}
-          onClick={() => navigate(fabAddsBet ? '/bet/new' : '/session/new')}
+          aria-label={fabLabel}
+          onClick={() => navigate(fabTarget)}
         >
           +
         </button>
