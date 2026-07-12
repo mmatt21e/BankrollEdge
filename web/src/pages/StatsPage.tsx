@@ -134,6 +134,19 @@ export default function StatsPage() {
       </div>
 
       <div className="chips chips-wrap" role="group" aria-label="Quick filters">
+        {canSession && (
+          <button
+            type="button"
+            className="chip"
+            aria-pressed={!sports && filter.type === null}
+            onClick={() => {
+              setDiscipline('POKER');
+              app.setFilter({ ...filter, type: null, game: null, tableGame: null });
+            }}
+          >
+            All games
+          </button>
+        )}
         {quickTypes.map(([t, label]) => (
           <button
             key={t}
