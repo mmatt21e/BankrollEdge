@@ -11,7 +11,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const online = useOnline();
-  const { settings } = useAppState();
+  const { settings, loadError } = useAppState();
   const [locked, setLocked] = useState(hasPin);
 
   // "Hide balances" masks every money value app-wide via a body class.
@@ -62,6 +62,12 @@ export default function App() {
       {!online && (
         <div className="offline-banner" role="status">
           Offline — everything still works; data is stored on this device.
+        </div>
+      )}
+      {loadError && (
+        <div className="offline-banner" role="alert">
+          Couldn't load your data ({loadError}) — close other BankrollEdge tabs and reload.
+          Nothing has been deleted.
         </div>
       )}
       {element}

@@ -26,7 +26,9 @@ import {
 const HEADER =
   'Date,Type,Game,Location,Stakes,DurationMinutes,BuyIn,RebuysAddons,CashOut,Tips,Profit,Position,FieldSize,Currency,Notes,' +
   'LiveOnline,AddOns,Rake,Expenses,HandsPlayed,TableSize,Tags,' +
-  'TableGame,TableMinBet,TableMaxBet,UnitValue,UnitsMin,UnitsMax';
+  'TableGame,TableMinBet,TableMaxBet,UnitValue,UnitsMin,UnitsMax,' +
+  // v1.35 additions: bounty/knockout winnings (older importers ignore them).
+  'BountyPerBounty,BountyCount';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -39,7 +41,13 @@ export function formatIso(epochMillis: number): string {
 export function parseIso(value: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(value.trim());
   if (!m) return null;
-  const t = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime();
+  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  // Reject impossible dates instead of letting Date roll them over
+  // (e.g. "2026-02-31" would otherwise become March 3rd).
+  if (d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[3] || +m[4] > 23 || +m[5] > 59) {
+    return null;
+  }
+  const t = d.getTime();
   return Number.isNaN(t) ? null : t;
 }
 
@@ -83,6 +91,8 @@ export function buildCsv(sessions: Session[]): string {
         s.unitValue,
         s.unitsMin,
         s.unitsMax,
+        s.bountyPerBounty,
+        s.bountyCount,
       ].join(','),
     );
   }
@@ -158,6 +168,8 @@ export function parseCsv(csv: string): ImportResult {
       unitValue: num(row, 'unitvalue'),
       unitsMin: num(row, 'unitsmin'),
       unitsMax: num(row, 'unitsmax'),
+      bountyPerBounty: num(row, 'bountyperbounty'),
+      bountyCount: int(row, 'bountycount'),
     });
   }
   return { sessions, skippedRows: skipped };

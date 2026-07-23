@@ -17,8 +17,15 @@ export function loadSettings(): AppSettings {
   }
 }
 
-export function saveSettings(settings: AppSettings): void {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+// The save* writers swallow storage failures (quota, private browsing):
+// degraded persistence beats crashing inside a React state updater.
+export function saveSettings(settings: AppSettings): boolean {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Epoch millis the live session started; 0 = not running. */
@@ -28,8 +35,12 @@ export function loadTimerStart(): number {
 }
 
 export function saveTimerStart(startMillis: number): void {
-  if (startMillis > 0) localStorage.setItem(TIMER_KEY, String(startMillis));
-  else localStorage.removeItem(TIMER_KEY);
+  try {
+    if (startMillis > 0) localStorage.setItem(TIMER_KEY, String(startMillis));
+    else localStorage.removeItem(TIMER_KEY);
+  } catch {
+    // best-effort; see saveSettings
+  }
 }
 
 /** The in-progress session's setup (game, venue, stakes…), or null when idle. */
@@ -49,8 +60,12 @@ export function loadActiveSession(): ActiveSession | null {
 }
 
 export function saveActiveSession(session: ActiveSession | null): void {
-  if (session) localStorage.setItem(ACTIVE_KEY, JSON.stringify(session));
-  else localStorage.removeItem(ACTIVE_KEY);
+  try {
+    if (session) localStorage.setItem(ACTIVE_KEY, JSON.stringify(session));
+    else localStorage.removeItem(ACTIVE_KEY);
+  } catch {
+    // best-effort; see saveSettings
+  }
 }
 
 // --- Privacy controls (device-local by design; never included in backups) ---
@@ -67,8 +82,13 @@ async function hashPin(pin: string): Promise<string> {
 
 export const hasPin = (): boolean => localStorage.getItem(PIN_KEY) !== null;
 
-export async function setPin(pin: string): Promise<void> {
-  localStorage.setItem(PIN_KEY, await hashPin(pin));
+export async function setPin(pin: string): Promise<boolean> {
+  try {
+    localStorage.setItem(PIN_KEY, await hashPin(pin));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function clearPin(): void {

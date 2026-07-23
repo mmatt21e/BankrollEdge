@@ -1,8 +1,8 @@
 // Settings → General: bankroll, currency, saved venues, CSV export/import,
 // JSON backup & restore, privacy and about.
-import { ChangeEvent, useRef, useState } from 'react';
+import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppState, useStoreList, type ClearScope } from '../hooks/useAppState';
+import { useAppState, useStoreList, type ClearScope, type RestoreMode } from '../hooks/useAppState';
 import { buildCsv } from '../domain/csv';
 import { buildBetsCsv } from '../domain/bets';
 import { backupToJson, backupFromJson } from '../domain/backup';
@@ -54,20 +54,22 @@ export default function GeneralSettingsPage() {
     }
   };
 
-  const doRestore = async () => {
+  const doRestore = async (mode: RestoreMode) => {
     const json = pendingBackup!;
     setPendingBackup(null);
     try {
       const backup = backupFromJson(json);
-      await app.restoreBackup(backup);
-      setBankrollText(
-        backup.settings.startingBankroll === 0 ? '' : String(backup.settings.startingBankroll),
-      );
+      await app.restoreBackup(backup, mode);
+      if (mode === 'replace') {
+        setBankrollText(
+          backup.settings.startingBankroll === 0 ? '' : String(backup.settings.startingBankroll),
+        );
+      }
       setMessage(
-        `Restored ${backup.sessions.length} sessions and ${backup.transactions.length} transactions.`,
+        `${mode === 'replace' ? 'Restored' : 'Added'} ${backup.sessions.length} sessions and ${backup.transactions.length} transactions.`,
       );
     } catch (err) {
-      setMessage(`Restore failed: ${(err as Error).message}`);
+      setMessage(`Restore failed: ${(err as Error).message} Your existing data was not changed.`);
     }
   };
 
@@ -285,22 +287,71 @@ export default function GeneralSettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.34.0 — works fully offline; all data stays on this device. Install it from your
+          1.35.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>
 
-      <ConfirmDialog
+      <RestoreChoiceDialog
         open={pendingBackup !== null}
-        title="Restore backup?"
-        message="This replaces ALL current sessions, transactions and settings with the backup's contents. This can't be undone."
-        confirmLabel="Restore"
-        danger
-        onConfirm={doRestore}
+        onChoose={doRestore}
         onCancel={() => setPendingBackup(null)}
       />
     </main>
     </>
+  );
+}
+
+/** Asks how to apply a picked backup: replace everything or add to what's
+ *  here. Same backdrop/dialog pattern as ConfirmDialog. */
+function RestoreChoiceDialog({
+  open,
+  onChoose,
+  onCancel,
+}: {
+  open: boolean;
+  onChoose: (mode: RestoreMode) => void;
+  onCancel: () => void;
+}) {
+  const firstRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (open) firstRef.current?.focus();
+  }, [open]);
+  if (!open) return null;
+  return (
+    <div
+      className="dialog-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+    >
+      <div role="alertdialog" aria-modal="true" aria-label="Restore backup" className="dialog">
+        <h2>Restore backup</h2>
+        <p className="muted" style={{ margin: 0 }}>
+          How should this backup be applied?
+        </p>
+        <div className="col" style={{ gap: 8 }}>
+          <button type="button" ref={firstRef} className="btn" onClick={() => onChoose('merge')}>
+            Add to current data
+          </button>
+          <p className="muted small" style={{ margin: 0 }}>
+            Keeps everything you have and adds the backup's sessions, bets, transactions and
+            tool data. This device's settings are kept.
+          </p>
+          <button type="button" className="btn btn-danger" onClick={() => onChoose('replace')}>
+            Replace all data
+          </button>
+          <p className="muted small" style={{ margin: 0 }}>
+            Deletes ALL current data first, then restores the backup — including its bankroll
+            settings. This can't be undone.
+          </p>
+        </div>
+        <div className="actions">
+          <button type="button" className="btn btn-outline" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

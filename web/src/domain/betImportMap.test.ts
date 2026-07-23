@@ -24,6 +24,11 @@ describe('parseOdds', () => {
     expect(parseOdds('150', 'AUTO')).toBeCloseTo(2.5, 6); // no sign but >=100 → American
     expect(parseOdds('', 'AUTO')).toBe(0);
   });
+  it('reads European decimal-comma odds as decimal, never American', () => {
+    expect(parseOdds('1,91', 'AUTO')).toBeCloseTo(1.91, 6);
+    expect(parseOdds('101,5', 'AUTO')).toBeCloseTo(101.5, 6);
+    expect(parseOdds('1,91', 'DECIMAL')).toBeCloseTo(1.91, 6);
+  });
   it('honors a forced format', () => {
     expect(parseOdds('150', 'DECIMAL')).toBeCloseTo(150, 6);
     expect(parseOdds('150', 'AMERICAN')).toBeCloseTo(2.5, 6);

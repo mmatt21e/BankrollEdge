@@ -24,6 +24,13 @@ describe('parseMoney', () => {
     expect(parseMoney('')).toBe(0);
     expect(parseMoney('n/a')).toBe(0);
   });
+
+  it('understands European decimal commas', () => {
+    expect(parseMoney('1,91')).toBeCloseTo(1.91, 9);
+    expect(parseMoney('1.234,56')).toBeCloseTo(1234.56, 9);
+    expect(parseMoney('€ 2,50')).toBeCloseTo(2.5, 9);
+    expect(parseMoney('1,234')).toBe(1234); // 3 digits after comma = thousands
+  });
 });
 
 describe('parseFlexibleDate', () => {
@@ -49,6 +56,13 @@ describe('parseFlexibleDate', () => {
   it('returns null for junk', () => {
     expect(parseFlexibleDate('not a date', 'AUTO')).toBeNull();
     expect(parseFlexibleDate('', 'AUTO')).toBeNull();
+  });
+  it('applies the 2000s century to 2-digit years in Y-M-D order too', () => {
+    expect(ymd(parseFlexibleDate('26-07-23', 'YMD')!)).toEqual([2026, 7, 23, 0, 0]);
+  });
+  it('rejects impossible calendar dates instead of rolling them over', () => {
+    expect(parseFlexibleDate('2026-02-31 10:00', 'AUTO')).toBeNull();
+    expect(parseFlexibleDate('31/02/2026', 'DMY')).toBeNull();
   });
 });
 

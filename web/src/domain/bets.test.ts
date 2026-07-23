@@ -143,6 +143,15 @@ describe('computeBetStats', () => {
     expect(empty.betCount).toBe(0);
     expect(recordLabel(empty)).toBe('0-0-0');
   });
+
+  it('excludes free bets from avgStake, matching totalStaked', () => {
+    const s = computeBetStats([
+      bet({ placedAt: T0, stake: 100, odds: 2, status: 'WON' }),
+      bet({ placedAt: T0 + 1, stake: 50, odds: 3, status: 'LOST', freeBet: true }),
+    ]);
+    expect(s.totalStaked).toBe(100);
+    expect(s.avgStake).toBe(100); // the free 50 doesn't drag the average down
+  });
 });
 
 describe('bets CSV', () => {

@@ -175,11 +175,17 @@ export default function ImportPage() {
   const doImport = async () => {
     if (!built || built.count === 0) return;
     setBusy(true);
-    const count = await built.run();
-    const skipped = built.skipped > 0 ? ` (${built.skipped} rows skipped)` : '';
-    setBusy(false);
-    setMessage(`Imported ${count} ${noun}${skipped}.`);
-    reset();
+    try {
+      const count = await built.run();
+      const skipped = built.skipped > 0 ? ` (${built.skipped} rows skipped)` : '';
+      setMessage(`Imported ${count} ${noun}${skipped}.`);
+      reset();
+    } catch (err) {
+      // The batch write is all-or-nothing, so a failure means nothing imported.
+      setMessage(`Import failed: ${(err as Error).message} Nothing was imported.`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const loaded = headers.length > 0;
@@ -224,8 +230,8 @@ export default function ImportPage() {
                 rows={5}
                 placeholder={
                   kind === 'bets'
-                    ? 'Date,Sport,Pick,Odds,Stake,Result&#10;2026-01-05,NFL,Chiefs -3.5,-110,100,Won'
-                    : 'Date,Location,Buy In,Cash Out&#10;2026-01-05,Bellagio,300,540'
+                    ? 'Date,Sport,Pick,Odds,Stake,Result\n2026-01-05,NFL,Chiefs -3.5,-110,100,Won'
+                    : 'Date,Location,Buy In,Cash Out\n2026-01-05,Bellagio,300,540'
                 }
                 style={{ width: '100%', marginTop: 8 }}
                 value={raw}

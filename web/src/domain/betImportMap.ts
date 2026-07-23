@@ -68,15 +68,21 @@ export function guessBetMapping(headers: string[]): BetColumnMapping {
 }
 
 /** Parses an odds cell to decimal odds. AUTO treats a leading sign or |value|
- *  >= 100 as American, otherwise decimal. */
+ *  >= 100 as American, otherwise decimal. European decimal commas ("1,91")
+ *  are decimal odds, never American. */
 export function parseOdds(raw: string, format: OddsInputFormat): number {
-  const s = (raw ?? '').trim();
+  let s = (raw ?? '').trim();
   if (!s) return 0;
+  // "1,91" is decimal-comma notation — stripping the comma would turn it into
+  // American +191. Normalize it to a dot before parsing.
+  const decimalComma = /^\d+,\d+$/.test(s);
+  if (decimalComma) s = s.replace(',', '.');
   const n = Number.parseFloat(s.replace(/[^0-9.+\-]/g, ''));
   if (!Number.isFinite(n) || n === 0) return 0;
   if (format === 'DECIMAL') return n > 1 ? n : 0;
-  if (format === 'AMERICAN') return americanToDecimal(n);
+  if (format === 'AMERICAN') return decimalComma ? 0 : americanToDecimal(n);
   // AUTO
+  if (decimalComma) return n > 1 ? n : 0;
   if (/^[+\-]/.test(s) || Math.abs(n) >= 100) return americanToDecimal(n);
   return n > 1 ? n : americanToDecimal(n);
 }
@@ -162,9 +168,13 @@ export function applyBetMapping(
       continue;
     }
 
-    let stake = has('stake') ? parseMoney(cell(row, 'stake')) : 0;
+    // Stakes and cash-outs can't be negative (accounting-style "(2)" cells).
+    let stake = Math.max(0, has('stake') ? parseMoney(cell(row, 'stake')) : 0);
     let odds = has('odds') ? parseOdds(cell(row, 'odds'), options.oddsFormat) : 0;
-    let cashOutAmount = has('cashOutAmount') ? parseMoney(cell(row, 'cashOutAmount')) : 0;
+    let cashOutAmount = Math.max(
+      0,
+      has('cashOutAmount') ? parseMoney(cell(row, 'cashOutAmount')) : 0,
+    );
     const freeBet = has('freeBet') && /yes|true|1|free|bonus/i.test(cell(row, 'freeBet'));
 
     const net = has('net') ? parseMoney(cell(row, 'net')) : null;

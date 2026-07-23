@@ -122,6 +122,8 @@ export function backupFromJson(json: string): Backup {
       buyIn: num(o.buyIn),
       rebuysAddons: num(o.rebuysAddons),
       addOns: num(o.addOns),
+      bountyPerBounty: num(o.bountyPerBounty),
+      bountyCount: num(o.bountyCount),
       cashOut: num(o.cashOut),
       tips: num(o.tips),
       rake: num(o.rake),

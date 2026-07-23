@@ -298,7 +298,11 @@ export function computeBetStats(bets: SportsBet[]): BetStats {
     pendingToWin: pending.reduce((a, b) => a + toWin(b), 0),
     totalStaked,
     netProfit,
-    avgStake: settled.length > 0 ? settled.reduce((a, b) => a + b.stake, 0) / settled.length : 0,
+    // Free bets risk nothing, so they're excluded here just like totalStaked.
+    avgStake: (() => {
+      const risked = settled.filter((b) => !b.freeBet);
+      return risked.length > 0 ? risked.reduce((a, b) => a + b.stake, 0) / risked.length : 0;
+    })(),
     avgOdds: oddsCount > 0 ? oddsSum / oddsCount : 0,
     biggestWin,
     biggestLoss,

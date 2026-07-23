@@ -31,12 +31,10 @@ import { Backup } from '../domain/backup';
 import {
   betStore,
   db,
-  eventStore,
-  handNoteStore,
-  homeGameStore,
+  replaceAll,
   requestPersistence,
+  saveAll,
   stakeStore,
-  structureStore,
   venueStore,
 } from '../storage/db';
 import {
@@ -50,6 +48,9 @@ import {
 
 export interface AppState {
   ready: boolean;
+  /** Non-null when the initial database load failed — the data shown may be
+   *  incomplete, and the shell surfaces a warning banner. */
+  loadError: string | null;
   sessions: Session[]; // newest first
   filteredSessions: Session[];
   transactions: Transaction[]; // newest first
@@ -96,7 +97,9 @@ export interface AppState {
   adjustBounty(delta: number): void;
   clearSession(): void;
   importSessions(sessions: Session[]): Promise<number>;
-  restoreBackup(backup: Backup): Promise<void>;
+  /** 'replace' wipes current data first (atomically); 'merge' appends the
+   *  backup's records to what's already here, keeping this device's settings. */
+  restoreBackup(backup: Backup, mode: RestoreMode): Promise<void>;
   /** Permanently deletes logged data for a category (or everything). Returns
    *  the number of records removed. */
   clearData(scope: ClearScope): Promise<number>;
@@ -104,6 +107,9 @@ export interface AppState {
 
 /** Which logged data to wipe. 'all' also removes bankroll transactions. */
 export type ClearScope = 'poker' | 'table' | 'sports' | 'all';
+
+/** How a backup is applied: replace everything, or add to current data. */
+export type RestoreMode = 'replace' | 'merge';
 
 const AppStateContext = createContext<AppState | null>(null);
 
@@ -129,6 +135,7 @@ function bareActiveSession(startedAt: number, settings: AppSettings): ActiveSess
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bets, setBets] = useState<SportsBet[]>([]);
@@ -165,7 +172,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         // existed become first-class managed entries (visible in Settings too).
         await syncManagedPickLists(normalized);
       })
-      .catch(() => undefined)
+      // Never present a failed load as "you have no data" — the shell shows a
+      // banner so the user doesn't try to "fix" it by re-importing.
+      .catch((err: unknown) => setLoadError((err as Error)?.message ?? 'Database error'))
       .finally(() => setReady(true));
   }, []);
 
@@ -173,8 +182,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
    *  aren't already saved — the shared backfill used on load and after import. */
   const syncManagedPickLists = useCallback(async (list: Session[]) => {
     const [venues, stakes] = await Promise.all([venueStore.list(), stakeStore.list()]);
-    for (const v of harvestVenues(list, venues)) await venueStore.save(v);
-    for (const p of harvestStakes(list, stakes)) await stakeStore.save(p);
+    await saveAll('venues', harvestVenues(list, venues));
+    await saveAll('stakes', harvestStakes(list, stakes));
     setSettings((prev) => {
       const { poker, table } = harvestCustomGames(list, prev.customPokerGames, prev.customTableGames);
       if (!poker.length && !table.length) return prev;
@@ -223,13 +232,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [bets, saveBet],
   );
 
-  /** CSV import: APPENDS to existing bets. Returns the number imported. */
+  /** CSV import: APPENDS to existing bets. Returns the number imported.
+   *  One transaction — all rows import or none do. */
   const importBets = useCallback(async (toImport: SportsBet[]) => {
-    const saved: SportsBet[] = [];
-    for (const b of toImport) {
-      const id = await betStore.save({ ...b, id: 0 });
-      saved.push({ ...b, id });
-    }
+    const saved = await saveAll('bets', toImport.map((b) => ({ ...b, id: 0 })));
     setBets((prev) => [...prev, ...saved].sort((a, z) => z.placedAt - a.placedAt));
     return saved.length;
   }, []);
@@ -299,13 +305,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setActiveSession(null);
   }, []);
 
-  /** CSV import: APPENDS to existing data. Returns the number imported. */
+  /** CSV import: APPENDS to existing data. Returns the number imported.
+   *  One transaction — all rows import or none do. */
   const importSessions = useCallback(async (toImport: Session[]) => {
-    const saved: Session[] = [];
-    for (const s of toImport) {
-      const id = await db.saveSession({ ...s, id: 0 });
-      saved.push({ ...s, id });
-    }
+    const saved = await saveAll('sessions', toImport.map((s) => ({ ...s, id: 0 })));
     setSessions((prev) => [...prev, ...saved].sort((a, b) => b.startTime - a.startTime));
     // Treat imported venues, stakes and game types as first-class managed
     // entries so they show everywhere, including the Settings screens.
@@ -313,65 +316,114 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return saved.length;
   }, [syncManagedPickLists]);
 
-  /** Backup restore: REPLACES all data (caller confirms with the user first). */
-  const restoreBackup = useCallback(async (backup: Backup) => {
-    await db.clearSessions();
-    await db.clearTransactions();
-    await betStore.clear();
-    // Tool collections live in their own stores; pages re-read them on mount.
-    await Promise.all([
-      handNoteStore.clear(),
-      homeGameStore.clear(),
-      structureStore.clear(),
-      eventStore.clear(),
-      venueStore.clear(),
-      stakeStore.clear(),
+  /** Reloads the record stores from the database into React state, so the UI
+   *  matches reality after a failed restore/import. */
+  const reloadFromDb = useCallback(async () => {
+    const [s, t, b] = await Promise.all([
+      db.loadSessions(),
+      db.loadTransactions(),
+      betStore.list(),
     ]);
-    for (const n of backup.handNotes) await handNoteStore.save(n);
-    for (const g of backup.homeGames) await homeGameStore.save(g);
-    for (const st of backup.structures) await structureStore.save(st);
-    for (const ev of backup.events) await eventStore.save(ev);
-    for (const v of backup.venues) await venueStore.save(v);
-    for (const st of backup.stakes) await stakeStore.save(st);
-    const restoredSessions: Session[] = [];
-    for (const s of backup.sessions) {
-      const id = await db.saveSession({ ...s, id: 0 });
-      restoredSessions.push({ ...s, id });
-    }
-    const restoredTx: Transaction[] = [];
-    for (const t of backup.transactions) {
-      const id = await db.saveTransaction({ ...t, id: 0 });
-      restoredTx.push({ ...t, id });
-    }
-    const restoredBets: SportsBet[] = [];
-    for (const b of backup.bets) {
-      const id = await betStore.save({ ...b, id: 0 });
-      restoredBets.push({ ...b, id });
-    }
-    // Only data-related settings roam in backups; display/feature preferences
-    // (theme, tabs, dashboard cards) stay as this device has them.
-    setSettings((prev) => {
-      const merged: AppSettings = {
-        ...prev,
-        startingBankroll: backup.settings.startingBankroll,
-        currency: backup.settings.currency,
-        defaultSessionType: backup.settings.defaultSessionType,
-        betUnitValue: backup.settings.betUnitValue,
-        oddsFormat: backup.settings.oddsFormat,
-        separateBankrolls: backup.settings.separateBankrolls,
-        startingSportsBankroll: backup.settings.startingSportsBankroll,
-        customPokerGames: backup.settings.customPokerGames,
-        hiddenPokerGames: backup.settings.hiddenPokerGames,
-        customTableGames: backup.settings.customTableGames,
-        hiddenTableGames: backup.settings.hiddenTableGames,
-      };
-      saveSettings(merged);
-      return merged;
-    });
-    setSessions(restoredSessions.sort((a, b) => b.startTime - a.startTime));
-    setTransactions(restoredTx.sort((a, b) => b.time - a.time));
-    setBets(restoredBets.sort((a, z) => z.placedAt - a.placedAt));
+    setSessions(s.map(normalizeSession).sort((a, b2) => b2.startTime - a.startTime));
+    setTransactions(t.sort((a, b2) => b2.time - a.time));
+    setBets(b.map(normalizeBet).sort((a, z) => z.placedAt - a.placedAt));
   }, []);
+
+  /** Backup restore (caller confirms with the user first).
+   *  'replace' swaps ALL data for the backup's contents in one atomic
+   *  IndexedDB transaction — a failure leaves existing data untouched.
+   *  'merge' appends the backup's records to current data (venues and stakes
+   *  are deduplicated) and keeps this device's settings. */
+  const restoreBackup = useCallback(
+    async (backup: Backup, mode: RestoreMode) => {
+      try {
+        if (mode === 'replace') {
+          const zeroed = <T extends { id: number }>(list: T[]) =>
+            list.map((r) => ({ ...r, id: 0 }));
+          const out = await replaceAll({
+            sessions: zeroed(backup.sessions),
+            transactions: zeroed(backup.transactions),
+            bets: zeroed(backup.bets),
+            handNotes: zeroed(backup.handNotes),
+            homeGames: zeroed(backup.homeGames),
+            structures: zeroed(backup.structures),
+            events: zeroed(backup.events),
+            venues: zeroed(backup.venues),
+            stakes: zeroed(backup.stakes),
+          });
+          // Only data-related settings roam in backups; display/feature
+          // preferences (theme, tabs, dashboard cards) stay as this device
+          // has them.
+          setSettings((prev) => {
+            const merged: AppSettings = {
+              ...prev,
+              startingBankroll: backup.settings.startingBankroll,
+              currency: backup.settings.currency,
+              defaultSessionType: backup.settings.defaultSessionType,
+              betUnitValue: backup.settings.betUnitValue,
+              oddsFormat: backup.settings.oddsFormat,
+              separateBankrolls: backup.settings.separateBankrolls,
+              startingSportsBankroll: backup.settings.startingSportsBankroll,
+              customPokerGames: backup.settings.customPokerGames,
+              hiddenPokerGames: backup.settings.hiddenPokerGames,
+              customTableGames: backup.settings.customTableGames,
+              hiddenTableGames: backup.settings.hiddenTableGames,
+            };
+            saveSettings(merged);
+            return merged;
+          });
+          setSessions((out.sessions as Session[]).sort((a, b) => b.startTime - a.startTime));
+          setTransactions((out.transactions as Transaction[]).sort((a, b) => b.time - a.time));
+          setBets((out.bets as SportsBet[]).sort((a, z) => z.placedAt - a.placedAt));
+          return;
+        }
+
+        // Merge: append records; settings stay as this device has them.
+        const [existingVenues, existingStakes] = await Promise.all([
+          venueStore.list(),
+          stakeStore.list(),
+        ]);
+        const knownVenues = new Set(existingVenues.map((v) => v.name.trim().toLowerCase()));
+        const newVenues = backup.venues.filter(
+          (v) => !knownVenues.has(v.name.trim().toLowerCase()),
+        );
+        const stakeKey = (p: (typeof existingStakes)[number]) =>
+          `${p.kind}|${p.smallBlind}|${p.bigBlind}|${p.minBet}|${p.maxBet}`;
+        const knownStakes = new Set(existingStakes.map(stakeKey));
+        const newStakes = backup.stakes.filter((p) => !knownStakes.has(stakeKey(p)));
+
+        const zero = <T extends { id: number }>(list: T[]) =>
+          list.map((r) => ({ ...r, id: 0 }));
+        const [mergedSessions, mergedTx, mergedBets] = await Promise.all([
+          saveAll('sessions', zero(backup.sessions)),
+          saveAll('transactions', zero(backup.transactions)),
+          saveAll('bets', zero(backup.bets)),
+        ]);
+        await Promise.all([
+          saveAll('handNotes', zero(backup.handNotes)),
+          saveAll('homeGames', zero(backup.homeGames)),
+          saveAll('structures', zero(backup.structures)),
+          saveAll('events', zero(backup.events)),
+          saveAll('venues', zero(newVenues)),
+          saveAll('stakes', zero(newStakes)),
+        ]);
+        setSessions((prev) =>
+          [...prev, ...mergedSessions].sort((a, b) => b.startTime - a.startTime),
+        );
+        setTransactions((prev) => [...prev, ...mergedTx].sort((a, b) => b.time - a.time));
+        setBets((prev) => [...prev, ...mergedBets].sort((a, z) => z.placedAt - a.placedAt));
+        // Harvest venues/stakes/custom games out of the merged sessions too,
+        // exactly like a CSV import would.
+        await syncManagedPickLists(mergedSessions);
+      } catch (err) {
+        // Resync state with whatever actually got written before rethrowing,
+        // so the UI never shows deleted (or missing) data as present.
+        await reloadFromDb().catch(() => undefined);
+        throw err;
+      }
+    },
+    [reloadFromDb, syncManagedPickLists],
+  );
 
   /** Clears logged data by category. Poker = non-table sessions, Table =
    *  table-game sessions, Sports = bets. 'all' also removes bankroll
@@ -415,6 +467,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const betStats = computeBetStats(bets);
     return {
       ready,
+      loadError,
       sessions,
       filteredSessions,
       transactions,
@@ -466,7 +519,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       clearData,
     };
   }, [
-    ready, sessions, transactions, bets, settings, filter, activeSession,
+    ready, loadError, sessions, transactions, bets, settings, filter, activeSession,
     saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
     addTransaction, deleteTransaction,
     updateSettings, startSession, addRebuy, adjustBounty, clearSession, importSessions, restoreBackup, clearData,
@@ -500,11 +553,12 @@ export function useStoreList<T extends { id: number }>(store: {
 }) {
   const [items, setItems] = useState<T[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     store
       .list()
       .then(setItems)
-      .catch(() => undefined)
+      .catch((err: unknown) => setError((err as Error)?.message ?? 'Database error'))
       .finally(() => setLoaded(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -524,7 +578,7 @@ export function useStoreList<T extends { id: number }>(store: {
     },
     [store],
   );
-  return { items, loaded, save, remove };
+  return { items, loaded, error, save, remove };
 }
 
 /** Online/offline indicator for the offline banner. */

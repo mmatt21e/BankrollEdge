@@ -121,6 +121,12 @@ describe('parseCsv', () => {
     expect(profit(result.sessions[0])).toBeCloseTo(300, 9);
   });
 
+  it('skips rows with impossible calendar dates', () => {
+    const result = parseCsv('Date,BuyIn,CashOut\n2026-02-31 10:00,100,200');
+    expect(result.sessions).toHaveLength(0);
+    expect(result.skippedRows).toBe(1);
+  });
+
   it('rejects files without a Date column', () => {
     expect(() => parseCsv('Foo,Bar\n1,2')).toThrow(/Date/);
   });

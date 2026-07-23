@@ -140,7 +140,9 @@ export function guessMapping(headers: string[]): ColumnMapping {
 
 // --- Value parsers (tolerant of formats from other apps) ---
 
-/** "$1,234.50", "(50)" → -50, "-40", "" → 0. */
+/** "$1,234.50", "(50)" → -50, "-40", "" → 0.
+ *  European decimal commas are understood too: "1,91" → 1.91 and
+ *  "1.234,56" → 1234.56. */
 export function parseMoney(raw: string): number {
   let s = (raw ?? '').trim();
   if (!s) return 0;
@@ -148,6 +150,12 @@ export function parseMoney(raw: string): number {
   if (/^\(.*\)$/.test(s)) {
     negative = true;
     s = s.slice(1, -1);
+  }
+  // A comma followed by exactly 1–2 trailing digits is a decimal comma, not a
+  // thousands separator ("1,91", "1.234,56"). Normalize before stripping.
+  const dm = /^([^0-9]*)([0-9.,\s]+)([^0-9]*)$/.exec(s);
+  if (dm && /,\d{1,2}$/.test(dm[2].trim())) {
+    s = s.replace(/\./g, '').replace(',', '.');
   }
   s = s.replace(/[^0-9.\-]/g, '');
   const v = Number.parseFloat(s);
@@ -198,11 +206,15 @@ export function parseFlexibleDate(raw: string, format: DateFormat): number | nul
       month = mdy ? a : b;
       day = mdy ? b : a;
       year = c;
-      if (year < 100) year += 2000;
     }
+    // Two-digit years mean 20xx regardless of which slot the year came from.
+    if (year > 0 && year < 100) year += 2000;
     if (!year || !month || !day || month > 12 || day > 31) return null;
     const { hour, minute } = parseTime(timePart);
-    const t = new Date(year, month - 1, day, hour, minute).getTime();
+    const d = new Date(year, month - 1, day, hour, minute);
+    // Reject impossible dates instead of letting Date roll them over.
+    if (d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+    const t = d.getTime();
     return Number.isNaN(t) ? null : t;
   }
 
@@ -283,17 +295,22 @@ export function applyMapping(
     if (has('smallBlind')) smallBlind = parseMoney(cell(row, 'smallBlind')) || smallBlind;
     if (has('bigBlind')) bigBlind = parseMoney(cell(row, 'bigBlind')) || bigBlind;
 
+    // Amounts and durations can't be negative — accounting-style "(2)" cells
+    // would otherwise import as negative values and skew hours/ROI.
+    const nonNeg = (v: number) => Math.max(0, v);
+
     let durationMinutes = 0;
     if (has('durationMinutes')) durationMinutes = parseIntFlex(cell(row, 'durationMinutes'));
     if (has('durationHours')) {
       const hours = parseMoney(cell(row, 'durationHours'));
       if (hours) durationMinutes = Math.round(hours * 60);
     }
+    durationMinutes = nonNeg(durationMinutes);
 
-    const buyIn = has('buyIn') ? parseMoney(cell(row, 'buyIn')) : 0;
-    const rebuysAddons = has('rebuysAddons') ? parseMoney(cell(row, 'rebuysAddons')) : 0;
-    const tips = has('tips') ? parseMoney(cell(row, 'tips')) : 0;
-    const expenses = has('expenses') ? parseMoney(cell(row, 'expenses')) : 0;
+    const buyIn = nonNeg(has('buyIn') ? parseMoney(cell(row, 'buyIn')) : 0);
+    const rebuysAddons = nonNeg(has('rebuysAddons') ? parseMoney(cell(row, 'rebuysAddons')) : 0);
+    const tips = nonNeg(has('tips') ? parseMoney(cell(row, 'tips')) : 0);
+    const expenses = nonNeg(has('expenses') ? parseMoney(cell(row, 'expenses')) : 0);
 
     // Cash-out preferred; otherwise derive it from a net-profit column so that
     // profit(session) reproduces the imported net exactly.
@@ -326,8 +343,8 @@ export function applyMapping(
         cashOut,
         tips,
         expenses,
-        position: has('position') ? parseIntFlex(cell(row, 'position')) : 0,
-        fieldSize: has('fieldSize') ? parseIntFlex(cell(row, 'fieldSize')) : 0,
+        position: nonNeg(has('position') ? parseIntFlex(cell(row, 'position')) : 0),
+        fieldSize: nonNeg(has('fieldSize') ? parseIntFlex(cell(row, 'fieldSize')) : 0),
         currency: (has('currency') && cell(row, 'currency')) || options.defaultCurrency,
         tags: has('tags')
           ? cell(row, 'tags').split(/[;,|]/).map((t) => t.trim()).filter(Boolean)
