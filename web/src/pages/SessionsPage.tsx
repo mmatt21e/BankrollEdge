@@ -89,7 +89,7 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
 
       <div className="field">
         <label>
-          <span className="visually-hidden" style={{ display: 'none' }}>Search sessions</span>
+          <span className="visually-hidden">Search sessions</span>
           <input
             type="search"
             placeholder="Search venue, notes, game…"
@@ -234,7 +234,7 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
         </div>
       </FilterPanel>
 
-      {list.length === 0 ? (
+      {!app.ready ? null : list.length === 0 ? (
         <p className="empty">
           {scopeTotal === 0
             ? isTable

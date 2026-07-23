@@ -139,12 +139,15 @@ export default function BetsPage() {
           )}
 
           <div className="field">
-            <input
-              type="search"
-              placeholder="Search event, pick, book, tags…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+            <label>
+              <span className="visually-hidden">Search bets</span>
+              <input
+                type="search"
+                placeholder="Search event, pick, book, tags…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
           </div>
 
           <div className="chips" role="group" aria-label="Bet status filter">
@@ -203,7 +206,7 @@ export default function BetsPage() {
             )}
           </FilterPanel>
 
-          {settledBets.length === 0 && openBets.length === 0 ? (
+          {!app.ready ? null : settledBets.length === 0 && openBets.length === 0 ? (
             <p className="empty">
               {app.bets.length === 0
                 ? 'No bets yet. Tap + to log your first sports bet.'

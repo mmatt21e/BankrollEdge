@@ -162,6 +162,9 @@ export default function BetEditorPage() {
       : fromBet({ ...emptyBet(Date.now()), currency: app.settings.currency }, app.settings.oddsFormat),
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Guards against double-taps on Save — each submit of a new bet would
+  // otherwise insert a duplicate record.
+  const [saving, setSaving] = useState(false);
 
   const set = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
   const hasLegs = form.betType === 'PARLAY' || form.betType === 'TEASER';
@@ -200,8 +203,14 @@ export default function BetEditorPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    await app.saveBet(toBet(form, betId, format));
-    navigate('/bets');
+    if (saving) return;
+    setSaving(true);
+    try {
+      await app.saveBet(toBet(form, betId, format));
+      navigate('/bets');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onDelete = async () => {
@@ -501,8 +510,8 @@ export default function BetEditorPage() {
           )}
         </div>
 
-        <button type="submit" className="btn btn-block">
-          {isEditing ? 'Save changes' : 'Add bet'}
+        <button type="submit" className="btn btn-block" disabled={saving}>
+          {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Add bet'}
         </button>
       </form>
 

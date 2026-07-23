@@ -85,18 +85,22 @@ export default function StatsPage() {
     app.setFilter({ ...filter, venueType: !sports && filter.venueType === v ? null : v });
   };
 
+  // Until the database has loaded, render an empty page rather than zeroed
+  // balances that flash to the real numbers (or read as "my data is gone").
+  if (!app.ready) return <main className="page" />;
+
   return (
     <main className="page">
       <button
         type="button"
         onClick={() => navigate('/bankroll')}
-        style={{ all: 'unset', cursor: 'pointer' }}
+        className="btn-plain"
         aria-label="Manage bankroll"
       >
-        <div className="overline" style={{ color: 'var(--gold-500)' }}>
+        <div className="overline" style={{ color: 'var(--accent)' }}>
           {showSportsRoll ? 'Poker bankroll ›' : 'Current bankroll ›'}
         </div>
-        <h1 className="money" style={{ fontSize: '2.4rem' }}>
+        <h1 className="money money-xl">
           {money(
             !canSession && settings.separateBankrolls ? app.sportsBankroll : app.bankroll,
             currency,
@@ -107,7 +111,7 @@ export default function StatsPage() {
         </div>
         {showSportsRoll && (
           <div className="muted" style={{ marginTop: 4 }}>
-            <span className="overline" style={{ color: 'var(--gold-500)' }}>Sports bankroll</span>{' '}
+            <span className="overline" style={{ color: 'var(--accent)' }}>Sports bankroll</span>{' '}
             <span className="money" style={{ fontWeight: 700 }}>
               {money(app.sportsBankroll, currency)}
             </span>
@@ -193,8 +197,7 @@ export default function StatsPage() {
             <div>
               <div className="overline">{sports ? 'Sports profit' : 'Profit'}</div>
               <div
-                className={`money ${profitClass(sports ? sportsStats.netProfit : stats.totalProfit)}`}
-                style={{ fontSize: '1.4rem', fontWeight: 800 }}
+                className={`money money-lg ${profitClass(sports ? sportsStats.netProfit : stats.totalProfit)}`}
               >
                 {signedMoney(sports ? sportsStats.netProfit : stats.totalProfit, currency)}
               </div>
@@ -441,10 +444,7 @@ function SportsSnapshot() {
           {recordLabel(stats)} record
         </div>
       </div>
-      <span
-        className={`money ${profitClass(stats.netProfit)}`}
-        style={{ fontSize: '1.15rem', fontWeight: 700 }}
-      >
+      <span className={`money stat-value ${profitClass(stats.netProfit)}`}>
         {signedMoney(stats.netProfit, currency)}
       </span>
     </button>
@@ -463,7 +463,7 @@ function SportsTrendsView({ stats }: { stats: BetStats }) {
       </SectionCard>
       {stats.clvCount > 0 && (
         <SectionCard title="Closing line value">
-          <div className={`money ${profitClass(stats.avgClv)}`} style={{ fontSize: '1.3rem', fontWeight: 700 }}>
+          <div className={`money stat-value ${profitClass(stats.avgClv)}`}>
             {stats.avgClv >= 0 ? '+' : ''}
             {stats.avgClv.toFixed(2)}%
           </div>
@@ -553,14 +553,14 @@ function TrendsView({
         <div className="row" style={{ alignItems: 'flex-start' }}>
           <div className="grow">
             <div className="overline">Cash games</div>
-            <div className={`value money ${profitClass(stats.cashProfit)}`} style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+            <div className={`value money stat-value ${profitClass(stats.cashProfit)}`}>
               {signedMoney(stats.cashProfit, currency)}
             </div>
             <div className="muted small">{stats.cashCount} sessions</div>
           </div>
           <div className="grow">
             <div className="overline">Tournaments</div>
-            <div className={`value money ${profitClass(stats.tournamentProfit)}`} style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+            <div className={`value money stat-value ${profitClass(stats.tournamentProfit)}`}>
               {signedMoney(stats.tournamentProfit, currency)}
             </div>
             <div className="muted small">
@@ -570,7 +570,7 @@ function TrendsView({
           {stats.tableCount > 0 && (
             <div className="grow">
               <div className="overline">Table games</div>
-              <div className={`value money ${profitClass(stats.tableProfit)}`} style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+              <div className={`value money stat-value ${profitClass(stats.tableProfit)}`}>
                 {signedMoney(stats.tableProfit, currency)}
               </div>
               <div className="muted small">{stats.tableCount} sessions</div>
@@ -677,7 +677,7 @@ function BankrollHealth({
   return (
     <section className="card">
       <div className="overline">Bankroll health — {label}</div>
-      <div className={`money ${cls}`} style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+      <div className={`money stat-value ${cls}`}>
         {Math.round(buyIns)} buy-ins • {verdict}
       </div>
       <p className="muted" style={{ margin: '4px 0 0' }}>

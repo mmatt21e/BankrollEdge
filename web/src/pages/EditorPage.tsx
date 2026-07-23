@@ -266,6 +266,9 @@ export default function EditorPage() {
     });
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Guards against double-taps on Save — each submit of a new session would
+  // otherwise insert a duplicate record.
+  const [saving, setSaving] = useState(false);
 
   const set = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
   const isTournament = isTournamentStyle({ sessionType: form.sessionType } as Session);
@@ -301,10 +304,16 @@ export default function EditorPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    await app.saveSession(toSession(form, sessionId));
-    // The live session is now logged — retire its draft so the timer resets.
-    if (draft) app.clearSession();
-    navigate(-1);
+    if (saving) return;
+    setSaving(true);
+    try {
+      await app.saveSession(toSession(form, sessionId));
+      // The live session is now logged — retire its draft so the timer resets.
+      if (draft) app.clearSession();
+      navigate(-1);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onDelete = async () => {
@@ -656,8 +665,8 @@ export default function EditorPage() {
           </span>
         </div>
 
-        <button type="submit" className="btn btn-block">
-          {isEditing ? 'Save changes' : 'Add session'}
+        <button type="submit" className="btn btn-block" disabled={saving}>
+          {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Add session'}
         </button>
       </form>
 
