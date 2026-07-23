@@ -1,12 +1,11 @@
 {
-  "name": "BankrollEdge — Poker Bankroll Tracker",
+  "name": "BankrollEdge — Bankroll Tracker",
   "short_name": "BankrollEdge",
-  "description": "Track poker sessions, tournaments and your bankroll. Fully offline.",
+  "description": "Track poker sessions, casino table games, sports bets and your bankroll — plus home-game tools. Fully offline.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#0f1e17",
   "theme_color": "#0f1e17",
   "icons": [

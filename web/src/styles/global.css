@@ -9,6 +9,15 @@
   --loss: #d64545;
   --neutral: #66736d;
 
+  /* Accent for overline/label text. Gold fails contrast on light backgrounds,
+     so the light theme uses a darker gold; dark themes restore --gold-500. */
+  --accent: #7a5f16;
+
+  /* Tournament-clock warning colors — the clock overlay is always felt-dark,
+     independent of the app theme. */
+  --clock-warning-bg: #3d1414;
+  --clock-warning-text: #ff6b6b;
+
   --bg: #f7f9f7;
   --surface: #ffffff;
   --surface-variant: #e7ede9;
@@ -31,6 +40,8 @@
 
   --radius: 12px;
   --space: 16px;
+  --space-sm: 8px;
+  --space-xs: 4px;
   --touch: 44px;
   --nav-height: 60px;
 }
@@ -57,6 +68,7 @@
     --heat-l2: #7e2f2f;
     --heat-l3: #e35050;
     --cell-empty: #182a21;
+    --accent: var(--gold-500);
   }
 }
 
@@ -82,6 +94,7 @@
   --heat-l2: #eb9a9a;
   --heat-l3: #d64545;
   --cell-empty: #e5ebe7;
+  --accent: #7a5f16;
 }
 
 :root[data-theme='dark'] {
@@ -104,6 +117,7 @@
   --heat-l2: #7e2f2f;
   --heat-l3: #e35050;
   --cell-empty: #182a21;
+  --accent: var(--gold-500);
 }
 
 * { box-sizing: border-box; }
@@ -131,6 +145,43 @@ h2 { font-size: 1.15rem; font-weight: 600; }
 
 button { font: inherit; }
 :focus-visible { outline: 3px solid var(--gold-500); outline-offset: 2px; }
+
+/* ---------- Utilities (use these instead of inline styles) ---------- */
+
+/* Money/stat text hierarchy. */
+.money-xl { font-size: 2.4rem; font-weight: 700; }
+.money-lg { font-size: 1.5rem; font-weight: 700; }
+.stat-value { font-size: 1.15rem; font-weight: 700; }
+.icon-lg { font-size: 1.6rem; }
+
+/* Unstyled button that keeps the :focus-visible outline (never `all: unset`,
+   which destroys the focus indicator). */
+.btn-plain {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+/* Screen-reader-only text. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Pages rendered under a TopBar (the bar brings its own spacing). */
+.page--with-topbar { padding-top: 0; }
 
 /* ---------- Layout ---------- */
 
@@ -190,7 +241,7 @@ button { font: inherit; }
   color: var(--primary);
   border: 1.5px solid var(--outline);
 }
-.btn-danger { background: var(--loss); color: #fff; }
+.btn-danger { background: var(--loss); color: var(--cream); }
 .btn-block { width: 100%; }
 
 .field { display: flex; flex-direction: column; gap: 4px; }
@@ -234,13 +285,17 @@ button { font: inherit; }
   color: var(--on-bg);
   font-size: 0.9rem;
   cursor: pointer;
+  position: relative;
 }
+/* Extend the tap target to ~44px without growing the visual pill. */
+.chip::after { content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
 .chip[aria-pressed='true'] {
   background: var(--primary-container);
   border-color: var(--primary);
   font-weight: 600;
 }
 .chip-small { min-height: 30px; padding: 4px 10px; font-size: 0.8rem; }
+.chip-small::after { top: -7px; bottom: -7px; }
 .chip-badge {
   display: inline-flex;
   align-items: center;
@@ -531,14 +586,14 @@ details.card > summary::-webkit-details-marker { display: none; }
   text-align: center;
   transition: background 0.4s;
 }
-.clock-screen.clock-warning { background: #3d1414; }
+.clock-screen.clock-warning { background: var(--clock-warning-bg); }
 .clock-time {
   font-size: clamp(4.5rem, 22vw, 13rem);
   font-weight: 800;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.clock-warning .clock-time { color: #ff6b6b; }
+.clock-warning .clock-time { color: var(--clock-warning-text); }
 .clock-blinds {
   font-size: clamp(1.6rem, 7vw, 3.6rem);
   font-weight: 700;
