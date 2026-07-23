@@ -1,5 +1,10 @@
 # BankrollEdge — Android → PWA Migration Plan
 
+> _Historical document from the Android → PWA migration era (2026-07). The
+> web app has moved on considerably since — see [web/README.md](../web/README.md)
+> for the current state._
+
+
 ## 1. Summary of the existing Android app
 
 BankrollEdge is a **fully offline, single-user poker bankroll tracker** (Kotlin,

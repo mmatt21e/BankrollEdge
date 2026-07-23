@@ -1,5 +1,10 @@
 # Android → PWA Screen Mapping
 
+> _Historical document from the Android → PWA migration era (2026-07). The
+> web app has moved on considerably since — see [web/README.md](../web/README.md)
+> for the current state._
+
+
 | Android Source | PWA Route | PWA Component | Status | Notes |
 |---|---|---|---|---|
 | `ui/dashboard/DashboardScreen.kt` | `/` | `pages/DashboardPage.tsx` | Done | Bankroll header (tap → `/bankroll`), live timer card (persists across restarts), cumulative SVG chart, 6 stat tiles, recent 5 sessions, empty state |

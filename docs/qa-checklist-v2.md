@@ -1,5 +1,10 @@
 # Manual QA Checklist — Poker Utility V2 (web app)
 
+> _Historical document from the Android → PWA migration era (2026-07). The
+> web app has moved on considerably since — see [web/README.md](../web/README.md)
+> for the current state._
+
+
 Automated coverage: 61 unit tests over all calculation logic (profit incl.
 add-ons/expenses, ROI, hourly rate, settlement balancing + transfers, payout
 templates/rounding conservation, chip distribution + inventory warnings,

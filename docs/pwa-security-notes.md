@@ -1,12 +1,28 @@
 # PWA Security Notes — BankrollEdge Web
 
+> _Historical document from the Android → PWA migration era (2026-07). The
+> web app has moved on considerably since — see [web/README.md](../web/README.md)
+> for the current state._
+
+
 ## Threat model in one paragraph
 
-BankrollEdge is a **local-only, single-user app with no authentication and no
-network I/O**. There are no accounts, tokens, passwords, or API calls to
-protect. The data at stake is the user's own poker results (sessions,
-bankroll transactions, settings, free-text notes), stored entirely on the
-user's device.
+BankrollEdge is a **local-only, single-user app with no accounts and no
+network I/O**. There are no tokens, passwords, or API calls to protect. The
+data at stake is the user's own results (sessions, bets, bankroll
+transactions, settings, free-text notes), stored entirely on the user's
+device.
+
+## PIN lock (added after this document was written)
+
+The app now offers an optional launch PIN (Settings → General → Privacy).
+It is a **nuisance lock against shoulder-surfing on an already-unlocked
+device, not encryption**: the 4–8 digit PIN is stored in localStorage as a
+single-round SHA-256 hash with a constant salt, and the underlying
+IndexedDB data remains readable to anyone with filesystem or devtools
+access. Clearing site data removes the PIN along with the data. This is a
+deliberate trade-off consistent with the local-only threat model above; a
+"hide balances" blur mode complements it for over-the-shoulder privacy.
 
 ## Where data lives
 

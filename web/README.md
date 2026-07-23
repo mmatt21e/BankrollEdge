@@ -8,7 +8,10 @@ on your device in IndexedDB/localStorage — no server, no account).
 
 > Track every session. Run every home game. Know where you win.
 
-**V2 feature set** (beyond the original Android port):
+**Highlights** (the V2 era added these beyond the original Android port;
+later releases added sports-bet tracking, casino table games, guided CSV
+import with column mapping, category tabs, managed venue/stakes/game
+pick-lists and a settings hub — see the git history for the full changelog):
 
 - Sessions: Sit & Go / Home Game / Other types, live-vs-online, separate
   add-ons, rake, expenses, tags, hands played, table size, and optional
@@ -31,10 +34,11 @@ on your device in IndexedDB/localStorage — no server, no account).
 
 The Android app (Kotlin, Jetpack Compose, Room, MVVM) was ported screen-by-
 screen to React + TypeScript + Vite. Business logic (stats engine, filters,
-CSV, backup) was translated 1:1 and is covered by the same 27 unit tests as
-the Android suite. **CSV exports and JSON backups are byte/format-compatible
-with the Android app**, so you can move your data between the two with a
-backup file. See:
+CSV, backup) was translated 1:1 — originally covered by the same 27 unit
+tests as the Android suite, with the Vitest suite growing alongside every
+feature since. **CSV exports and JSON backups are format-compatible with the
+Android app**, so you can move your data between the two with a backup file.
+See:
 
 - `../docs/pwa-migration-plan.md` — analysis, architecture, limitations
 - `../docs/screen-mapping.md` — Android file → PWA route/component table
@@ -57,7 +61,7 @@ npm install        # install dependencies
 npm run dev        # dev server at http://localhost:5173
 npm run build      # type-check (tsc) + production build into dist/
 npm run preview    # serve the production build at http://localhost:4173
-npm test           # run the 27 Vitest unit tests
+npm test           # run the Vitest unit-test suite
 npm run icons      # regenerate PNG icons from public/icons/icon.svg
 ```
 
