@@ -1,7 +1,7 @@
 // Settings → Sports: betting unit size and odds format.
 import { useState } from 'react';
 import { useAppState } from '../hooks/useAppState';
-import { MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
+import { MessageBanner, MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
 
 export default function SportsSettingsPage() {
   const app = useAppState();
@@ -9,11 +9,13 @@ export default function SportsSettingsPage() {
   const [unitText, setUnitText] = useState(
     app.settings.betUnitValue === 0 ? '' : String(app.settings.betUnitValue),
   );
+  const [message, setMessage] = useState('');
 
   return (
     <>
       <TopBar title="Sports" onBack={back} />
       <main className="page page--with-topbar">
+        <MessageBanner>{message}</MessageBanner>
         <SectionCard title="Unit size">
           <p className="muted" style={{ margin: 0 }}>
             Shows your betting results in units alongside money (0 = off).
@@ -27,9 +29,11 @@ export default function SportsSettingsPage() {
               type="button"
               className="btn"
               style={{ alignSelf: 'flex-end' }}
-              onClick={() =>
-                app.updateSettings({ betUnitValue: Number.parseFloat(unitText) || 0 })
-              }
+              disabled={(Number.parseFloat(unitText) || 0) === app.settings.betUnitValue}
+              onClick={() => {
+                app.updateSettings({ betUnitValue: Number.parseFloat(unitText) || 0 });
+                setMessage('Unit size saved.');
+              }}
             >
               Save
             </button>

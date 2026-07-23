@@ -7,7 +7,7 @@ import { buildCsv } from '../domain/csv';
 import { buildBetsCsv } from '../domain/bets';
 import { backupToJson, backupFromJson } from '../domain/backup';
 import { exportFile, readFileAsText } from '../services/files';
-import { ConfirmDialog, MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
+import { ConfirmDialog, MessageBanner, MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
 import {
   eventStore,
   handNoteStore,
@@ -78,11 +78,7 @@ export default function GeneralSettingsPage() {
     <>
     <TopBar title="General" onBack={back} />
     <main className="page page--with-topbar">
-      {message && (
-        <div className="card" role="status" style={{ borderLeft: '4px solid var(--gold-500)' }}>
-          {message}
-        </div>
-      )}
+      <MessageBanner>{message}</MessageBanner>
 
       <SectionCard title="Bankroll">
         <p className="muted" style={{ margin: 0 }}>
@@ -98,9 +94,11 @@ export default function GeneralSettingsPage() {
             type="button"
             className="btn"
             style={{ alignSelf: 'flex-end' }}
-            onClick={() =>
-              app.updateSettings({ startingBankroll: Number.parseFloat(bankrollText) || 0 })
-            }
+            disabled={(Number.parseFloat(bankrollText) || 0) === app.settings.startingBankroll}
+            onClick={() => {
+              app.updateSettings({ startingBankroll: Number.parseFloat(bankrollText) || 0 });
+              setMessage('Starting bankroll saved.');
+            }}
           >
             Save
           </button>
@@ -134,11 +132,15 @@ export default function GeneralSettingsPage() {
                   type="button"
                   className="btn"
                   style={{ alignSelf: 'flex-end' }}
-                  onClick={() =>
+                  disabled={
+                    (Number.parseFloat(sportsBankrollText) || 0) === app.settings.startingSportsBankroll
+                  }
+                  onClick={() => {
                     app.updateSettings({
                       startingSportsBankroll: Number.parseFloat(sportsBankrollText) || 0,
-                    })
-                  }
+                    });
+                    setMessage('Sports bankroll saved.');
+                  }}
                 >
                   Save
                 </button>
@@ -288,7 +290,7 @@ export default function GeneralSettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.37.0 — works fully offline; all data stays on this device. Install it from your
+          1.38.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>

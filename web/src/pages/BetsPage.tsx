@@ -1,7 +1,7 @@
 // Sports bets: open-bet tracker with one-tap settling, searchable history,
 // and a full stats view (record, ROI, CLV, breakdowns). The FAB adds a bet;
 // CSV export/import lives in Settings with the rest of the data tools.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
@@ -250,6 +250,25 @@ function OpenBetRow({
   const navigate = useNavigate();
   const app = useAppState();
   const oddsLabel = formatOdds(effectiveOdds(bet), app.settings.oddsFormat);
+  // Two-tap settle: the first tap arms the choice ("Won?"), the second within
+  // a few seconds commits it — three adjacent one-tap buttons on a touch row
+  // would otherwise write wrong results with no undo.
+  const [armed, setArmed] = useState<BetStatus | null>(null);
+  useEffect(() => {
+    if (!armed) return;
+    const id = setTimeout(() => setArmed(null), 3500);
+    return () => clearTimeout(id);
+  }, [armed]);
+  const tap = (status: BetStatus) => {
+    if (armed === status) {
+      setArmed(null);
+      void onSettle(bet.id, status);
+    } else {
+      setArmed(status);
+    }
+  };
+  const label = (status: BetStatus, text: string) =>
+    armed === status ? `${text}? Tap again` : text;
   return (
     <div className="card col" style={{ gap: 8, padding: '10px 12px' }}>
       <button
@@ -273,22 +292,24 @@ function OpenBetRow({
         </span>
       </button>
       <div className="row" role="group" aria-label={`Settle ${betTitle(bet)}`}>
-        <button type="button" className="btn grow" onClick={() => onSettle(bet.id, 'WON')}>
-          Won
+        <button type="button" className="btn grow" aria-pressed={armed === 'WON'} onClick={() => tap('WON')}>
+          {label('WON', 'Won')}
         </button>
         <button
           type="button"
           className="btn btn-outline grow"
-          onClick={() => onSettle(bet.id, 'LOST')}
+          aria-pressed={armed === 'LOST'}
+          onClick={() => tap('LOST')}
         >
-          Lost
+          {label('LOST', 'Lost')}
         </button>
         <button
           type="button"
           className="btn btn-outline grow"
-          onClick={() => onSettle(bet.id, 'PUSH')}
+          aria-pressed={armed === 'PUSH'}
+          onClick={() => tap('PUSH')}
         >
-          Push
+          {label('PUSH', 'Push')}
         </button>
       </div>
     </div>

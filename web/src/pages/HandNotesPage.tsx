@@ -6,7 +6,7 @@ import { HandNote, stakesLabel } from '../models/types';
 import { formatDate, formatDateTime } from '../domain/format';
 import { handNoteStore } from '../storage/db';
 import { useAppState, useStoreList } from '../hooks/useAppState';
-import { ConfirmDialog, TopBar, useBack } from '../components/common';
+import { ConfirmDialog, MessageBanner, TopBar, useBack } from '../components/common';
 
 const emptyForm = {
   stakes: '',
@@ -31,6 +31,7 @@ export default function HandNotesPage() {
   const [form, setForm] = useState(emptyForm);
   const [reviewOnly, setReviewOnly] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<HandNote | null>(null);
+  const [message, setMessage] = useState('');
 
   const set = (patch: Partial<typeof emptyForm>) => setForm((prev) => ({ ...prev, ...patch }));
 
@@ -77,6 +78,7 @@ export default function HandNotesPage() {
     <>
       <TopBar title="Hand notes" onBack={back} />
       <main className="page page--with-topbar">
+        <MessageBanner>{message}</MessageBanner>
         <form className="card col" onSubmit={onSubmit}>
           <h2>New hand</h2>
           <label className="field">
@@ -196,8 +198,14 @@ export default function HandNotesPage() {
                       className="btn btn-outline grow"
                       onClick={() => {
                         const text = shareText(n);
-                        if (navigator.share) void navigator.share({ text }).catch(() => undefined);
-                        else void navigator.clipboard?.writeText(text);
+                        if (navigator.share) {
+                          void navigator.share({ text }).catch(() => undefined);
+                        } else {
+                          void navigator.clipboard
+                            ?.writeText(text)
+                            .then(() => setMessage('Hand copied to the clipboard.'))
+                            .catch(() => setMessage("Couldn't copy the hand — select and copy it manually."));
+                        }
                       }}
                     >
                       Share

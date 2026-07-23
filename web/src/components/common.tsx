@@ -246,6 +246,17 @@ export function ConfirmDialog({
   );
 }
 
+/** Gold-edged status banner for save/import/restore feedback. Renders
+ *  nothing while the message is empty. */
+export function MessageBanner({ children }: { children: ReactNode }) {
+  if (!children) return null;
+  return (
+    <div className="card" role="status" style={{ borderLeft: '4px solid var(--gold-500)' }}>
+      {children}
+    </div>
+  );
+}
+
 export function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="card col">

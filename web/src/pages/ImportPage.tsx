@@ -29,7 +29,7 @@ import {
 } from '../models/types';
 import { signedMoney, formatDate } from '../domain/format';
 import { readFileAsText, describeCsvProblem, formatBytes } from '../services/files';
-import { SectionCard, TopBar, profitClass, useBack } from '../components/common';
+import { MessageBanner, SectionCard, TopBar, profitClass, useBack } from '../components/common';
 
 interface PreviewRow {
   cells: { text: string; align?: 'right'; className?: string }[];
@@ -207,11 +207,7 @@ export default function ImportPage() {
         onBack={back}
       />
       <main className="page page--with-topbar">
-        {message && (
-          <div className="card" role="status" style={{ borderLeft: '4px solid var(--gold-500)' }}>
-            {message}
-          </div>
-        )}
+        <MessageBanner>{message}</MessageBanner>
 
         {!loaded && (
           <SectionCard title="Choose a CSV">
