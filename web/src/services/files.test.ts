@@ -1,5 +1,41 @@
 import { describe, it, expect } from 'vitest';
-import { formatBytes, describeCsvProblem } from './files';
+import { formatBytes, describeCsvProblem, readFileAsText } from './files';
+
+/** Fake File exposing only what readFileAsText touches. */
+const fakeFile = (size: number, text: () => Promise<string>): File =>
+  ({ size, text } as unknown as File);
+
+const rejectWith = (name: string) => () =>
+  Promise.reject(Object.assign(new Error('low-level failure'), { name }));
+
+describe('readFileAsText', () => {
+  it('returns the text of a readable file', async () => {
+    await expect(readFileAsText(fakeFile(5, () => Promise.resolve('a,b\n')))).resolves.toBe('a,b\n');
+  });
+  it('rejects empty files up front', async () => {
+    await expect(readFileAsText(fakeFile(0, () => Promise.resolve('')))).rejects.toThrow(/empty/);
+  });
+  it('maps NotReadableError to the cloud-storage hint', async () => {
+    await expect(readFileAsText(fakeFile(5, rejectWith('NotReadableError')))).rejects.toThrow(
+      /cloud storage/,
+    );
+  });
+  it('maps NotFoundError to a moved/deleted message', async () => {
+    await expect(readFileAsText(fakeFile(5, rejectWith('NotFoundError')))).rejects.toThrow(
+      /no longer be found/,
+    );
+  });
+  it('maps SecurityError to an access message', async () => {
+    await expect(readFileAsText(fakeFile(5, rejectWith('SecurityError')))).rejects.toThrow(
+      /blocked by the browser/,
+    );
+  });
+  it('surfaces unknown errors with their name', async () => {
+    await expect(readFileAsText(fakeFile(5, rejectWith('WeirdError')))).rejects.toThrow(
+      /WeirdError: low-level failure/,
+    );
+  });
+});
 
 describe('formatBytes', () => {
   it('formats bytes, KB and MB', () => {
