@@ -67,6 +67,9 @@ export default function SettingsPage() {
           <HubRow key={l.to} {...l} />
         ))}
       </div>
+      <p className="muted small" style={{ textAlign: 'center', margin: 0 }}>
+        BankrollEdge v{__APP_VERSION__}
+      </p>
     </main>
   );
 }
