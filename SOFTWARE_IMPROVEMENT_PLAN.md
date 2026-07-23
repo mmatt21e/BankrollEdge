@@ -687,3 +687,23 @@ For the agent implementing this plan:
 13. Update this document as you go: append an "## 18. Execution Log" section with task status (done/skipped/deviated + why).
 14. If repository conditions contradict this plan (moved files, changed behavior, failing baseline), stop and ask the user.
 15. Do not commit, push, or open a pull request unless the user has separately requested it.
+
+---
+
+## 18. Execution Log
+
+**Implemented 2026-07-23** on branch `claude/document-instructions-4dqlpk`, per the user's directive: *"ignore BUG-003, correct BUG-001, adjust REL-001 to ask the user to overwrite or add to current data, prompt to confirm UX-001, fix DOC-001, and implement any other recommended actions."* Final state: **19 test files / 180 tests passing**, `tsc --noEmit` + production build clean after every batch.
+
+| Batch | Commit | Status | Notes / deviations |
+|---|---|---|---|
+| B1 | `test: pin bounty round-trip loss…` | ✅ Done | Both new tests failed before the fix, as required (T-01) |
+| B2 | `web v1.35.0` | ✅ Done | T-02..T-08, T-12. **REL-001 modified per user:** restore now shows a choice dialog — "Add to current data" (merge: appends records, dedupes venues/stakes, keeps device settings) vs "Replace all data" (atomic multi-store transaction; failure leaves existing data untouched, state resynced from DB). CSV gained trailing `BountyPerBounty,BountyCount` columns (Android importer skips unknown headers) |
+| B3 | `web v1.35.1` | ✅ Done | T-13, T-26. `--accent` light value chosen as #7a5f16 (≈5.5:1 on `--bg`); clock warning colors tokenized as theme-independent (`--clock-warning-*`) since the clock overlay is always felt-dark |
+| B4 | `web v1.36.0` | ✅ Done | T-10, T-14. **T-09 skipped per user (BUG-003 ignored)** — HomeGamesPage/ClockPage inputs untouched; the shared `NumberInput` extraction was skipped with it |
+| B5 | `web v1.37.0` | ✅ Done | T-11, T-16, T-17, T-18, T-15 (back/`.page--with-topbar` sweep). Clock back-gesture behavior per §16 decision 5: overlay closes, clock keeps running, with a "back to the clock" affordance in the editor; editors confirm before discarding dirty forms; venue/stake-preset deletes intentionally left one-tap, blind-template delete does confirm |
+| B6 | `web v1.38.0` | ✅ Done | T-19. Settle protection implemented as two-tap arm-confirm (§16 decision 6); saves show `MessageBanner` feedback and disable when unchanged |
+| B7 | `web v1.39.0` | ✅ Done | T-20, T-21. New `components/SportsStats.tsx` (breakdown card order unified to the dashboard's), `domain/aggregate.ts` (round2, month/weekday helpers), shared `HubRow`/`ordinal`/date-input helpers; backup enum/shape/timestamp validation with tests. **Partial deviation:** stable row keys applied to BetEditor parlay legs only; Deal/StackValue/Chips/Clock rows keep index keys (values stay correct — controlled inputs; changing those state shapes wasn't worth the regression risk) |
+| B8 | `test: cover ics generation…` | ✅ Done | T-22: 22 new cases (ics.ts fully, format.ts, readFileAsText error mapping). T-23 (ESLint) skipped — optional |
+| B9 | `docs: make the repo front door truthful…` | ✅ Done | T-24, T-25. APK untracked + `dist/` ignored; git history not rewritten. **Manual follow-up for the repo owner:** attach `BankrollEdge-v1.2.apk` to a GitHub Release |
+
+Not implemented (per plan §10 P3 / §15): UX-006 multi-currency caveat, UX-008 partially (covered by per-open dialog mounting in B5), UX-009 stale `now`, A11Y-007 heatmap, CODE-004, CODE-005, SEC-001 beyond documentation, STYLE-004 (theme blocks still duplicated — `--accent` added to all four blocks consistently), all AND-xxx (Android frozen).
