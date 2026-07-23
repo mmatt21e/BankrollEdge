@@ -2,7 +2,7 @@
 // large clock with pause/prev/next, audio + vibration on level change, a
 // final-minute visual warning, and browser full-screen support.
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { BlindLevel, BlindStructure } from '../models/types';
 import {
   ClockState,
@@ -18,7 +18,7 @@ import {
 } from '../domain/clock';
 import { structureStore } from '../storage/db';
 import { useStoreList } from '../hooks/useAppState';
-import { TopBar } from '../components/common';
+import { ConfirmDialog, TopBar, useBack } from '../components/common';
 
 function beep() {
   try {
@@ -39,25 +39,43 @@ function beep() {
 }
 
 export default function ClockPage() {
-  const navigate = useNavigate();
+  const back = useBack('/tools');
   const { items: saved, save, remove } = useStoreList<BlindStructure>(structureStore);
   const [structure, setStructure] = useState<Omit<BlindStructure, 'id'> & { id: number }>(() => ({
     id: 0,
     ...defaultStructure(),
   }));
   const [clock, setClock] = useState<ClockState | null>(null);
+  // The full-screen clock lives behind ?running=1 so the system back gesture
+  // closes the overlay (back to the editor) instead of leaving the page —
+  // the clock itself keeps running until Exit is confirmed.
+  const [params, setParams] = useSearchParams();
 
-  return clock ? (
+  const startClock = () => {
+    setClock(initialClock(Date.now()));
+    setParams({ running: '1' });
+  };
+  const exitClock = () => {
+    setClock(null);
+    if (params.get('running') === '1') setParams({}, { replace: true });
+  };
+
+  return clock !== null && params.get('running') === '1' ? (
     <RunningClock
       structure={structure}
       clock={clock}
       setClock={setClock}
-      onExit={() => setClock(null)}
+      onExit={exitClock}
     />
   ) : (
     <>
-      <TopBar title="Tournament clock" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Tournament clock" onBack={back} />
+      <main className="page page--with-topbar">
+        {clock !== null && (
+          <button type="button" className="live-start" onClick={() => setParams({ running: '1' })}>
+            <span aria-hidden="true">⏱</span> Clock is running — back to the clock
+          </button>
+        )}
         <StructureEditor
           structure={structure}
           setStructure={setStructure}
@@ -75,7 +93,7 @@ export default function ClockPage() {
           type="button"
           className="btn btn-block"
           disabled={structure.levels.length === 0}
-          onClick={() => setClock(initialClock(Date.now()))}
+          onClick={startClock}
         >
           ▶ Start clock
         </button>
@@ -97,6 +115,8 @@ function StructureEditor({
   onSave: () => void;
   onDelete: (id: number) => void;
 }) {
+  const [nameMissing, setNameMissing] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<BlindStructure | null>(null);
   const setLevel = (index: number, patch: Partial<BlindLevel>) => {
     const levels = structure.levels.map((l, li) => (li === index ? { ...l, ...patch } : l));
     setStructure({ ...structure, levels });
@@ -115,6 +135,15 @@ function StructureEditor({
           isBreak: false,
         };
     setStructure({ ...structure, levels: [...structure.levels, next] });
+  };
+
+  const saveTemplate = () => {
+    if (structure.name.trim() === '') {
+      setNameMissing(true);
+      return;
+    }
+    setNameMissing(false);
+    onSave();
   };
 
   const numInput = (
@@ -151,7 +180,7 @@ function StructureEditor({
                 type="button"
                 className="back"
                 aria-label={`Delete template ${s.name}`}
-                onClick={() => onDelete(s.id)}
+                onClick={() => setPendingDelete(s)}
               >
                 🗑
               </button>
@@ -166,9 +195,17 @@ function StructureEditor({
           <input
             type="text"
             value={structure.name}
-            onChange={(e) => setStructure({ ...structure, name: e.target.value })}
+            onChange={(e) => {
+              setStructure({ ...structure, name: e.target.value });
+              if (e.target.value.trim() !== '') setNameMissing(false);
+            }}
           />
         </label>
+        {nameMissing && (
+          <p className="neg small" style={{ margin: 0 }}>
+            Give the template a name before saving it.
+          </p>
+        )}
         <label className="field">
           <span>Late registration closes after level (0 = none)</span>
           <input
@@ -213,11 +250,25 @@ function StructureEditor({
           <button type="button" className="btn btn-outline grow" onClick={() => addLevel(true)}>
             + Break
           </button>
-          <button type="button" className="btn grow" onClick={onSave}>
+          <button type="button" className="btn grow" onClick={saveTemplate}>
             Save template
           </button>
         </div>
       </section>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this template?"
+        message={pendingDelete ? `"${pendingDelete.name}" will be removed from your saved blind structures. This can't be undone.` : ''}
+        confirmLabel="Delete"
+        danger
+        onConfirm={() => {
+          const s = pendingDelete;
+          setPendingDelete(null);
+          if (s) onDelete(s.id);
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 }
@@ -234,6 +285,7 @@ function RunningClock({
   onExit: () => void;
 }) {
   const [now, setNow] = useState(Date.now());
+  const [confirmExit, setConfirmExit] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const levels = structure.levels;
   const level = levels[clock.levelIndex];
@@ -256,6 +308,32 @@ function RunningClock({
     return () => clearInterval(id);
   }, [clock, level, levels.length, setClock]);
 
+  // Keep the screen awake while the clock is on the table — a sleeping phone
+  // silences level alerts. Best-effort; re-acquired when the tab returns.
+  useEffect(() => {
+    let lock: { release(): Promise<void> } | null = null;
+    const acquire = () => {
+      type WakeLockNav = Navigator & {
+        wakeLock?: { request(type: 'screen'): Promise<{ release(): Promise<void> }> };
+      };
+      (navigator as WakeLockNav).wakeLock
+        ?.request('screen')
+        .then((l) => {
+          lock = l;
+        })
+        .catch(() => undefined);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') acquire();
+    };
+    acquire();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      void lock?.release().catch(() => undefined);
+    };
+  }, []);
+
   const remaining = remainingMs(clock, level, now);
   const paused = clock.pausedAt > 0;
   const finalMinute = !level.isBreak && remaining <= 60_000 && remaining > 0;
@@ -273,7 +351,7 @@ function RunningClock({
   return (
     <div ref={rootRef} className={`clock-screen ${finalMinute ? 'clock-warning' : ''}`}>
       <div className="row-between" style={{ width: '100%', padding: '8px 16px' }}>
-        <button type="button" className="btn btn-outline" onClick={onExit}>✕ Exit</button>
+        <button type="button" className="btn btn-outline" onClick={() => setConfirmExit(true)}>✕ Exit</button>
         <span className="overline">{structure.name}</span>
         <button type="button" className="btn btn-outline" onClick={toggleFullscreen}>⛶ Full screen</button>
       </div>
@@ -329,6 +407,19 @@ function RunningClock({
           Next ›
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmExit}
+        title="End the tournament clock?"
+        message="The clock and its current level are discarded. Use the back gesture instead to leave this screen with the clock still running."
+        confirmLabel="End clock"
+        danger
+        onConfirm={() => {
+          setConfirmExit(false);
+          onExit();
+        }}
+        onCancel={() => setConfirmExit(false)}
+      />
     </div>
   );
 }

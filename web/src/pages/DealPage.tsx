@@ -1,7 +1,6 @@
 // Deal / chop calculator: when the remaining players agree to split the pool,
 // work out each person's share by ICM, chip chop, or an even split.
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   DealMethod,
   DEAL_METHOD_LABELS,
@@ -11,7 +10,7 @@ import {
 } from '../domain/deal';
 import { money, percent } from '../domain/format';
 import { useAppState } from '../hooks/useAppState';
-import { TopBar } from '../components/common';
+import { TopBar, useBack } from '../components/common';
 
 interface PlayerRow {
   name: string;
@@ -43,7 +42,7 @@ const METHOD_BLURBS: Record<DealMethod, string> = {
 };
 
 export default function DealPage() {
-  const navigate = useNavigate();
+  const back = useBack('/tools');
   const currency = useAppState().settings.currency;
 
   const [players, setPlayers] = useState<PlayerRow[]>(DEFAULT_PLAYERS);
@@ -93,8 +92,8 @@ export default function DealPage() {
 
   return (
     <>
-      <TopBar title="Deal / chop calculator" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Deal / chop calculator" onBack={back} />
+      <main className="page page--with-topbar">
         <section className="card col">
           <h2>Players still in</h2>
           <div className="row muted small">

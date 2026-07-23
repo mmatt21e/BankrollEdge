@@ -1,9 +1,8 @@
 // Chip distribution calculator: chips per player from your physical set,
 // with inventory warnings and rebuy planning via the players field.
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { planChips, Denomination } from '../domain/chips';
-import { TopBar } from '../components/common';
+import { TopBar, useBack } from '../components/common';
 
 interface DenomRow {
   value: string;
@@ -18,7 +17,7 @@ const DEFAULT_SET: DenomRow[] = [
 ];
 
 export default function ChipsPage() {
-  const navigate = useNavigate();
+  const back = useBack('/tools');
   const [players, setPlayers] = useState('8');
   const [stack, setStack] = useState('10000');
   const [rows, setRows] = useState<DenomRow[]>(DEFAULT_SET);
@@ -40,8 +39,8 @@ export default function ChipsPage() {
 
   return (
     <>
-      <TopBar title="Tournament Chip stack setup" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Tournament Chip stack setup" onBack={back} />
+      <main className="page page--with-topbar">
         <div className="row">
           <label className="field grow">
             <span>Players (add expected rebuys as extra players)</span>

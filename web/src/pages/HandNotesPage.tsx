@@ -1,12 +1,12 @@
 // Lightweight hand capture: quick text entry, session linking, review-later
 // flag, and a shareable text summary. Deliberately not a solver.
 import { FormEvent, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { HandNote, stakesLabel } from '../models/types';
 import { formatDate, formatDateTime } from '../domain/format';
 import { handNoteStore } from '../storage/db';
 import { useAppState, useStoreList } from '../hooks/useAppState';
-import { TopBar } from '../components/common';
+import { ConfirmDialog, TopBar, useBack } from '../components/common';
 
 const emptyForm = {
   stakes: '',
@@ -22,14 +22,15 @@ const emptyForm = {
 };
 
 export default function HandNotesPage() {
-  const navigate = useNavigate();
+  const back = useBack('/tools');
   const app = useAppState();
   const [params] = useSearchParams();
-  const { items: notes, save, remove } = useStoreList<HandNote>(handNoteStore);
+  const { items: notes, loaded, save, remove } = useStoreList<HandNote>(handNoteStore);
 
   const [sessionId, setSessionId] = useState(Number(params.get('session')) || 0);
   const [form, setForm] = useState(emptyForm);
   const [reviewOnly, setReviewOnly] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<HandNote | null>(null);
 
   const set = (patch: Partial<typeof emptyForm>) => setForm((prev) => ({ ...prev, ...patch }));
 
@@ -74,8 +75,8 @@ export default function HandNotesPage() {
 
   return (
     <>
-      <TopBar title="Hand notes" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Hand notes" onBack={back} />
+      <main className="page page--with-topbar">
         <form className="card col" onSubmit={onSubmit}>
           <h2>New hand</h2>
           <label className="field">
@@ -156,7 +157,7 @@ export default function HandNotesPage() {
           </button>
         </div>
 
-        {shown.length === 0 ? (
+        {!loaded ? null : shown.length === 0 ? (
           <p className="empty">No hand notes yet. Capture spots you want to study later.</p>
         ) : (
           shown.map((n) => {
@@ -201,7 +202,7 @@ export default function HandNotesPage() {
                     >
                       Share
                     </button>
-                    <button type="button" className="back" aria-label="Delete hand note" onClick={() => remove(n.id)}>
+                    <button type="button" className="back" aria-label="Delete hand note" onClick={() => setPendingDelete(n)}>
                       🗑
                     </button>
                   </div>
@@ -210,6 +211,24 @@ export default function HandNotesPage() {
             );
           })
         )}
+
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          title="Delete this hand note?"
+          message={
+            pendingDelete
+              ? `"${pendingDelete.holeCards || 'Hand'}" and its notes will be removed. This can't be undone.`
+              : ''
+          }
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => {
+            const n = pendingDelete;
+            setPendingDelete(null);
+            if (n) remove(n.id);
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
       </main>
     </>
   );

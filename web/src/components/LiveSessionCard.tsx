@@ -18,13 +18,14 @@ import {
   pokerGameOptions,
   tableGameOptions,
 } from '../models/types';
-import { MoneyInput } from './common';
+import { ConfirmDialog, Dialog, MoneyInput } from './common';
 
 export function LiveSessionCard() {
   const app = useAppState();
   const navigate = useNavigate();
   const [setupOpen, setSetupOpen] = useState(false);
   const [rebuyOpen, setRebuyOpen] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const active = app.activeSession;
   const running = !!active;
   const now = useNow(running);
@@ -38,14 +39,16 @@ export function LiveSessionCard() {
         <button type="button" className="live-start" onClick={() => setSetupOpen(true)}>
           <span aria-hidden="true">▶</span> Start live session
         </button>
-        <StartSessionDialog
-          open={setupOpen}
-          onCancel={() => setSetupOpen(false)}
-          onStart={(setup) => {
-            app.startSession(setup);
-            setSetupOpen(false);
-          }}
-        />
+        {/* Mounted per open so the form re-reads current defaults each time. */}
+        {setupOpen && (
+          <StartSessionDialog
+            onCancel={() => setSetupOpen(false)}
+            onStart={(setup) => {
+              app.startSession(setup);
+              setSetupOpen(false);
+            }}
+          />
+        )}
       </>
     );
   }
@@ -116,67 +119,73 @@ export function LiveSessionCard() {
         + Add rebuy
       </button>
       <div className="row">
-        <button type="button" className="btn btn-outline grow" onClick={app.clearSession}>
+        <button type="button" className="btn btn-outline grow" onClick={() => setConfirmDiscard(true)}>
           Discard
         </button>
         <button type="button" className="btn grow" onClick={stopAndLog}>
           ■ Stop &amp; log
         </button>
       </div>
-      <RebuyDialog
-        open={rebuyOpen}
-        currency={active.currency}
-        onCancel={() => setRebuyOpen(false)}
-        onAdd={(amount) => {
-          app.addRebuy(amount);
-          setRebuyOpen(false);
+      {/* Mounted per open so a previous amount never lingers in the field. */}
+      {rebuyOpen && (
+        <RebuyDialog
+          currency={active.currency}
+          onCancel={() => setRebuyOpen(false)}
+          onAdd={(amount) => {
+            app.addRebuy(amount);
+            setRebuyOpen(false);
+          }}
+        />
+      )}
+      <ConfirmDialog
+        open={confirmDiscard}
+        title="Discard this live session?"
+        message="The running timer, buy-in and any rebuys or bounties recorded so far will be lost. Nothing is saved."
+        confirmLabel="Discard"
+        danger
+        onConfirm={() => {
+          setConfirmDiscard(false);
+          app.clearSession();
         }}
+        onCancel={() => setConfirmDiscard(false)}
       />
     </section>
   );
 }
 
-/** Prompts for a rebuy / re-entry amount to add to the running session. */
+/** Prompts for a rebuy / re-entry amount to add to the running session.
+ *  Render only while open. */
 function RebuyDialog({
-  open,
   currency,
   onCancel,
   onAdd,
 }: {
-  open: boolean;
   currency: string;
   onCancel: () => void;
   onAdd: (amount: number) => void;
 }) {
   const [amount, setAmount] = useState('');
-  if (!open) return null;
   const value = Number.parseFloat(amount);
   const valid = Number.isFinite(value) && value > 0;
   return (
-    <div
-      className="dialog-backdrop"
-      onClick={(e) => e.target === e.currentTarget && onCancel()}
-      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-    >
-      <div role="dialog" aria-modal="true" aria-label="Add rebuy" className="dialog">
-        <h2>Add rebuy</h2>
-        <p className="muted" style={{ margin: 0 }}>
-          Adds to this session's total buy-in. Log the cash-out when you stop.
-        </p>
-        <label className="field">
-          <span>Rebuy amount</span>
-          <MoneyInput currency={currency} value={amount} onChange={setAmount} />
-        </label>
-        <div className="actions">
-          <button type="button" className="btn btn-outline" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" className="btn" disabled={!valid} onClick={() => onAdd(value)}>
-            Add
-          </button>
-        </div>
+    <Dialog label="Add rebuy" onClose={onCancel}>
+      <h2>Add rebuy</h2>
+      <p className="muted" style={{ margin: 0 }}>
+        Adds to this session's total buy-in. Log the cash-out when you stop.
+      </p>
+      <label className="field">
+        <span>Rebuy amount</span>
+        <MoneyInput currency={currency} value={amount} onChange={setAmount} />
+      </label>
+      <div className="actions">
+        <button type="button" className="btn btn-outline" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className="btn" disabled={!valid} onClick={() => onAdd(value)}>
+          Add
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -193,13 +202,12 @@ interface SetupState {
 }
 
 /** Captures the session's setup the moment it starts, so game, venue, stakes
- *  and buy-in are recorded up front rather than reconstructed at stop time. */
+ *  and buy-in are recorded up front rather than reconstructed at stop time.
+ *  Render only while open. */
 function StartSessionDialog({
-  open,
   onCancel,
   onStart,
 }: {
-  open: boolean;
   onCancel: () => void;
   onStart: (setup: Omit<ActiveSession, 'startedAt'>) => void;
 }) {
@@ -221,8 +229,6 @@ function StartSessionDialog({
     buyIn: '',
     bountyPerBounty: '',
   }));
-
-  if (!open) return null;
 
   const set = (patch: Partial<SetupState>) => setForm((prev) => ({ ...prev, ...patch }));
   const num = (v: string) => {
@@ -252,13 +258,8 @@ function StartSessionDialog({
   };
 
   return (
-    <div
-      className="dialog-backdrop"
-      onClick={(e) => e.target === e.currentTarget && onCancel()}
-      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-    >
-      <div role="dialog" aria-modal="true" aria-label="Start live session" className="dialog">
-        <h2>Start live session</h2>
+    <Dialog label="Start live session" onClose={onCancel}>
+      <h2>Start live session</h2>
 
         <label className="field">
           <span>Session type</span>
@@ -372,15 +373,14 @@ function StartSessionDialog({
           </label>
         )}
 
-        <div className="actions">
-          <button type="button" className="btn btn-outline" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" className="btn" onClick={start}>
-            ▶ Start
-          </button>
-        </div>
+      <div className="actions">
+        <button type="button" className="btn btn-outline" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className="btn" onClick={start}>
+          ▶ Start
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }

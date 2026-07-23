@@ -2,19 +2,19 @@
 // calendar" (.ics with built-in alarm) — the portable reminder mechanism that
 // works on both Android and iOS without any calendar-API integration.
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { CalendarEvent } from '../models/types';
 import { buildIcs } from '../domain/ics';
 import { formatDateTime, money } from '../domain/format';
 import { eventStore } from '../storage/db';
 import { useAppState, useStoreList } from '../hooks/useAppState';
-import { TopBar } from '../components/common';
+import { ConfirmDialog, TopBar, useBack } from '../components/common';
 import { exportFile } from '../services/files';
 
 export default function CalendarPage() {
-  const navigate = useNavigate();
+  const back = useBack('/tools');
   const currency = useAppState().settings.currency;
-  const { items: events, save, remove } = useStoreList<CalendarEvent>(eventStore);
+  const { items: events, loaded, save, remove } = useStoreList<CalendarEvent>(eventStore);
+  const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);
 
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
@@ -51,8 +51,8 @@ export default function CalendarPage() {
 
   return (
     <>
-      <TopBar title="Poker calendar" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Poker calendar" onBack={back} />
+      <main className="page page--with-topbar">
         <form className="card col" onSubmit={onSubmit}>
           <h2>Add event</h2>
           <label className="field">
@@ -103,7 +103,7 @@ export default function CalendarPage() {
           </p>
         </form>
 
-        {upcoming.length === 0 ? (
+        {!loaded ? null : upcoming.length === 0 ? (
           <p className="empty">No events yet. Add your next session or tournament above.</p>
         ) : (
           <div className="col">
@@ -137,7 +137,7 @@ export default function CalendarPage() {
                     type="button"
                     className="back"
                     aria-label={`Delete event ${ev.name}`}
-                    onClick={() => remove(ev.id)}
+                    onClick={() => setPendingDelete(ev)}
                   >
                     🗑
                   </button>
@@ -146,6 +146,20 @@ export default function CalendarPage() {
             ))}
           </div>
         )}
+
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          title="Delete this event?"
+          message={pendingDelete ? `"${pendingDelete.name}" will be removed from the calendar. This can't be undone.` : ''}
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => {
+            const ev = pendingDelete;
+            setPendingDelete(null);
+            if (ev) remove(ev.id);
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
       </main>
     </>
   );

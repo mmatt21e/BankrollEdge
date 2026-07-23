@@ -1,20 +1,19 @@
 // Settings → Sports: betting unit size and odds format.
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
-import { MoneyInput, SectionCard, TopBar } from '../components/common';
+import { MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
 
 export default function SportsSettingsPage() {
   const app = useAppState();
-  const navigate = useNavigate();
+  const back = useBack('/settings');
   const [unitText, setUnitText] = useState(
     app.settings.betUnitValue === 0 ? '' : String(app.settings.betUnitValue),
   );
 
   return (
     <>
-      <TopBar title="Sports" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Sports" onBack={back} />
+      <main className="page page--with-topbar">
         <SectionCard title="Unit size">
           <p className="muted" style={{ margin: 0 }}>
             Shows your betting results in units alongside money (0 = off).

@@ -1,7 +1,6 @@
 // Settings → Poker: default view, the poker-games pick list, and cash-game
 // stakes presets.
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAppState, useStoreList } from '../hooks/useAppState';
 import {
   GAME_TYPES,
@@ -9,18 +8,18 @@ import {
   SessionType,
   stakePresetLabel,
 } from '../models/types';
-import { MoneyInput, SectionCard, TopBar } from '../components/common';
+import { MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
 import { GameListEditor } from '../components/GameListEditor';
 import { stakeStore } from '../storage/db';
 
 export default function PokerSettingsPage() {
   const app = useAppState();
-  const navigate = useNavigate();
+  const back = useBack('/settings');
 
   return (
     <>
-      <TopBar title="Poker" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Poker" onBack={back} />
+      <main className="page page--with-topbar">
         <SectionCard title="Default session type">
           <p className="muted" style={{ margin: 0 }}>
             The type pre-selected when you log a new session. Lists and the dashboard always

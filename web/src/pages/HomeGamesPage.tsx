@@ -2,7 +2,7 @@
 // seat draw, and an end-of-night settlement with suggested transfers.
 // No payment processing — payment method is a note only.
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   HomeGame,
   HomeGamePlayer,
@@ -13,7 +13,7 @@ import { computeSettlement, drawSeats } from '../domain/settlement';
 import { money, signedMoney, formatDate } from '../domain/format';
 import { homeGameStore } from '../storage/db';
 import { useAppState, useStoreList } from '../hooks/useAppState';
-import { ConfirmDialog, TopBar, profitClass } from '../components/common';
+import { ConfirmDialog, TopBar, profitClass, useBack } from '../components/common';
 
 const emptyPlayer = (id: number): HomeGamePlayer => ({
   id,
@@ -29,10 +29,17 @@ const emptyPlayer = (id: number): HomeGamePlayer => ({
 });
 
 export default function HomeGamesPage() {
-  const navigate = useNavigate();
-  const { items: games, save, remove } = useStoreList<HomeGame>(homeGameStore);
-  const [openId, setOpenId] = useState<number | null>(null);
+  const back = useBack('/tools');
+  const { items: games, loaded, save, remove } = useStoreList<HomeGame>(homeGameStore);
+  // The open game lives in the URL (?game=<id>) so the system back gesture
+  // closes the detail view instead of leaving the page.
+  const [params, setParams] = useSearchParams();
+  const openId = Number(params.get('game')) || null;
   const open = games.find((g) => g.id === openId) ?? null;
+  const openGame = (id: number | null) => {
+    if (id === null) setParams({}, { replace: true });
+    else setParams({ game: String(id) });
+  };
 
   const createGame = async () => {
     const created = await save({
@@ -42,7 +49,7 @@ export default function HomeGamesPage() {
       notes: '',
       players: [],
     });
-    setOpenId(created.id);
+    openGame(created.id);
   };
 
   if (open) {
@@ -50,10 +57,10 @@ export default function HomeGamesPage() {
       <GameDetail
         game={open}
         onChange={(g) => void save(g)}
-        onBack={() => setOpenId(null)}
+        onBack={() => openGame(null)}
         onDelete={async () => {
           await remove(open.id);
-          setOpenId(null);
+          openGame(null);
         }}
       />
     );
@@ -61,12 +68,12 @@ export default function HomeGamesPage() {
 
   return (
     <>
-      <TopBar title="Home games" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Home games" onBack={back} />
+      <main className="page page--with-topbar">
         <button type="button" className="btn btn-block" onClick={createGame}>
           + New home game
         </button>
-        {games.length === 0 ? (
+        {!loaded ? null : games.length === 0 ? (
           <p className="empty">
             No home games yet. Create one to track buy-ins, cash-outs and who owes whom.
           </p>
@@ -75,7 +82,7 @@ export default function HomeGamesPage() {
             {[...games]
               .sort((a, b) => b.date - a.date)
               .map((g) => (
-                <button key={g.id} type="button" className="session-row" onClick={() => setOpenId(g.id)}>
+                <button key={g.id} type="button" className="session-row" onClick={() => openGame(g.id)}>
                   <span className="grow col" style={{ gap: 2 }}>
                     <span className="title">{g.name}</span>
                     <span className="muted small">

@@ -2,13 +2,12 @@
 // now: chip position (share, vs average, big blinds) and cash equity (ICM,
 // chip chop, even) against the remaining payouts.
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { valueStack, StackPosition } from '../domain/stackValue';
 import { ICM_MAX_PLAYERS } from '../domain/deal';
 import { geometricPercentages } from '../domain/payout';
 import { money, percent } from '../domain/format';
 import { useAppState } from '../hooks/useAppState';
-import { TopBar } from '../components/common';
+import { TopBar, useBack } from '../components/common';
 
 interface PayoutRow {
   amount: string;
@@ -32,7 +31,7 @@ const POSITION_CLASS: Record<StackPosition, string> = {
 };
 
 export default function StackValuePage() {
-  const navigate = useNavigate();
+  const back = useBack('/tools');
   const currency = useAppState().settings.currency;
 
   const [stack, setStack] = useState('320000');
@@ -97,8 +96,8 @@ export default function StackValuePage() {
 
   return (
     <>
-      <TopBar title="My stack value" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="My stack value" onBack={back} />
+      <main className="page page--with-topbar">
         <div className="row">
           {field('My stack', stack, setStack)}
           {field('Players left', players, setPlayers)}

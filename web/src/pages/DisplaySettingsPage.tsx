@@ -1,8 +1,7 @@
 // Settings → Display: theme, feature switches, nav tabs, dashboard cards.
-import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import { ThemeMode } from '../models/types';
-import { SectionCard, TopBar } from '../components/common';
+import { SectionCard, TopBar, useBack } from '../components/common';
 
 function ToggleRow({
   label,
@@ -35,14 +34,14 @@ function ToggleRow({
 
 export default function DisplaySettingsPage() {
   const app = useAppState();
-  const navigate = useNavigate();
+  const back = useBack('/settings');
   const s = app.settings;
   const enabledFeatures = [s.showPoker, s.showTableGames, s.showSports].filter(Boolean).length;
 
   return (
     <>
-      <TopBar title="Display" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Display" onBack={back} />
+      <main className="page page--with-topbar">
         <SectionCard title="Theme">
           <div className="segmented" role="group" aria-label="Theme">
             {(

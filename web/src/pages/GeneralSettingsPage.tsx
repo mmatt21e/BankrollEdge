@@ -7,7 +7,7 @@ import { buildCsv } from '../domain/csv';
 import { buildBetsCsv } from '../domain/bets';
 import { backupToJson, backupFromJson } from '../domain/backup';
 import { exportFile, readFileAsText } from '../services/files';
-import { ConfirmDialog, MoneyInput, SectionCard, TopBar } from '../components/common';
+import { ConfirmDialog, MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
 import {
   eventStore,
   handNoteStore,
@@ -29,6 +29,7 @@ const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CHF', 'SEK', 'BRL', 'MXN
 export default function GeneralSettingsPage() {
   const app = useAppState();
   const navigate = useNavigate();
+  const back = useBack('/settings');
   const canSession = app.settings.showPoker || app.settings.showTableGames;
   const [bankrollText, setBankrollText] = useState(
     app.settings.startingBankroll === 0 ? '' : String(app.settings.startingBankroll),
@@ -75,8 +76,8 @@ export default function GeneralSettingsPage() {
 
   return (
     <>
-    <TopBar title="General" onBack={() => navigate(-1)} />
-    <main className="page" style={{ paddingTop: 0 }}>
+    <TopBar title="General" onBack={back} />
+    <main className="page page--with-topbar">
       {message && (
         <div className="card" role="status" style={{ borderLeft: '4px solid var(--gold-500)' }}>
           {message}
@@ -287,7 +288,7 @@ export default function GeneralSettingsPage() {
         <p style={{ margin: 0, fontWeight: 600 }}>BankrollEdge</p>
         <p className="muted" style={{ margin: 0 }}>
           A bankroll tracker for poker, casino table games and sports betting. Web version
-          1.36.0 — works fully offline; all data stays on this device. Install it from your
+          1.37.0 — works fully offline; all data stays on this device. Install it from your
           browser menu for an app-like experience.
         </p>
       </SectionCard>

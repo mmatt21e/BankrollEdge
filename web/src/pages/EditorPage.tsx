@@ -2,8 +2,8 @@
 // fast: the essentials are up top, and money details / quality tracking live
 // in collapsible sections. Numeric fields are held as raw strings and parsed
 // on save so partial input never crashes.
-import { FormEvent, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { FormEvent, useMemo, useRef, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAppState, useStoreList } from '../hooks/useAppState';
 import {
   Session,
@@ -30,7 +30,7 @@ import {
 } from '../models/types';
 import { money, signedMoney, signedUnits } from '../domain/format';
 import { stakeStore, venueStore } from '../storage/db';
-import { ConfirmDialog, MoneyInput, TopBar, profitClass } from '../components/common';
+import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../components/common';
 import { StakesPicker, VenuePicker } from '../components/pickers';
 
 interface FormState {
@@ -195,7 +195,6 @@ function toSession(form: FormState, id: number): Session {
 
 export default function EditorPage() {
   const app = useAppState();
-  const navigate = useNavigate();
   const { id } = useParams();
   const [params] = useSearchParams();
 
@@ -269,6 +268,14 @@ export default function EditorPage() {
   // Guards against double-taps on Save — each submit of a new session would
   // otherwise insert a duplicate record.
   const [saving, setSaving] = useState(false);
+  // Back protection: leaving with unsaved edits asks first.
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const initialForm = useRef(JSON.stringify(form));
+  const goBack = useBack(form.sessionType === 'TABLE' ? '/tables' : '/sessions');
+  const onBack = () => {
+    if (JSON.stringify(form) !== initialForm.current) setConfirmLeave(true);
+    else goBack();
+  };
 
   const set = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
   const isTournament = isTournamentStyle({ sessionType: form.sessionType } as Session);
@@ -310,7 +317,7 @@ export default function EditorPage() {
       await app.saveSession(toSession(form, sessionId));
       // The live session is now logged — retire its draft so the timer resets.
       if (draft) app.clearSession();
-      navigate(-1);
+      goBack();
     } finally {
       setSaving(false);
     }
@@ -319,7 +326,7 @@ export default function EditorPage() {
   const onDelete = async () => {
     setConfirmDelete(false);
     if (existing) await app.deleteSession(existing.id);
-    navigate(-1);
+    goBack();
   };
 
   // The venue dropdown offers saved venues PLUS every location seen in the
@@ -389,7 +396,7 @@ export default function EditorPage() {
     <>
       <TopBar
         title={isEditing ? 'Edit session' : 'New session'}
-        onBack={() => navigate(-1)}
+        onBack={onBack}
         action={
           isEditing ? (
             <button
@@ -678,6 +685,18 @@ export default function EditorPage() {
         danger
         onConfirm={onDelete}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmDialog
+        open={confirmLeave}
+        title="Discard unsaved changes?"
+        message="What you've typed on this screen hasn't been saved."
+        confirmLabel="Discard"
+        danger
+        onConfirm={() => {
+          setConfirmLeave(false);
+          goBack();
+        }}
+        onCancel={() => setConfirmLeave(false)}
       />
     </>
   );

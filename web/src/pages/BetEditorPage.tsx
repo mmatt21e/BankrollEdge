@@ -1,7 +1,7 @@
 // Add/edit a sports bet. Odds can be entered in American or decimal format;
 // parlays/teasers get a legs builder with an auto-combined price. A payout
 // preview updates live, and the status chips double as the settle flow.
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
@@ -28,7 +28,7 @@ import {
   impliedProbability,
 } from '../domain/bets';
 import { money, signedMoney, percent } from '../domain/format';
-import { ConfirmDialog, MoneyInput, TopBar, profitClass } from '../components/common';
+import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../components/common';
 
 interface LegForm {
   pick: string;
@@ -165,6 +165,14 @@ export default function BetEditorPage() {
   // Guards against double-taps on Save — each submit of a new bet would
   // otherwise insert a duplicate record.
   const [saving, setSaving] = useState(false);
+  // Back protection: leaving with unsaved edits asks first.
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const initialForm = useRef(JSON.stringify(form));
+  const goBack = useBack('/bets');
+  const onBack = () => {
+    if (JSON.stringify(form) !== initialForm.current) setConfirmLeave(true);
+    else goBack();
+  };
 
   const set = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
   const hasLegs = form.betType === 'PARLAY' || form.betType === 'TEASER';
@@ -225,7 +233,7 @@ export default function BetEditorPage() {
     <>
       <TopBar
         title={isEditing ? 'Edit bet' : 'New bet'}
-        onBack={() => navigate(-1)}
+        onBack={onBack}
         action={
           isEditing ? (
             <button
@@ -523,6 +531,18 @@ export default function BetEditorPage() {
         danger
         onConfirm={onDelete}
         onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmDialog
+        open={confirmLeave}
+        title="Discard unsaved changes?"
+        message="What you've typed on this screen hasn't been saved."
+        confirmLabel="Discard"
+        danger
+        onConfirm={() => {
+          setConfirmLeave(false);
+          goBack();
+        }}
+        onCancel={() => setConfirmLeave(false)}
       />
     </>
   );

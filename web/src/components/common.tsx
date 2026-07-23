@@ -1,7 +1,7 @@
 // Shared UI: stat tiles, session rows, breakdown lists, confirm dialog,
 // bottom navigation. Ports of the Android components/ package.
-import { ReactNode, useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
   Session,
@@ -16,6 +16,82 @@ import { GroupStat, groupHourlyRate } from '../domain/stats';
 import { signedMoney, signedUnits, signedUnitsOrMoney, perHour, formatDate, duration, currencySymbol } from '../domain/format';
 
 export const profitClass = (v: number): string => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
+
+/** Back handler for sub-pages: browser history when there is any, otherwise
+ *  an explicit parent route — so a cold deep link never exits the app. */
+export function useBack(fallback: string): () => void {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isFirstEntry = location.key === 'default';
+  return useCallback(() => {
+    if (isFirstEntry) navigate(fallback, { replace: true });
+    else navigate(-1);
+  }, [navigate, fallback, isFirstEntry]);
+}
+
+/** Modal scaffold shared by every dialog: backdrop, Escape-to-close from
+ *  anywhere, focus moved inside on open, kept inside (Tab wraps), and
+ *  restored to the trigger on close. Render it only while open. */
+export function Dialog({
+  label,
+  role = 'dialog',
+  onClose,
+  children,
+}: {
+  label: string;
+  role?: 'dialog' | 'alertdialog';
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    const focusables = (): HTMLElement[] =>
+      dialog
+        ? [...dialog.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          )]
+        : [];
+    // Move focus inside so Escape works immediately; a child may refocus a
+    // specific control afterwards (its effect runs after this one).
+    focusables()[0]?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onCloseRef.current();
+      } else if (e.key === 'Tab') {
+        const els = focusables();
+        if (els.length === 0) return;
+        const first = els[0];
+        const last = els[els.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      opener?.focus();
+    };
+  }, []);
+
+  return (
+    <div className="dialog-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={dialogRef} role={role} aria-modal="true" aria-label={label} className="dialog">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export interface Tile {
   label: string;
@@ -150,29 +226,23 @@ export function ConfirmDialog({
   }, [open]);
   if (!open) return null;
   return (
-    <div
-      className="dialog-backdrop"
-      onClick={(e) => e.target === e.currentTarget && onCancel()}
-      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-    >
-      <div role="alertdialog" aria-modal="true" aria-label={title} className="dialog">
-        <h2>{title}</h2>
-        <p className="muted" style={{ margin: 0 }}>{message}</p>
-        <div className="actions">
-          <button type="button" className="btn btn-outline" onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            ref={confirmRef}
-            className={`btn ${danger ? 'btn-danger' : ''}`}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </button>
-        </div>
+    <Dialog role="alertdialog" label={title} onClose={onCancel}>
+      <h2>{title}</h2>
+      <p className="muted" style={{ margin: 0 }}>{message}</p>
+      <div className="actions">
+        <button type="button" className="btn btn-outline" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          ref={confirmRef}
+          className={`btn ${danger ? 'btn-danger' : ''}`}
+          onClick={onConfirm}
+        >
+          {confirmLabel}
+        </button>
       </div>
-    </div>
+    </Dialog>
   );
 }
 

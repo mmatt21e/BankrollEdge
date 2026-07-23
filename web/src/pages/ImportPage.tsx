@@ -3,7 +3,7 @@
 // sports bets (?type=bets). Pick/paste a CSV, we auto-match the columns, you
 // adjust the mapping, preview the result, then import (adds to existing data).
 import { ChangeEvent, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
   MAP_FIELDS,
@@ -29,7 +29,7 @@ import {
 } from '../models/types';
 import { signedMoney, formatDate } from '../domain/format';
 import { readFileAsText, describeCsvProblem, formatBytes } from '../services/files';
-import { SectionCard, TopBar, profitClass } from '../components/common';
+import { SectionCard, TopBar, profitClass, useBack } from '../components/common';
 
 interface PreviewRow {
   cells: { text: string; align?: 'right'; className?: string }[];
@@ -43,7 +43,7 @@ interface BuiltImport {
 }
 
 export default function ImportPage() {
-  const navigate = useNavigate();
+  const back = useBack('/settings/general');
   const { importSessions, importBets, settings } = useAppState();
   const [params] = useSearchParams();
   const kind = params.get('type') === 'bets' ? 'bets' : 'sessions';
@@ -204,9 +204,9 @@ export default function ImportPage() {
     <>
       <TopBar
         title={kind === 'bets' ? 'Import bets from another app' : 'Import from another app'}
-        onBack={() => navigate(-1)}
+        onBack={back}
       />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <main className="page page--with-topbar">
         {message && (
           <div className="card" role="status" style={{ borderLeft: '4px solid var(--gold-500)' }}>
             {message}

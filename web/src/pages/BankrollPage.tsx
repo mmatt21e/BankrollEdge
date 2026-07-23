@@ -1,18 +1,18 @@
 // Port of Android BankrollScreen: balance breakdown, deposit/withdraw form,
 // transaction history with delete.
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import { signedAmount, Transaction } from '../models/types';
 import { money, signedMoney, formatDate } from '../domain/format';
-import { MoneyInput, TopBar, profitClass } from '../components/common';
+import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../components/common';
 
 export default function BankrollPage() {
   const app = useAppState();
-  const navigate = useNavigate();
+  const back = useBack('/settings');
   const currency = app.settings.currency;
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
 
   const parsed = Number.parseFloat(amount);
   const valid = Number.isFinite(parsed) && parsed > 0;
@@ -26,11 +26,11 @@ export default function BankrollPage() {
 
   return (
     <>
-      <TopBar title="Bankroll" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Bankroll" onBack={back} />
+      <main className="page page--with-topbar">
         <section className="card col" style={{ gap: 6 }}>
           <div className="overline">Current bankroll</div>
-          <div className="money" style={{ fontSize: '1.8rem', fontWeight: 700 }}>
+          <div className="money money-lg">
             {money(app.bankroll, currency)}
           </div>
           <BreakdownLine label="Starting balance" value={money(app.settings.startingBankroll, currency)} />
@@ -83,21 +83,39 @@ export default function BankrollPage() {
           </div>
         </section>
 
-        {app.transactions.length > 0 ? (
+        {!app.ready ? null : app.transactions.length > 0 ? (
           <>
             <h2>History</h2>
             <div className="col">
               {app.transactions.map((t) => (
-                <TransactionRow key={t.id} tx={t} currency={currency} onDelete={() => app.deleteTransaction(t.id)} />
+                <TransactionRow key={t.id} tx={t} currency={currency} onDelete={() => setPendingDelete(t)} />
               ))}
             </div>
           </>
         ) : (
-          <p className="muted">
+          <p className="empty">
             No deposits or withdrawals yet. Money you add here is combined with your session
             results to compute the bankroll.
           </p>
         )}
+
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          title={`Delete this ${pendingDelete?.type === 'DEPOSIT' ? 'deposit' : 'withdrawal'}?`}
+          message={
+            pendingDelete
+              ? `${signedMoney(signedAmount(pendingDelete), currency)} will be removed from the history and your balance will change. This can't be undone.`
+              : ''
+          }
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => {
+            const t = pendingDelete;
+            setPendingDelete(null);
+            if (t) app.deleteTransaction(t.id);
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
       </main>
     </>
   );

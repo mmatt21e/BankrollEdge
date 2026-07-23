@@ -1,6 +1,5 @@
 // Tournament payout calculator with templates and pool-conserving rounding.
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   PayoutTemplateId,
   PAYOUT_TEMPLATE_LABELS,
@@ -10,10 +9,10 @@ import {
 } from '../domain/payout';
 import { money, percent } from '../domain/format';
 import { useAppState } from '../hooks/useAppState';
-import { TopBar } from '../components/common';
+import { TopBar, useBack } from '../components/common';
 
 export default function PayoutPage() {
-  const navigate = useNavigate();
+  const back = useBack('/tools');
   const currency = useAppState().settings.currency;
 
   const [entries, setEntries] = useState('9');
@@ -70,8 +69,8 @@ export default function PayoutPage() {
 
   return (
     <>
-      <TopBar title="Payout calculator" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Payout calculator" onBack={back} />
+      <main className="page page--with-topbar">
         <div className="row">
           {field('Entries', entries, setEntries)}
           {field('Buy-in', buyInAmount, setBuyInAmount)}

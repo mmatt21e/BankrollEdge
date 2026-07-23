@@ -1,15 +1,14 @@
 // Settings → Table games: the table-games pick list and table-stakes presets.
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAppState, useStoreList } from '../hooks/useAppState';
 import { TABLE_GAMES, TABLE_GAME_LABELS, stakePresetLabel } from '../models/types';
-import { MoneyInput, SectionCard, TopBar } from '../components/common';
+import { MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
 import { GameListEditor } from '../components/GameListEditor';
 import { stakeStore } from '../storage/db';
 
 export default function TableGamesSettingsPage() {
   const app = useAppState();
-  const navigate = useNavigate();
+  const back = useBack('/settings');
   const stakes = useStoreList(stakeStore);
   const table = stakes.items
     .filter((s) => s.kind === 'TABLE')
@@ -28,8 +27,8 @@ export default function TableGamesSettingsPage() {
 
   return (
     <>
-      <TopBar title="Table games" onBack={() => navigate(-1)} />
-      <main className="page" style={{ paddingTop: 0 }}>
+      <TopBar title="Table games" onBack={back} />
+      <main className="page page--with-topbar">
         <GameListEditor
           title="Table games"
           description="The games offered when you log a table-game session. Remove ones you never play or add your own."
