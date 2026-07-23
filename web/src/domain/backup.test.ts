@@ -130,6 +130,36 @@ describe('backup', () => {
     expect(restored.bets[0].stake).toBe(110);
   });
 
+  it('round-trips bounty winnings', () => {
+    const backup = {
+      settings: { ...DEFAULT_SETTINGS },
+      sessions: [
+        {
+          ...emptySession(1_700_000_123_456),
+          id: 1,
+          sessionType: 'TOURNAMENT' as const,
+          buyIn: 100,
+          cashOut: 0,
+          bountyPerBounty: 50,
+          bountyCount: 3,
+        },
+      ],
+      transactions: [],
+      bets: [],
+      handNotes: [],
+      homeGames: [],
+      structures: [],
+      events: [],
+      venues: [],
+      stakes: [],
+    };
+    const restored = backupFromJson(backupToJson(backup, 1));
+    const s = restored.sessions[0];
+    expect(s.bountyPerBounty).toBe(50);
+    expect(s.bountyCount).toBe(3);
+    expect(profit(s)).toBeCloseTo(50, 9); // 3×50 bounties − 100 buy-in
+  });
+
   it('treats v1 backups (no collections) as empty collections', () => {
     const v1 = JSON.stringify({
       app: 'BankrollEdge',

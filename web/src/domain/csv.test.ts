@@ -84,6 +84,26 @@ describe('parseCsv', () => {
     expect(Math.floor(mtt.startTime / 60_000)).toBe(Math.floor((T0 + 100_000_000) / 60_000));
   });
 
+  it('round-trips bounty winnings', () => {
+    const result = parseCsv(
+      buildCsv([
+        {
+          ...emptySession(T0),
+          sessionType: 'TOURNAMENT',
+          buyIn: 100,
+          cashOut: 0,
+          bountyPerBounty: 50,
+          bountyCount: 3,
+        },
+      ]),
+    );
+    expect(result.skippedRows).toBe(0);
+    const s = result.sessions[0];
+    expect(s.bountyPerBounty).toBe(50);
+    expect(s.bountyCount).toBe(3);
+    expect(profit(s)).toBeCloseTo(50, 9); // 3×50 bounties − 100 buy-in
+  });
+
   it('skips unparseable rows instead of failing', () => {
     const csv = [
       'Date,Type,Game,Location,Stakes,DurationMinutes,BuyIn,RebuysAddons,CashOut,Tips,Profit,Position,FieldSize,Currency,Notes',
