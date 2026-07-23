@@ -28,7 +28,7 @@ import {
   pokerGameOptions,
   tableGameOptions,
 } from '../models/types';
-import { money, signedMoney, signedUnits } from '../domain/format';
+import { money, signedMoney, signedUnits, toDateInput, toTimeInput } from '../domain/format';
 import { stakeStore, venueStore } from '../storage/db';
 import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../components/common';
 import { StakesPicker, VenuePicker } from '../components/pickers';
@@ -79,15 +79,6 @@ interface FormState {
   stopWin: string;
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const toDateInput = (ms: number) => {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-const toTimeInput = (ms: number) => {
-  const d = new Date(ms);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
 const numStr = (v: number) => (v === 0 ? '' : String(v));
 
 function fromSession(s: Session): FormState {

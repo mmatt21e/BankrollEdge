@@ -4,6 +4,7 @@
 // quick-ICM assumption. Chip-position metrics work at any field size; the
 // ICM cash value reuses the capped exact model from the deal calculator.
 import { icmEquity, ICM_MAX_PLAYERS } from './deal';
+import { round2 } from './aggregate';
 
 export type StackPosition =
   | 'Big stack'
@@ -47,7 +48,6 @@ export interface StackValueResult {
   perBigBlind: { icm: number | null; chipChop: number; even: number } | null;
 }
 
-const round2 = (v: number): number => Math.round(v * 100) / 100;
 
 const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0);
 

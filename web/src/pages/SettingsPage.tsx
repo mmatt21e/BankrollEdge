@@ -1,8 +1,8 @@
 // Settings tab — manage bankroll first, then every settings area directly.
 // Feature-gated areas (Poker, Table games, Sports) only appear while their
 // feature switch is on; Display always shows so features can be re-enabled.
-import { Link } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
+import { HubRow } from '../components/common';
 
 interface SettingsLink {
   to: string;
@@ -64,14 +64,7 @@ export default function SettingsPage() {
       <h1>Settings</h1>
       <div className="col">
         {links.map((l) => (
-          <Link key={l.to} to={l.to} className="session-row" style={{ textDecoration: 'none' }}>
-            <span aria-hidden="true" style={{ fontSize: '1.6rem' }}>{l.icon}</span>
-            <span className="grow col" style={{ gap: 2 }}>
-              <span className="title">{l.name}</span>
-              <span className="muted small">{l.blurb}</span>
-            </span>
-            <span aria-hidden="true" className="muted">›</span>
-          </Link>
+          <HubRow key={l.to} {...l} />
         ))}
       </div>
     </main>

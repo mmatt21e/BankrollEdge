@@ -1,6 +1,8 @@
 // Tournament payout calculator: prize pool assembly, percentage templates,
 // and rounding that always conserves the pool (remainder goes to 1st place).
 
+import { round2 } from './aggregate';
+
 export interface PayoutInput {
   entries: number;
   rebuys: number;
@@ -34,7 +36,6 @@ export interface PayoutResult {
   totalPaid: number;
 }
 
-const round2 = (v: number): number => Math.round(v * 100) / 100;
 
 /** Standard percentage templates. 'TOP_10PCT' derives places from field size. */
 export type PayoutTemplateId = 'WTA' | 'TOP2' | 'TOP3' | 'TOP_10PCT' | 'CUSTOM';

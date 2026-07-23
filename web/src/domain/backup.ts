@@ -77,6 +77,8 @@ const str = (v: unknown, fallback = ''): string =>
   typeof v === 'string' ? v : fallback;
 const strArray = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+/** The value if it's one of the allowed literals, else ''. */
+const oneOf = (v: string, allowed: string[]): string => (allowed.includes(v) ? v : '');
 
 /** @throws Error on malformed input or a foreign JSON file. */
 export function backupFromJson(json: string): Backup {
@@ -144,14 +146,19 @@ export function backupFromJson(json: string): Backup {
       focus: num(o.focus),
       tilt: num(o.tilt),
       discipline: num(o.discipline),
-      sleep: str(o.sleep) as Session['sleep'],
-      alcohol: str(o.alcohol) as Session['alcohol'],
-      gameQuality: str(o.gameQuality) as Session['gameQuality'],
-      leftAtStopLoss: str(o.leftAtStopLoss) as Session['leftAtStopLoss'],
+      // Quality enums are validated like sessionType above — a foreign or
+      // hand-edited value falls back to '' (unset) instead of leaking an
+      // unknown literal into the stats grouping.
+      sleep: oneOf(str(o.sleep), ['POOR', 'OK', 'GOOD']) as Session['sleep'],
+      alcohol: oneOf(str(o.alcohol), ['NONE', 'LIGHT', 'HEAVY']) as Session['alcohol'],
+      gameQuality: oneOf(str(o.gameQuality), ['BAD', 'AVERAGE', 'GOOD', 'GREAT']) as Session['gameQuality'],
+      leftAtStopLoss: oneOf(str(o.leftAtStopLoss), ['YES', 'NO']) as Session['leftAtStopLoss'],
       stopLoss: num(o.stopLoss),
       stopWin: num(o.stopWin),
     });
-  });
+    // A session without a real timestamp would pollute every date-based chart
+    // as a 1970 entry — drop it rather than restore garbage.
+  }).filter((s) => s.startTime > 0);
 
   const transactions: Transaction[] = (
     Array.isArray(root.transactions) ? root.transactions : []
@@ -167,12 +174,22 @@ export function backupFromJson(json: string): Backup {
   });
 
   // Tool collections (absent in v1 backups → empty). Objects are stored
-  // whole, so a shape-tolerant copy with id reset is sufficient.
-  const collection = <T extends { id: number }>(key: string): T[] =>
-    (Array.isArray(root[key]) ? (root[key] as T[]) : []).map((item) => ({
-      ...item,
-      id: 0,
-    }));
+  // whole, so a shape-tolerant copy with id reset is sufficient — but only
+  // plain objects are accepted, and any array fields the tools iterate over
+  // (home-game players, blind levels) are defaulted so a hand-edited backup
+  // can't crash those screens.
+  const collection = <T extends { id: number }>(key: string, arrayFields: string[] = []): T[] =>
+    (Array.isArray(root[key]) ? (root[key] as unknown[]) : [])
+      .filter((item): item is Record<string, unknown> =>
+        typeof item === 'object' && item !== null && !Array.isArray(item),
+      )
+      .map((item) => {
+        const out: Record<string, unknown> = { ...item, id: 0 };
+        for (const field of arrayFields) {
+          if (!Array.isArray(out[field])) out[field] = [];
+        }
+        return out as unknown as T;
+      });
 
   // Bets get full normalization (enum coercion, leg shape) rather than the
   // shape-tolerant copy the tool collections use.
@@ -186,9 +203,9 @@ export function backupFromJson(json: string): Backup {
     sessions,
     transactions,
     bets,
-    handNotes: collection<HandNote>('handNotes'),
-    homeGames: collection<HomeGame>('homeGames'),
-    structures: collection<BlindStructure>('structures'),
+    handNotes: collection<HandNote>('handNotes', ['tags']),
+    homeGames: collection<HomeGame>('homeGames', ['players']),
+    structures: collection<BlindStructure>('structures', ['levels']),
     events: collection<CalendarEvent>('events'),
     venues: collection<Venue>('venues'),
     stakes: collection<StakePreset>('stakes'),

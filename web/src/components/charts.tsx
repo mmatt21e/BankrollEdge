@@ -1,5 +1,6 @@
 // SVG ports of the Android Canvas charts (CumulativeProfitChart, BarChart)
 // plus the daily-results calendar heatmap.
+import { useId } from 'react';
 import { ProfitPoint } from '../domain/stats';
 import { compactMoney, signedMoney, formatDate } from '../domain/format';
 
@@ -15,6 +16,7 @@ export function CumulativeProfitChart({
   currency: string;
   emptyMessage?: string;
 }) {
+  const gradientId = useId();
   if (points.length < 2) {
     return <p className="muted">{emptyMessage}</p>;
   }
@@ -47,7 +49,9 @@ export function CumulativeProfitChart({
         aria-label={`Cumulative profit chart ending at ${compactMoney(last, currency)}`}
       >
         <defs>
-          <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+          {/* Unique per instance — a fixed id would collide (and pick the
+              wrong color) if two profit charts ever render on one page. */}
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor={color} stopOpacity="0.3" />
             <stop offset="1" stopColor={color} stopOpacity="0.02" />
           </linearGradient>
@@ -55,7 +59,7 @@ export function CumulativeProfitChart({
         {minV <= 0 && maxV >= 0 && (
           <line x1={0} x2={W} y1={y(0)} y2={y(0)} stroke="var(--neutral)" strokeDasharray="6 5" />
         )}
-        <path d={area} fill="url(#fill)" />
+        <path d={area} fill={`url(#${gradientId})`} />
         <path d={line} fill="none" stroke={color} strokeWidth={3.5} vectorEffect="non-scaling-stroke" />
         <circle cx={W} cy={y(last)} r={5} fill={color} />
       </svg>

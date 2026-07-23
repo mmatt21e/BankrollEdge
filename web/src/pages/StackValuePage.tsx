@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { valueStack, StackPosition } from '../domain/stackValue';
 import { ICM_MAX_PLAYERS } from '../domain/deal';
 import { geometricPercentages } from '../domain/payout';
-import { money, percent } from '../domain/format';
+import { money, percent, ordinal } from '../domain/format';
 import { useAppState } from '../hooks/useAppState';
 import { TopBar, useBack } from '../components/common';
 
@@ -275,12 +275,3 @@ export default function StackValuePage() {
   );
 }
 
-function ordinal(n: number): string {
-  const suffix =
-    n % 100 >= 11 && n % 100 <= 13 ? 'th'
-    : n % 10 === 1 ? 'st'
-    : n % 10 === 2 ? 'nd'
-    : n % 10 === 3 ? 'rd'
-    : 'th';
-  return `${n}${suffix}`;
-}

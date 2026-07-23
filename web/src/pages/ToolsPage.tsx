@@ -1,6 +1,6 @@
 // Tools tab — the poker utilities. The whole tab follows the poker feature
 // switch (Settings → Display); bankroll and settings live on the Settings tab.
-import { Link } from 'react-router-dom';
+import { HubRow } from '../components/common';
 
 interface HubLink {
   to: string;
@@ -60,26 +60,13 @@ const TOOLS: HubLink[] = [
   },
 ];
 
-function HubRow({ link }: { link: HubLink }) {
-  return (
-    <Link to={link.to} className="session-row" style={{ textDecoration: 'none' }}>
-      <span aria-hidden="true" style={{ fontSize: '1.6rem' }}>{link.icon}</span>
-      <span className="grow col" style={{ gap: 2 }}>
-        <span className="title">{link.name}</span>
-        <span className="muted small">{link.blurb}</span>
-      </span>
-      <span aria-hidden="true" className="muted">›</span>
-    </Link>
-  );
-}
-
 export default function ToolsPage() {
   return (
     <main className="page">
       <h1>Tools</h1>
       <div className="col">
         {TOOLS.map((l) => (
-          <HubRow key={l.to} link={l} />
+          <HubRow key={l.to} {...l} />
         ))}
       </div>
     </main>

@@ -2,6 +2,8 @@
 // still in when they agree to stop. Three models — ICM (chip-weighted equity),
 // chip chop (proportional with a guaranteed floor), and an even split.
 
+import { round2 } from './aggregate';
+
 export type DealMethod = 'ICM' | 'CHIP_CHOP' | 'EVEN';
 
 export const DEAL_METHOD_LABELS: Record<DealMethod, string> = {
@@ -42,7 +44,6 @@ export interface DealResult {
   totalPaid: number;
 }
 
-const round2 = (v: number): number => Math.round(v * 100) / 100;
 
 const sum = (xs: number[]): number => xs.reduce((a, b) => a + b, 0);
 

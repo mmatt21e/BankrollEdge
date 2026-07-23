@@ -1,7 +1,7 @@
 // Shared UI: stat tiles, session rows, breakdown lists, confirm dialog,
 // bottom navigation. Ports of the Android components/ package.
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
   Session,
@@ -243,6 +243,21 @@ export function ConfirmDialog({
         </button>
       </div>
     </Dialog>
+  );
+}
+
+/** Icon + title + blurb row linking into a hub destination — the shared row
+ *  style of the Tools and Settings tabs. */
+export function HubRow({ to, icon, name, blurb }: { to: string; icon: string; name: string; blurb: string }) {
+  return (
+    <Link to={to} className="session-row" style={{ textDecoration: 'none' }}>
+      <span aria-hidden="true" className="icon-lg">{icon}</span>
+      <span className="grow col" style={{ gap: 2 }}>
+        <span className="title">{name}</span>
+        <span className="muted small">{blurb}</span>
+      </span>
+      <span aria-hidden="true" className="muted">›</span>
+    </Link>
   );
 }
 

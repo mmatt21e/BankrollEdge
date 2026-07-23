@@ -1,5 +1,6 @@
 // Port of Android StatsCalculator (domain/Statistics.kt). Behavior must match
 // the Kotlin implementation — the Vitest suite mirrors the Android JUnit tests.
+import { DAY_NAMES, mondayIndex, monthLabel, monthSortKey } from './aggregate';
 import {
   Session,
   profit,
@@ -144,8 +145,6 @@ const EMPTY: Statistics = {
   byRebuys: [],
 };
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export function computeStats(sessions: Session[]): Statistics {
   if (sessions.length === 0) return { ...EMPTY, hourlyProfit: new Array(24).fill(0) };
@@ -310,7 +309,7 @@ function monthlyProfits(chronological: Session[]): MonthlyProfit[] {
   const map = new Map<number, Session[]>();
   for (const s of chronological) {
     const d = new Date(s.startTime);
-    const key = d.getFullYear() * 100 + d.getMonth() + 1;
+    const key = monthSortKey(d);
     const list = map.get(key);
     if (list) list.push(s);
     else map.set(key, [s]);
@@ -319,7 +318,7 @@ function monthlyProfits(chronological: Session[]): MonthlyProfit[] {
     .map(([sortKey, list]) => {
       const d = new Date(list[0].startTime);
       return {
-        label: `${MONTH_NAMES[d.getMonth()]} '${String(d.getFullYear() % 100).padStart(2, '0')}`,
+        label: monthLabel(d),
         profit: list.reduce((a, s) => a + profit(s), 0),
         sessionCount: list.length,
         sortKey,
@@ -332,7 +331,7 @@ function weekdayProfits(sessions: Session[]): GroupStat[] {
   // JS getDay(): 0=Sun..6=Sat → reorder to Mon..Sun like the Android app.
   const byDay = new Map<number, Session[]>();
   for (const s of sessions) {
-    const mondayIndexed = (new Date(s.startTime).getDay() + 6) % 7;
+    const mondayIndexed = mondayIndex(new Date(s.startTime));
     const list = byDay.get(mondayIndexed);
     if (list) list.push(s);
     else byDay.set(mondayIndexed, [s]);

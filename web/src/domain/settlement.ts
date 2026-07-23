@@ -2,6 +2,7 @@
 // add-ons) must equal total cash-outs; any difference is surfaced as the
 // unresolved balance (chips still on the table, host cut, or a typo).
 import { HomeGamePlayer } from '../models/types';
+import { round2 } from './aggregate';
 
 export interface PlayerNet {
   playerId: number;
@@ -31,7 +32,6 @@ export interface Settlement {
   transfers: Transfer[];
 }
 
-const round2 = (v: number): number => Math.round(v * 100) / 100;
 
 export function computeSettlement(players: HomeGamePlayer[]): Settlement {
   const totalBuyIns = round2(players.reduce((a, p) => a + p.buyIn, 0));

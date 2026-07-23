@@ -1,6 +1,7 @@
 // Sports betting domain: odds conversion, settlement math, aggregate stats
 // and CSV interchange. Decimal odds are the canonical stored form; American
 // odds are a display/entry format.
+import { DAY_NAMES, mondayIndex, monthLabel, monthSortKey } from './aggregate';
 import {
   SportsBet,
   BetStatus,
@@ -139,8 +140,6 @@ export const betRoi = (s: BetStats): number =>
 export const recordLabel = (s: BetStats): string =>
   `${s.wonCount}-${s.lostCount}-${s.pushCount}`;
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function oddsBand(decimal: number): string {
   if (decimal <= 1) return 'No price';
@@ -246,7 +245,7 @@ export function computeBetStats(bets: SportsBet[]): BetStats {
   const byMonthMap = new Map<number, SportsBet[]>();
   for (const b of chronological) {
     const d = new Date(b.placedAt);
-    const key = d.getFullYear() * 100 + d.getMonth() + 1;
+    const key = monthSortKey(d);
     const list = byMonthMap.get(key);
     if (list) list.push(b);
     else byMonthMap.set(key, [b]);
@@ -255,7 +254,7 @@ export function computeBetStats(bets: SportsBet[]): BetStats {
     .map(([sortKey, list]) => {
       const d = new Date(list[0].placedAt);
       return {
-        label: `${MONTH_NAMES[d.getMonth()]} '${String(d.getFullYear() % 100).padStart(2, '0')}`,
+        label: monthLabel(d),
         profit: list.reduce((a, b) => a + betProfit(b), 0),
         sessionCount: list.length,
         sortKey,
@@ -266,7 +265,7 @@ export function computeBetStats(bets: SportsBet[]): BetStats {
   const byWeekday: GroupStat[] = [];
   const byDayMap = new Map<number, SportsBet[]>();
   for (const b of settled) {
-    const mondayIndexed = (new Date(b.placedAt).getDay() + 6) % 7;
+    const mondayIndexed = mondayIndex(new Date(b.placedAt));
     const list = byDayMap.get(mondayIndexed);
     if (list) list.push(b);
     else byDayMap.set(mondayIndexed, [b]);

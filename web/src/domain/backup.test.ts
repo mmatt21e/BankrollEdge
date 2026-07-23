@@ -185,6 +185,35 @@ describe('backup', () => {
       /Not a BankrollEdge backup/,
     );
   });
+
+  it('sanitizes hand-edited data: bad enums, missing timestamps, junk collections', () => {
+    const restored = backupFromJson(
+      JSON.stringify({
+        app: 'BankrollEdge',
+        version: 4,
+        settings: {},
+        sessions: [
+          { startTime: 1_700_000_000_000, gameQuality: 'great', sleep: 'nope' },
+          { gameQuality: 'GOOD' }, // no startTime → dropped
+        ],
+        transactions: [],
+        bets: [],
+        handNotes: ['not-an-object', 42],
+        homeGames: [{ name: 'No players array' }],
+        structures: [{ name: 'No levels array' }],
+        events: [],
+        venues: [null],
+        stakes: [],
+      }),
+    );
+    expect(restored.sessions).toHaveLength(1);
+    expect(restored.sessions[0].gameQuality).toBe(''); // lowercase 'great' rejected
+    expect(restored.sessions[0].sleep).toBe('');
+    expect(restored.handNotes).toEqual([]);
+    expect(restored.venues).toEqual([]);
+    expect(restored.homeGames[0].players).toEqual([]);
+    expect(restored.structures[0].levels).toEqual([]);
+  });
 });
 
 describe('table game backup fields', () => {

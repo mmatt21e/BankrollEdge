@@ -108,6 +108,30 @@ export const formatDateTime = (epochMillis: number): string =>
 export const hourLabel = (hour: number): string =>
   hour === 0 ? '12a' : hour < 12 ? `${hour}a` : hour === 12 ? '12p' : `${hour - 12}p`;
 
+/** 1 → "1st", 2 → "2nd", 11 → "11th", 23 → "23rd". */
+export function ordinal(n: number): string {
+  const rem10 = n % 10;
+  const rem100 = n % 100;
+  if (rem10 === 1 && rem100 !== 11) return `${n}st`;
+  if (rem10 === 2 && rem100 !== 12) return `${n}nd`;
+  if (rem10 === 3 && rem100 !== 13) return `${n}rd`;
+  return `${n}th`;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** Epoch millis → the value for an <input type="date">: "2026-07-23". */
+export function toDateInput(epochMillis: number): string {
+  const d = new Date(epochMillis);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+/** Epoch millis → the value for an <input type="time">: "19:30". */
+export function toTimeInput(epochMillis: number): string {
+  const d = new Date(epochMillis);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
 /** hh:mm:ss for the live timer. */
 export function elapsedClock(millis: number): string {
   const total = Math.max(0, Math.floor(millis / 1000));

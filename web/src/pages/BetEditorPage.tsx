@@ -27,14 +27,20 @@ import {
   toWin,
   impliedProbability,
 } from '../domain/bets';
-import { money, signedMoney, percent } from '../domain/format';
+import { money, signedMoney, percent, toDateInput, toTimeInput } from '../domain/format';
 import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../components/common';
 
 interface LegForm {
+  /** Stable render key so removing a middle leg doesn't shift focus/IME onto
+   *  the wrong row. Never persisted. */
+  key: number;
   pick: string;
   odds: string; // in the current entry format
   result: LegResult;
 }
+
+let nextLegKey = 1;
+const legKey = () => nextLegKey++;
 
 interface FormState {
   sport: Sport;
@@ -58,15 +64,6 @@ interface FormState {
   currency: string;
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const toDateInput = (ms: number) => {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-const toTimeInput = (ms: number) => {
-  const d = new Date(ms);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
 
 const f = (v: string) => {
   const n = Number.parseFloat(v);
@@ -105,7 +102,7 @@ function fromBet(b: SportsBet, format: OddsFormat): FormState {
     closingOdds: oddsToInput(b.closingOdds, format),
     eventDate: b.eventStart > 0 ? toDateInput(b.eventStart) : '',
     eventTime: b.eventStart > 0 ? toTimeInput(b.eventStart) : '',
-    legs: b.legs.map((l) => ({ pick: l.pick, odds: oddsToInput(l.odds, format), result: l.result })),
+    legs: b.legs.map((l) => ({ key: legKey(), pick: l.pick, odds: oddsToInput(l.odds, format), result: l.result })),
     tagsText: b.tags.join(', '),
     notes: b.notes,
     currency: b.currency,
@@ -331,7 +328,7 @@ export default function BetEditorPage() {
           <section className="card col">
             <h2>Legs</h2>
             {form.legs.map((leg, i) => (
-              <div className="row" key={i} style={{ alignItems: 'flex-end' }}>
+              <div className="row" key={leg.key} style={{ alignItems: 'flex-end' }}>
                 <label className="field grow">
                   <span>Pick {i + 1}</span>
                   <input
@@ -377,7 +374,7 @@ export default function BetEditorPage() {
             <button
               type="button"
               className="btn btn-outline"
-              onClick={() => set({ legs: [...form.legs, { pick: '', odds: '', result: '' }] })}
+              onClick={() => set({ legs: [...form.legs, { key: legKey(), pick: '', odds: '', result: '' }] })}
             >
               + Add leg
             </button>
