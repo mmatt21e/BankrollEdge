@@ -37,6 +37,7 @@
   --heat-l2: #eb9a9a;
   --heat-l3: #d64545;
   --cell-empty: #e5ebe7;
+  --card-diamond: #2563c9;
 
   --radius: 12px;
   --space: 16px;
@@ -69,6 +70,7 @@
     --heat-l3: #e35050;
     --cell-empty: #182a21;
     --accent: var(--gold-500);
+    --card-diamond: #5b9bff;
   }
 }
 
@@ -95,6 +97,7 @@
   --heat-l3: #d64545;
   --cell-empty: #e5ebe7;
   --accent: #7a5f16;
+  --card-diamond: #2563c9;
 }
 
 :root[data-theme='dark'] {
@@ -118,6 +121,7 @@
   --heat-l3: #e35050;
   --cell-empty: #182a21;
   --accent: var(--gold-500);
+  --card-diamond: #5b9bff;
 }
 
 * { box-sizing: border-box; }
@@ -201,7 +205,11 @@ button { font: inherit; }
   cursor: pointer;
 }
 .card-slot:disabled { opacity: 0.3; cursor: default; }
+/* Deck colors: two-color uses .card-red only; four-color adds blue diamonds
+   and green clubs (spades stay the default text color). */
 .card-red { color: var(--loss); }
+.card-diamond { color: var(--card-diamond); }
+.card-club { color: var(--profit); }
 
 .deck-grid {
   display: grid;

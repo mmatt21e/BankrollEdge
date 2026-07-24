@@ -433,6 +433,8 @@ export interface AppSettings {
   notepad: string;
   /** Saved Hold'em ranges for the odds calculator. */
   savedRanges: SavedRange[];
+  /** Playing-card rendering: classic red/black or four-color deck. */
+  deckColors: 'TWO' | 'FOUR';
 }
 
 /** A user-saved external link (their Pokerbase profile, a tournament
@@ -500,6 +502,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   quickLinks: [],
   notepad: '',
   savedRanges: [],
+  deckColors: 'TWO',
 };
 
 export function emptySession(now: number): Session {

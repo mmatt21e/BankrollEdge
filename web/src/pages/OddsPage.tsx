@@ -2,7 +2,8 @@
 // cards and board cards, add players (empty hand = random; NLH hands can use
 // a saved range instead), then run the Monte-Carlo simulation in a worker.
 import { useEffect, useRef, useState } from 'react';
-import { Card, cardLabel, suitOf, FULL_DECK } from '../domain/poker/cards';
+import { Card, FULL_DECK } from '../domain/poker/cards';
+import { CardFace } from '../components/CardFace';
 import {
   EquityPlayer,
   EquityResult,
@@ -122,20 +123,29 @@ export default function OddsPage() {
         style={selected ? { borderColor: 'var(--gold-500)', borderWidth: 2 } : undefined}
         onClick={() => setTarget(selected ? null : t)}
       >
-        {card !== null ? (
-          <span className={suitOf(card) === 1 || suitOf(card) === 2 ? 'card-red' : undefined}>
-            {cardLabel(card)}
-          </span>
-        ) : (
-          ''
-        )}
+        {card !== null ? <CardFace card={card} /> : ''}
       </button>
     );
   };
 
   return (
     <>
-      <TopBar title="Odds calculator" onBack={back} />
+      <TopBar
+        title="Odds calculator"
+        onBack={back}
+        action={
+          <button
+            type="button"
+            className="chip chip-small"
+            aria-label={`Switch to the ${app.settings.deckColors === 'FOUR' ? 'two' : 'four'}-color deck`}
+            onClick={() =>
+              app.updateSettings({ deckColors: app.settings.deckColors === 'FOUR' ? 'TWO' : 'FOUR' })
+            }
+          >
+            {app.settings.deckColors === 'FOUR' ? '4-color' : '2-color'}
+          </button>
+        }
+      />
       <main className="page page--with-topbar">
         <label className="field">
           <span>Game</span>
@@ -279,9 +289,7 @@ function CardPickerDialog({
             disabled={used.has(c)}
             onClick={() => onPick(c)}
           >
-            <span className={suitOf(c) === 1 || suitOf(c) === 2 ? 'card-red' : undefined}>
-              {cardLabel(c)}
-            </span>
+            <CardFace card={c} />
           </button>
         ))}
       </div>

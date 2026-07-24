@@ -93,6 +93,33 @@ export default function DisplaySettingsPage() {
           </p>
         </SectionCard>
 
+        <SectionCard title="Card deck">
+          <p className="muted" style={{ margin: 0 }}>
+            How playing cards render in the poker tools (odds calculator, deck picker).
+          </p>
+          <div className="segmented" role="group" aria-label="Deck colors">
+            {(
+              [
+                ['TWO', 'Two colors'],
+                ['FOUR', 'Four colors'],
+              ] as ['TWO' | 'FOUR', string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={s.deckColors === value}
+                onClick={() => app.updateSettings({ deckColors: value })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="muted small" style={{ margin: 0 }}>
+            Four colors: ♠ black, <span className="card-red">♥ red</span>,{' '}
+            <span className="card-diamond">♦ blue</span>, <span className="card-club">♣ green</span>.
+          </p>
+        </SectionCard>
+
         <SectionCard title="Bottom navigation">
           <p className="muted" style={{ margin: 0 }}>
             Pick which shortcuts sit in the bottom bar from the More tab — tap the star next to
