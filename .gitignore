@@ -32,3 +32,6 @@ web/dev-dist/
 
 # Prebuilt binaries stay out of git — attach APKs to GitHub Releases instead.
 dist/
+
+# Root-level node_modules (tooling accidents) — the web app uses web/node_modules
+node_modules/
