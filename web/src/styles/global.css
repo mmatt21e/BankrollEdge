@@ -186,6 +186,77 @@ button { font: inherit; }
 /* Emoji stand-ins for bottom-nav icons of pinned tool destinations. */
 .nav-emoji { font-size: 22px; line-height: 24px; height: 24px; display: block; }
 
+/* ---------- Odds calculator ---------- */
+
+/* A playing-card slot (hole/board) and the deck-picker cells. */
+.card-slot {
+  width: 46px;
+  height: 62px;
+  border: 1.5px solid var(--outline);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--on-bg);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.card-slot:disabled { opacity: 0.3; cursor: default; }
+.card-red { color: var(--loss); }
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.deck-grid .card-slot { width: 100%; height: 44px; font-size: 0.85rem; }
+
+/* 13×13 starting-hand grid. */
+.range-grid {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 2px;
+}
+.range-grid button {
+  padding: 0;
+  min-height: 24px;
+  font-size: 0.5rem;
+  border: 1px solid var(--outline);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--on-surface-variant);
+  cursor: pointer;
+}
+.range-grid button.on {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: var(--primary);
+}
+
+/* ---------- Printable report ---------- */
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.report-table th,
+.report-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--outline);
+}
+.report-table td:last-child,
+.report-table th:last-child { text-align: right; }
+
+@media print {
+  .navbar, .fab, .offline-banner, .no-print { display: none !important; }
+  .page { max-width: 100%; padding: 0; }
+  body { background: #fff; color: #000; }
+  .report-table th, .report-table td { border-color: #999; }
+}
+
 /* ---------- Layout ---------- */
 
 .page {

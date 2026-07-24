@@ -62,6 +62,7 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
         hiddenTableGames: backup.settings.hiddenTableGames,
         quickLinks: backup.settings.quickLinks,
         notepad: backup.settings.notepad,
+        savedRanges: backup.settings.savedRanges,
       },
       sessions: backup.sessions.map(({ id: _id, ...rest }) => rest),
       transactions: backup.transactions.map(({ id: _id, ...rest }) => rest),
@@ -123,6 +124,10 @@ export function backupFromJson(json: string): Backup {
       }))
       .filter((l) => l.url !== ''),
     notepad: str(s.notepad),
+    savedRanges: (Array.isArray(s.savedRanges) ? s.savedRanges : [])
+      .filter((r): r is Record<string, unknown> => typeof r === 'object' && r !== null)
+      .map((r, i) => ({ id: i + 1, name: str(r.name), cells: strArray(r.cells) }))
+      .filter((r) => r.name !== '' && r.cells.length > 0),
   };
 
   const sessions = (Array.isArray(root.sessions) ? root.sessions : []).map((raw) => {

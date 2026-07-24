@@ -6,7 +6,7 @@ import { HandNote, stakesLabel } from '../models/types';
 import { formatDate, formatDateTime } from '../domain/format';
 import { handNoteStore } from '../storage/db';
 import { useAppState, useStoreList } from '../hooks/useAppState';
-import { ConfirmDialog, MessageBanner, TopBar, useBack } from '../components/common';
+import { ConfirmDialog, Dialog, MessageBanner, TopBar, useBack } from '../components/common';
 
 const emptyForm = {
   stakes: '',
@@ -31,6 +31,7 @@ export default function HandNotesPage() {
   const [form, setForm] = useState(emptyForm);
   const [reviewOnly, setReviewOnly] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<HandNote | null>(null);
+  const [replaying, setReplaying] = useState<HandNote | null>(null);
   const [message, setMessage] = useState('');
 
   const set = (patch: Partial<typeof emptyForm>) => setForm((prev) => ({ ...prev, ...patch }));
@@ -186,6 +187,15 @@ export default function HandNotesPage() {
                   {n.notes && <div className="muted">{n.notes}</div>}
                   {n.tags.length > 0 && <div className="muted small">#{n.tags.join(' #')}</div>}
                   <div className="row" style={{ marginTop: 6 }}>
+                    {(n.holeCards.trim() !== '' || n.board.trim() !== '') && (
+                      <button
+                        type="button"
+                        className="btn btn-outline grow"
+                        onClick={() => setReplaying(n)}
+                      >
+                        ▶ Replay
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn btn-outline grow"
@@ -220,6 +230,8 @@ export default function HandNotesPage() {
           })
         )}
 
+        {replaying && <ReplayDialog note={replaying} onClose={() => setReplaying(null)} />}
+
         <ConfirmDialog
           open={pendingDelete !== null}
           title="Delete this hand note?"
@@ -240,4 +252,64 @@ export default function HandNotesPage() {
       </main>
     </>
   );
+}
+
+/** Step-through replay built from the note's cards: preflop → flop → turn →
+ *  river → result. Board streets are split on "/" (e.g. "Qh 7d 2c / 9s / 3h")
+ *  or, without separators, chunked 3-1-1. */
+function ReplayDialog({ note, onClose }: { note: HandNote; onClose: () => void }) {
+  const boardParts = note.board.includes('/')
+    ? note.board.split('/').map((p) => p.trim()).filter(Boolean)
+    : chunkBoard(note.board);
+  const steps: { title: string; body: string }[] = [
+    { title: 'Preflop', body: [note.holeCards && `Your hand: ${note.holeCards}`, note.stakes && `Stakes: ${note.stakes}`, note.position && `Position: ${note.position}`].filter(Boolean).join('\n') || 'Cards in the air.' },
+    ...boardParts.map((_cards, i) => ({
+      title: i === 0 ? 'Flop' : i === 1 ? 'Turn' : 'River',
+      body: `Board: ${boardParts.slice(0, i + 1).join(' | ')}`,
+    })),
+  ];
+  if (note.actionSummary || note.result || note.potSize > 0) {
+    steps.push({
+      title: 'Showdown',
+      body: [note.actionSummary, note.potSize > 0 && `Pot: ${note.potSize}`, note.result && `Result: ${note.result}`]
+        .filter(Boolean)
+        .join('\n'),
+    });
+  }
+  const [step, setStep] = useState(0);
+  const current = steps[Math.min(step, steps.length - 1)];
+
+  return (
+    <Dialog label="Hand replay" onClose={onClose}>
+      <h2>
+        {current.title}
+        <span className="muted small"> — {Math.min(step + 1, steps.length)}/{steps.length}</span>
+      </h2>
+      <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{current.body}</p>
+      <div className="actions">
+        <button type="button" className="btn btn-outline" disabled={step === 0} onClick={() => setStep(step - 1)}>
+          ‹ Back
+        </button>
+        {step < steps.length - 1 ? (
+          <button type="button" className="btn" onClick={() => setStep(step + 1)}>
+            Next ›
+          </button>
+        ) : (
+          <button type="button" className="btn" onClick={onClose}>
+            Done
+          </button>
+        )}
+      </div>
+    </Dialog>
+  );
+}
+
+/** "Qh 7d 2c 9s 3h" → ["Qh 7d 2c", "9s", "3h"]. */
+function chunkBoard(board: string): string[] {
+  const cards = board.trim().split(/\s+/).filter(Boolean);
+  if (cards.length === 0) return [];
+  const out = [cards.slice(0, 3).join(' ')];
+  if (cards.length > 3) out.push(cards[3]);
+  if (cards.length > 4) out.push(cards[4]);
+  return out;
 }

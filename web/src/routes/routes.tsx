@@ -26,6 +26,9 @@ import MorePage from '../pages/MorePage';
 import DeepStatsPage from '../pages/DeepStatsPage';
 import StatsBreakdownPage from '../pages/StatsBreakdownPage';
 import WalletsPage from '../pages/WalletsPage';
+import OddsPage from '../pages/OddsPage';
+import MRatioPage from '../pages/MRatioPage';
+import ReportPage from '../pages/ReportPage';
 import NotepadPage from '../pages/NotepadPage';
 import PlayerNotesPage from '../pages/PlayerNotesPage';
 
@@ -53,7 +56,10 @@ export const routes: RouteObject[] = [
   { path: '/bankroll', element: <BankrollPage /> },
   { path: '/wallets', element: <WalletsPage /> },
   { path: '/notepad', element: <NotepadPage /> },
+  { path: '/report', element: <ReportPage /> },
   { path: '/players', element: <PlayerNotesPage /> },
+  { path: '/tools/odds', element: <OddsPage /> },
+  { path: '/tools/mratio', element: <MRatioPage /> },
   { path: '/tools/clock', element: <ClockPage /> },
   { path: '/tools/home-games', element: <HomeGamesPage /> },
   { path: '/tools/payout', element: <PayoutPage /> },

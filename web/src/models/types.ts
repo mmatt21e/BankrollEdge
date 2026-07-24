@@ -431,6 +431,8 @@ export interface AppSettings {
   quickLinks: QuickLink[];
   /** Free-form quick notepad (More → Notepad). */
   notepad: string;
+  /** Saved Hold'em ranges for the odds calculator. */
+  savedRanges: SavedRange[];
 }
 
 /** A user-saved external link (their Pokerbase profile, a tournament
@@ -453,6 +455,13 @@ export interface Wallet {
   currency: string;
   notes: string;
   updatedAt: number;
+}
+
+/** A saved Hold'em starting-hand range (13×13 grid cells like "AKs"). */
+export interface SavedRange {
+  id: number;
+  name: string;
+  cells: string[];
 }
 
 /** Read on an opponent, keyed by however you know them. */
@@ -490,6 +499,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   navPins: ['dashboard', 'poker', 'table', 'sports', 'settings'],
   quickLinks: [],
   notepad: '',
+  savedRanges: [],
 };
 
 export function emptySession(now: number): Session {

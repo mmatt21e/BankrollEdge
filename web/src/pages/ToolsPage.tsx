@@ -11,6 +11,18 @@ interface HubLink {
 
 const TOOLS: HubLink[] = [
   {
+    to: '/tools/odds',
+    icon: '🎯',
+    name: 'Odds calculator',
+    blurb: "Equity for Hold'em and Omaha (incl. Hi/Lo) — multi-player, with hand ranges.",
+  },
+  {
+    to: '/tools/mratio',
+    icon: '📶',
+    name: 'M-ratio',
+    blurb: 'How many orbits your tournament stack survives, with zone advice.',
+  },
+  {
     to: '/tools/clock',
     icon: '⏱',
     name: 'Tournament clock',

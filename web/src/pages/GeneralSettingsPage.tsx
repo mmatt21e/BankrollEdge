@@ -276,6 +276,9 @@ export default function GeneralSettingsPage() {
           <button type="button" className="btn btn-outline" onClick={() => backupInput.current?.click()}>
             Restore
           </button>
+          <button type="button" className="btn btn-outline" onClick={() => navigate('/report')}>
+            PDF report
+          </button>
           <input
             ref={backupInput}
             type="file"

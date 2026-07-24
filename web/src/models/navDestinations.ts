@@ -35,6 +35,8 @@ export const NAV_DESTINATIONS: NavDestination[] = [
   { key: 'notepad', route: '/notepad', label: 'Notepad', emoji: '📝', title: 'Notepad', blurb: 'A quick place to write things down.', group: 'App' },
   { key: 'players', route: '/players', label: 'Players', emoji: '🧑‍🤝‍🧑', title: 'Player notes', blurb: 'Reads on opponents, searchable.', gate: 'poker', group: 'Poker tools' },
   { key: 'tools', route: '/tools', label: 'Tools', emoji: '🧰', icon: 'tools', title: 'Tools hub', blurb: 'All poker tools on one screen.', gate: 'poker', group: 'Poker tools' },
+  { key: 'odds', route: '/tools/odds', label: 'Odds', emoji: '🎯', title: 'Odds calculator', blurb: "Equity for Hold'em and Omaha (incl. Hi/Lo), with ranges.", gate: 'poker', group: 'Poker tools' },
+  { key: 'mratio', route: '/tools/mratio', label: 'M-ratio', emoji: '📶', title: 'M-ratio', blurb: 'Tournament stack health and Harrington zones.', gate: 'poker', group: 'Poker tools' },
   { key: 'clock', route: '/tools/clock', label: 'Clock', emoji: '⏱', title: 'Tournament clock', blurb: 'Blind levels, breaks and a full-screen display.', gate: 'poker', group: 'Poker tools' },
   { key: 'homegames', route: '/tools/home-games', label: 'Home', emoji: '🎲', title: 'Home game ledger', blurb: 'Buy-ins, cash-outs and settlement.', gate: 'poker', group: 'Poker tools' },
   { key: 'payout', route: '/tools/payout', label: 'Payouts', emoji: '🏆', title: 'Payout calculator', blurb: 'Prize pools and payouts by place.', gate: 'poker', group: 'Poker tools' },
@@ -42,6 +44,7 @@ export const NAV_DESTINATIONS: NavDestination[] = [
   { key: 'stackvalue', route: '/tools/stack-value', label: 'Stack', emoji: '📈', title: 'My stack value', blurb: 'What your stack is worth right now.', gate: 'poker', group: 'Poker tools' },
   { key: 'chips', route: '/tools/chips', label: 'Chips', emoji: '🪙', title: 'Chip calculator', blurb: 'Chip distributions for your chip set.', gate: 'poker', group: 'Poker tools' },
   { key: 'hands', route: '/tools/hands', label: 'Hands', emoji: '✍️', title: 'Hand notes', blurb: 'Capture hands and review them later.', gate: 'poker', group: 'Poker tools' },
+  { key: 'report', route: '/report', label: 'Report', emoji: '🧾', title: 'Session report (PDF)', blurb: 'A printable report — save it as a PDF for taxes or staking.', gate: 'session', group: 'App' },
   { key: 'settings', route: '/settings', label: 'Settings', emoji: '⚙️', icon: 'settings', title: 'Settings', blurb: 'Bankroll, display, data and privacy.', group: 'App' },
 ];
 
