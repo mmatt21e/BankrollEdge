@@ -2,13 +2,14 @@
 import { useState } from 'react';
 import { useAppState, useStoreList } from '../hooks/useAppState';
 import { TABLE_GAMES, TABLE_GAME_LABELS, stakePresetLabel } from '../models/types';
-import { MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
+import { MoneyInput, SectionCard, TopBar, useBack, useSectionHighlight } from '../components/common';
 import { GameListEditor } from '../components/GameListEditor';
 import { stakeStore } from '../storage/db';
 
 export default function TableGamesSettingsPage() {
   const app = useAppState();
   const back = useBack('/settings');
+  useSectionHighlight();
   const stakes = useStoreList(stakeStore);
   const table = stakes.items
     .filter((s) => s.kind === 'TABLE')
@@ -30,6 +31,7 @@ export default function TableGamesSettingsPage() {
       <TopBar title="Table games" onBack={back} />
       <main className="page page--with-topbar">
         <GameListEditor
+          id="games"
           title="Table games"
           description="The games offered when you log a table-game session. Remove ones you never play or add your own."
           builtins={TABLE_GAMES.map((g) => ({ value: g, label: TABLE_GAME_LABELS[g] }))}
@@ -40,7 +42,7 @@ export default function TableGamesSettingsPage() {
           }
         />
 
-        <SectionCard title="Unit display">
+        <SectionCard id="units" title="Unit display">
           <label className="toggle-row">
             <span>
               Show amounts in units
@@ -67,7 +69,7 @@ export default function TableGamesSettingsPage() {
           )}
         </SectionCard>
 
-        <SectionCard title="Table game stakes">
+        <SectionCard id="stakes" title="Table game stakes">
           <p className="muted" style={{ margin: 0 }}>
             Saved min/max bet spreads appear as one-tap choices when you log a table-game
             session. You can also add new ones straight from the session screen.

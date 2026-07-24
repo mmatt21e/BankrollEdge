@@ -29,7 +29,7 @@ const emptyPlayer = (id: number): HomeGamePlayer => ({
 });
 
 export default function HomeGamesPage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const { items: games, loaded, save, remove } = useStoreList<HomeGame>(homeGameStore);
   // The open game lives in the URL (?game=<id>) so the system back gesture
   // closes the detail view instead of leaving the page.

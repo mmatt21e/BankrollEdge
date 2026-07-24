@@ -11,7 +11,7 @@ import { ConfirmDialog, TopBar, useBack } from '../components/common';
 import { exportFile } from '../services/files';
 
 export default function CalendarPage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const currency = useAppState().settings.currency;
   const { items: events, loaded, save, remove } = useStoreList<CalendarEvent>(eventStore);
   const [pendingDelete, setPendingDelete] = useState<CalendarEvent | null>(null);

@@ -1,7 +1,7 @@
 // Shared UI: stat tiles, session rows, breakdown lists, confirm dialog,
 // bottom navigation. Ports of the Android components/ package.
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import {
   Session,
@@ -289,13 +289,59 @@ export function MessageBanner({ children }: { children: ReactNode }) {
   );
 }
 
-export function SectionCard({ title, children }: { title: string; children: ReactNode }) {
+export function SectionCard({ title, children, id }: { title: string; children: ReactNode; id?: string }) {
   return (
-    <section className="card col">
+    <section id={id ? `sec-${id}` : undefined} className="card col">
       <h2>{title}</h2>
       {children}
     </section>
   );
+}
+
+/** Labelled switch row used across the settings pages. */
+export function ToggleRow({
+  label,
+  hint,
+  checked,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="toggle-row" style={disabled ? { opacity: 0.55 } : undefined}>
+      <span>
+        {label}
+        {hint && <span className="hint" style={{ display: 'block' }}>{hint}</span>}
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+    </label>
+  );
+}
+
+/** Settings-search deep links land on `?h=<section id>`: scroll that
+ *  SectionCard into view and flash it so the found setting is obvious. */
+export function useSectionHighlight() {
+  const [params] = useSearchParams();
+  const target = params.get('h');
+  useEffect(() => {
+    if (!target) return;
+    const el = document.getElementById(`sec-${target}`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    el.classList.add('section-flash');
+    const t = window.setTimeout(() => el.classList.remove('section-flash'), 2400);
+    return () => window.clearTimeout(t);
+  }, [target]);
 }
 
 export function TopBar({ title, onBack, action }: { title: string; onBack: () => void; action?: ReactNode }) {

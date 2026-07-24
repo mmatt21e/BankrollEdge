@@ -49,7 +49,7 @@ interface BuiltImport {
 }
 
 export default function ImportPage() {
-  const back = useBack('/settings/general');
+  const back = useBack('/settings/data');
   const { importSessions, importBets, settings } = useAppState();
   const [params] = useSearchParams();
   const kind = params.get('type') === 'bets' ? 'bets' : 'sessions';

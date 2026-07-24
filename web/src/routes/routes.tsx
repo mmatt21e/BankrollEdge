@@ -3,15 +3,19 @@ import { RouteObject, Navigate } from 'react-router-dom';
 import SessionsPage from '../pages/SessionsPage';
 import StatsPage from '../pages/StatsPage';
 import SettingsPage from '../pages/SettingsPage';
-import GeneralSettingsPage from '../pages/GeneralSettingsPage';
+import BankrollSettingsPage from '../pages/BankrollSettingsPage';
+import FeaturesSettingsPage from '../pages/FeaturesSettingsPage';
 import DisplaySettingsPage from '../pages/DisplaySettingsPage';
 import PokerSettingsPage from '../pages/PokerSettingsPage';
 import TableGamesSettingsPage from '../pages/TableGamesSettingsPage';
 import SportsSettingsPage from '../pages/SportsSettingsPage';
+import VenuesSettingsPage from '../pages/VenuesSettingsPage';
+import DataSettingsPage from '../pages/DataSettingsPage';
+import PrivacySettingsPage from '../pages/PrivacySettingsPage';
+import AboutSettingsPage from '../pages/AboutSettingsPage';
 import ImportPage from '../pages/ImportPage';
 import EditorPage from '../pages/EditorPage';
 import BankrollPage from '../pages/BankrollPage';
-import ToolsPage from '../pages/ToolsPage';
 import ClockPage from '../pages/ClockPage';
 import HomeGamesPage from '../pages/HomeGamesPage';
 import PayoutPage from '../pages/PayoutPage';
@@ -40,14 +44,22 @@ export const routes: RouteObject[] = [
   { path: '/stats', element: <Navigate to="/" replace /> },
   { path: '/stats/deep', element: <DeepStatsPage /> },
   { path: '/stats/by/:dim', element: <StatsBreakdownPage /> },
-  { path: '/tools', element: <ToolsPage /> },
+  // The Tools hub folded into More — old links and pins land there.
+  { path: '/tools', element: <Navigate to="/more" replace /> },
   { path: '/more', element: <MorePage /> },
   { path: '/settings', element: <SettingsPage /> },
-  { path: '/settings/general', element: <GeneralSettingsPage /> },
+  // General split into topical pages; old links land on the hub.
+  { path: '/settings/general', element: <Navigate to="/settings" replace /> },
+  { path: '/settings/bankroll', element: <BankrollSettingsPage /> },
+  { path: '/settings/features', element: <FeaturesSettingsPage /> },
   { path: '/settings/display', element: <DisplaySettingsPage /> },
   { path: '/settings/poker', element: <PokerSettingsPage /> },
   { path: '/settings/table-games', element: <TableGamesSettingsPage /> },
   { path: '/settings/sports', element: <SportsSettingsPage /> },
+  { path: '/settings/venues', element: <VenuesSettingsPage /> },
+  { path: '/settings/data', element: <DataSettingsPage /> },
+  { path: '/settings/privacy', element: <PrivacySettingsPage /> },
+  { path: '/settings/about', element: <AboutSettingsPage /> },
   { path: '/settings/import', element: <ImportPage /> },
   { path: '/session/new', element: <EditorPage /> },
   { path: '/session/:id', element: <EditorPage /> },

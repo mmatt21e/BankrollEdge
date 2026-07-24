@@ -283,6 +283,13 @@ button { font: inherit; }
   padding: var(--space);
 }
 
+/* Settings search lands here: briefly outline the section it found. */
+.section-flash { animation: section-flash 2.4s ease-out; }
+@keyframes section-flash {
+  0%, 55% { box-shadow: 0 0 0 2px var(--accent); }
+  100% { box-shadow: 0 0 0 2px transparent; }
+}
+
 .row { display: flex; align-items: center; gap: 10px; }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .col { display: flex; flex-direction: column; gap: 10px; }

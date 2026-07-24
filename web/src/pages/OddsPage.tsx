@@ -40,7 +40,7 @@ type Target = { player: number; slot: number } | null;
 
 export default function OddsPage() {
   const app = useAppState();
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const [variant, setVariant] = useState<GameVariant>('NLH');
   const [players, setPlayers] = useState<PlayerState[]>([emptyPlayer(2), emptyPlayer(2)]);
   const [board, setBoard] = useState<(Card | null)[]>(new Array(5).fill(null));

@@ -12,7 +12,7 @@ import { useAppState } from '../hooks/useAppState';
 import { TopBar, useBack } from '../components/common';
 
 export default function PayoutPage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const currency = useAppState().settings.currency;
 
   const [entries, setEntries] = useState('9');

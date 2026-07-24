@@ -22,7 +22,7 @@ const emptyForm = {
 };
 
 export default function HandNotesPage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const app = useAppState();
   const [params] = useSearchParams();
   const { items: notes, loaded, save, remove } = useStoreList<HandNote>(handNoteStore);

@@ -14,13 +14,20 @@ import {
 import { QuickLink } from '../models/types';
 import { MessageBanner, SectionCard } from '../components/common';
 
-const GROUPS: NavDestination['group'][] = ['Tracking', 'Poker tools', 'App'];
+const GROUPS: NavDestination['group'][] = ['Tracking', 'Analysis', 'Poker tools', 'App'];
 
 export default function MorePage() {
   const app = useAppState();
   const navigate = useNavigate();
   const { settings } = app;
   const [message, setMessage] = useState('');
+  const [query, setQuery] = useState('');
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = (d: NavDestination) => {
+    if (words.length === 0) return true;
+    const hay = `${d.title} ${d.label} ${d.blurb}`.toLowerCase();
+    return words.every((w) => hay.includes(w));
+  };
 
   const pinned = new Set(settings.navPins);
   const togglePin = (dest: NavDestination) => {
@@ -42,11 +49,18 @@ export default function MorePage() {
         Everything lives here. Tap the star to pin a shortcut to the bottom bar
         (up to {MAX_NAV_PINS}).
       </p>
+      <input
+        type="search"
+        placeholder="Find a screen or tool…"
+        aria-label="Find a screen or tool"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
       <MessageBanner>{message}</MessageBanner>
 
       {GROUPS.map((group) => {
         const items = NAV_DESTINATIONS.filter(
-          (d) => d.group === group && navGateOpen(d, settings),
+          (d) => d.group === group && navGateOpen(d, settings) && matches(d),
         );
         if (items.length === 0) return null;
         return (

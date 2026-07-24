@@ -8,19 +8,20 @@ import {
   SessionType,
   stakePresetLabel,
 } from '../models/types';
-import { MoneyInput, SectionCard, TopBar, useBack } from '../components/common';
+import { MoneyInput, SectionCard, TopBar, useBack, useSectionHighlight } from '../components/common';
 import { GameListEditor } from '../components/GameListEditor';
 import { stakeStore } from '../storage/db';
 
 export default function PokerSettingsPage() {
   const app = useAppState();
   const back = useBack('/settings');
+  useSectionHighlight();
 
   return (
     <>
       <TopBar title="Poker" onBack={back} />
       <main className="page page--with-topbar">
-        <SectionCard title="Default session type">
+        <SectionCard id="default-type" title="Default session type">
           <p className="muted" style={{ margin: 0 }}>
             The type pre-selected when you log a new session. Lists and the dashboard always
             open showing all games.
@@ -46,6 +47,7 @@ export default function PokerSettingsPage() {
         </SectionCard>
 
         <GameListEditor
+          id="games"
           title="Poker games"
           description="The games offered when you log a poker session. Remove ones you never play or add your own."
           builtins={GAME_TYPES.map((g) => ({ value: g, label: GAME_TYPE_LABELS[g] }))}
@@ -80,7 +82,7 @@ function PokerStakesCard() {
   };
 
   return (
-    <SectionCard title="Cash game stakes">
+    <SectionCard id="stakes" title="Cash game stakes">
       <p className="muted" style={{ margin: 0 }}>
         Saved blinds appear as one-tap choices when you log a cash session. You can also add
         new ones straight from the session screen.

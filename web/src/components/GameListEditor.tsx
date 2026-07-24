@@ -6,6 +6,7 @@ import { GameOption } from '../models/types';
 import { SectionCard } from './common';
 
 export function GameListEditor({
+  id,
   title,
   description,
   builtins,
@@ -13,6 +14,8 @@ export function GameListEditor({
   custom,
   onChange,
 }: {
+  /** SectionCard id so the settings search can highlight this card. */
+  id?: string;
   title: string;
   description: string;
   /** Every built-in option (key + label). */
@@ -47,7 +50,7 @@ export function GameListEditor({
   };
 
   return (
-    <SectionCard title={title}>
+    <SectionCard id={id} title={title}>
       <p className="muted" style={{ margin: 0 }}>{description}</p>
 
       {visibleBuiltins.map((b) => (

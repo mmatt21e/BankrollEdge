@@ -42,7 +42,7 @@ const METHOD_BLURBS: Record<DealMethod, string> = {
 };
 
 export default function DealPage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const currency = useAppState().settings.currency;
 
   const [players, setPlayers] = useState<PlayerRow[]>(DEFAULT_PLAYERS);

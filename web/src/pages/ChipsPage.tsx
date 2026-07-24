@@ -17,7 +17,7 @@ const DEFAULT_SET: DenomRow[] = [
 ];
 
 export default function ChipsPage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const [players, setPlayers] = useState('8');
   const [stack, setStack] = useState('10000');
   const [rows, setRows] = useState<DenomRow[]>(DEFAULT_SET);

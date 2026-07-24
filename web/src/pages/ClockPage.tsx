@@ -39,7 +39,7 @@ function beep() {
 }
 
 export default function ClockPage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const { items: saved, save, remove } = useStoreList<BlindStructure>(structureStore);
   const [structure, setStructure] = useState<Omit<BlindStructure, 'id'> & { id: number }>(() => ({
     id: 0,

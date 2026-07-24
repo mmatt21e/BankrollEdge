@@ -11,7 +11,7 @@ import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../comp
 export default function BankrollPage() {
   const app = useAppState();
   const navigate = useNavigate();
-  const back = useBack('/settings');
+  const back = useBack('/more');
   const wallets = useStoreList<Wallet>(walletStore);
   const walletTotal = wallets.items.reduce((a, w) => a + w.balance, 0);
   const currency = app.settings.currency;

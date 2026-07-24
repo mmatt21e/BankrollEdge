@@ -22,7 +22,7 @@ import { TopBar, profitClass, useBack } from '../components/common';
 
 export default function ReportPage() {
   const app = useAppState();
-  const back = useBack('/settings/general');
+  const back = useBack('/more');
   const currency = app.settings.currency;
   const sessions = app.filteredSessions;
   const stats = app.filteredStats;

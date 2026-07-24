@@ -12,7 +12,7 @@ const ZONES: { min: number; name: string; advice: string; cls: string }[] = [
 ];
 
 export default function MRatioPage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const [stack, setStack] = useState('');
   const [sb, setSb] = useState('');
   const [bb, setBb] = useState('');

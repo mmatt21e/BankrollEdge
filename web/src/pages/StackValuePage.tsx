@@ -31,7 +31,7 @@ const POSITION_CLASS: Record<StackPosition, string> = {
 };
 
 export default function StackValuePage() {
-  const back = useBack('/tools');
+  const back = useBack('/more');
   const currency = useAppState().settings.currency;
 
   const [stack, setStack] = useState('320000');

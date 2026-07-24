@@ -28,7 +28,7 @@ export default function App() {
   if (locked) return <PinLock onUnlock={() => setLocked(false)} />;
 
   // Bottom nav + FAB only on top-level destinations.
-  const topLevel = ['/', '/sessions', '/tables', '/bets', '/tools', '/settings', '/more'].includes(location.pathname);
+  const topLevel = ['/', '/sessions', '/tables', '/bets', '/settings', '/more'].includes(location.pathname);
   const canSession = settings.showPoker || settings.showTableGames;
   const onHome = location.pathname === '/';
   const onSessions = location.pathname === '/sessions';
