@@ -422,6 +422,20 @@ export interface AppSettings {
   showTableUnits: boolean;
   /** What one unit is worth, used to display amounts in units. */
   tableUnitValue: number;
+  /** Destination keys pinned to the bottom nav (max 5); More always shows.
+   *  Keys resolve against models/navDestinations — unknown keys are ignored. */
+  navPins: string[];
+  /** User-saved external links shown in the More hub; open in the browser. */
+  quickLinks: QuickLink[];
+}
+
+/** A user-saved external link (their Pokerbase profile, a tournament
+ *  schedule, a casino site, …) shown as a tile in the More hub. */
+export interface QuickLink {
+  id: number;
+  name: string;
+  url: string;
+  emoji: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -448,6 +462,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hiddenTableGames: [],
   showTableUnits: false,
   tableUnitValue: 0,
+  navPins: ['dashboard', 'poker', 'table', 'sports', 'settings'],
+  quickLinks: [],
 };
 
 export function emptySession(now: number): Session {

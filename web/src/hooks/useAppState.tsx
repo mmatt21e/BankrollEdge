@@ -368,6 +368,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
               hiddenPokerGames: backup.settings.hiddenPokerGames,
               customTableGames: backup.settings.customTableGames,
               hiddenTableGames: backup.settings.hiddenTableGames,
+              quickLinks: backup.settings.quickLinks,
             };
             saveSettings(merged);
             return merged;

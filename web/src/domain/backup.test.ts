@@ -130,6 +130,28 @@ describe('backup', () => {
     expect(restored.bets[0].stake).toBe(110);
   });
 
+  it('round-trips quick links and drops malformed ones', () => {
+    const backup = {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        quickLinks: [
+          { id: 3, name: 'WSOPC', url: 'https://wsop.com', emoji: '🏆' },
+        ],
+      },
+      sessions: [], transactions: [], bets: [], handNotes: [], homeGames: [],
+      structures: [], events: [], venues: [], stakes: [],
+    };
+    const restored = backupFromJson(backupToJson(backup, 1));
+    expect(restored.settings.quickLinks).toEqual([
+      { id: 1, name: 'WSOPC', url: 'https://wsop.com', emoji: '🏆' },
+    ]);
+    const tampered = JSON.parse(backupToJson(backup, 1));
+    tampered.settings.quickLinks = ['junk', { name: 'no url' }, { url: 'https://ok.io' }];
+    expect(backupFromJson(JSON.stringify(tampered)).settings.quickLinks).toEqual([
+      { id: 2, name: '', url: 'https://ok.io', emoji: '🔗' }, // ids re-assigned on restore
+    ]);
+  });
+
   it('round-trips bounty winnings', () => {
     const backup = {
       settings: { ...DEFAULT_SETTINGS },

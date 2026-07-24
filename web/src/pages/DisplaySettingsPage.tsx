@@ -1,4 +1,5 @@
-// Settings → Display: theme, feature switches, nav tabs, dashboard cards.
+// Settings → Display: theme, feature switches, nav shortcuts, dashboard cards.
+import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
 import { ThemeMode } from '../models/types';
 import { SectionCard, TopBar, useBack } from '../components/common';
@@ -34,6 +35,7 @@ function ToggleRow({
 
 export default function DisplaySettingsPage() {
   const app = useAppState();
+  const navigate = useNavigate();
   const back = useBack('/settings');
   const s = app.settings;
   const enabledFeatures = [s.showPoker, s.showTableGames, s.showSports].filter(Boolean).length;
@@ -91,18 +93,14 @@ export default function DisplaySettingsPage() {
           </p>
         </SectionCard>
 
-        <SectionCard title="Tabs">
-          {(s.showPoker || s.showTableGames) && (
-            <ToggleRow
-              label="Poker & Table Games tabs"
-              checked={s.showSessionsTab}
-              onChange={(v) => app.updateSettings({ showSessionsTab: v })}
-            />
-          )}
-          <p className="muted small" style={{ margin: 0 }}>
-            Dashboard and Settings always stay in the navigation; the Tools tab follows the poker
-            feature.
+        <SectionCard title="Bottom navigation">
+          <p className="muted" style={{ margin: 0 }}>
+            Pick which shortcuts sit in the bottom bar from the More tab — tap the star next to
+            any screen to pin it (up to 5). More itself always stays in the bar.
           </p>
+          <button type="button" className="btn btn-outline" onClick={() => navigate('/more')}>
+            Customize shortcuts
+          </button>
         </SectionCard>
 
         <SectionCard title="Dashboard cards">

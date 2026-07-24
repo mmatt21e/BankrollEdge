@@ -55,6 +55,7 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
         hiddenPokerGames: backup.settings.hiddenPokerGames,
         customTableGames: backup.settings.customTableGames,
         hiddenTableGames: backup.settings.hiddenTableGames,
+        quickLinks: backup.settings.quickLinks,
       },
       sessions: backup.sessions.map(({ id: _id, ...rest }) => rest),
       transactions: backup.transactions.map(({ id: _id, ...rest }) => rest),
@@ -102,6 +103,17 @@ export function backupFromJson(json: string): Backup {
     hiddenPokerGames: strArray(s.hiddenPokerGames),
     customTableGames: strArray(s.customTableGames),
     hiddenTableGames: strArray(s.hiddenTableGames),
+    // Quick links are user-created content, so they roam with backups
+    // (unlike display/nav preferences, which stay device-local).
+    quickLinks: (Array.isArray(s.quickLinks) ? s.quickLinks : [])
+      .filter((l): l is Record<string, unknown> => typeof l === 'object' && l !== null)
+      .map((l, i) => ({
+        id: i + 1,
+        name: str(l.name),
+        url: str(l.url),
+        emoji: str(l.emoji, '🔗'),
+      }))
+      .filter((l) => l.url !== ''),
   };
 
   const sessions = (Array.isArray(root.sessions) ? root.sessions : []).map((raw) => {

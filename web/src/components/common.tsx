@@ -13,6 +13,7 @@ import {
   tableStakesLabel,
 } from '../models/types';
 import { GroupStat, groupHourlyRate } from '../domain/stats';
+import { pinnedDestinations } from '../models/navDestinations';
 import { signedMoney, signedUnits, signedUnitsOrMoney, perHour, formatDate, duration, currencySymbol } from '../domain/format';
 
 export const profitClass = (v: number): string => (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
@@ -338,6 +339,14 @@ function NavIcon({ name }: { name: string }) {
         <path d="M12 2.9v2.6M12 18.5v2.6M2.9 12h2.6M18.5 12h2.6M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8" />
       </>
     ),
+    more: (
+      <>
+        <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+        <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+        <circle cx="12" cy="12" r="9.5" />
+      </>
+    ),
   };
   return (
     <svg
@@ -357,39 +366,32 @@ function NavIcon({ name }: { name: string }) {
   );
 }
 
-const NAV = [
-  { to: '/', label: 'Dashboard', icon: 'stats' },
-  { to: '/sessions', label: 'Poker', icon: 'poker' },
-  { to: '/tables', label: 'Table', icon: 'tables' },
-  { to: '/bets', label: 'Sports', icon: 'bets' },
-  { to: '/tools', label: 'Tools', icon: 'tools' },
-  { to: '/settings', label: 'Settings', icon: 'settings' },
-];
-
 export function NavBar() {
   const { settings } = useAppState();
-  // Dashboard and Settings always show; the rest follow the feature/tab
-  // switches. Poker is poker-only; table games get their own Table tab.
-  const visible = NAV.filter((item) => {
-    if (item.to === '/sessions') return settings.showSessionsTab && settings.showPoker;
-    if (item.to === '/tables') return settings.showSessionsTab && settings.showTableGames;
-    if (item.to === '/bets') return settings.showSports;
-    if (item.to === '/tools') return settings.showPoker;
-    return true;
-  });
+  // Up to five user-pinned destinations (respecting feature switches),
+  // plus the permanent More tab that reaches everything else.
+  const pinned = pinnedDestinations(settings);
   return (
     <nav className="navbar" aria-label="Main navigation">
-      {visible.map((item) => (
+      {pinned.map((dest) => (
         <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.to === '/'}
+          key={dest.key}
+          to={dest.route}
+          end={dest.route === '/'}
           className={({ isActive }) => (isActive ? 'active' : '')}
         >
-          <NavIcon name={item.icon} />
-          <span className="nav-label">{item.label}</span>
+          {dest.icon ? (
+            <NavIcon name={dest.icon} />
+          ) : (
+            <span className="icon nav-emoji" aria-hidden="true">{dest.emoji}</span>
+          )}
+          <span className="nav-label">{dest.label}</span>
         </NavLink>
       ))}
+      <NavLink to="/more" className={({ isActive }) => (isActive ? 'active' : '')}>
+        <NavIcon name="more" />
+        <span className="nav-label">More</span>
+      </NavLink>
     </nav>
   );
 }
