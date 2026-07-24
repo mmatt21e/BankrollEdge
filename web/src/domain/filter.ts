@@ -1,9 +1,9 @@
-// Port of Android SessionFilter (ui/SessionFilter.kt).
+// Session filtering. Grew out of the Android SessionFilter port: every
+// dimension is now multi-select (empty selection = no filter on that
+// dimension), matching the full-screen Filters sheet.
 import {
   Session,
   SessionType,
-  GameType,
-  TableGameType,
   VenueType,
   gameTypeLabel,
   tableGameLabel,
@@ -11,70 +11,109 @@ import {
   stakesLabel,
   tableStakesLabel,
 } from '../models/types';
+import { mondayIndex } from './aggregate';
 
-export type DateRange = 'ALL' | 'THIS_MONTH' | 'LAST_30' | 'THIS_YEAR';
+export type DateRange = 'ALL' | 'YTD' | 'LAST_1Y' | 'LAST_6M' | 'LAST_3M' | 'THIS_MONTH' | 'LAST_30';
 
 export const DATE_RANGE_LABELS: Record<DateRange, string> = {
-  ALL: 'All time',
+  ALL: 'Max',
+  YTD: 'YTD',
+  LAST_1Y: '1Y',
+  LAST_6M: '6M',
+  LAST_3M: '3M',
   THIS_MONTH: 'This month',
-  LAST_30: 'Last 30 days',
-  THIS_YEAR: 'This year',
+  LAST_30: '1M',
 };
 
 export interface SessionFilter {
-  type: SessionType | null;
-  game: GameType | null;
-  /** Only applies to table-game sessions. */
-  tableGame: TableGameType | null;
+  /** Session categories; empty = all. */
+  types: SessionType[];
+  /** Poker game keys; empty = all. Never matches table sessions when set. */
+  games: string[];
+  /** Table game keys; empty = all. Only matches table sessions when set. */
+  tableGames: string[];
   venueType: VenueType | null;
-  location: string | null;
-  tag: string | null;
+  locations: string[];
+  tags: string[];
+  /** Stakes labels as produced by stakesLabel/tableStakesLabel. */
+  stakes: string[];
+  currencies: string[];
+  /** Monday-first weekday indexes (0 = Monday … 6 = Sunday); empty = all. */
+  weekdays: number[];
+  /** Table sizes (players); empty = all. */
+  tableSizes: number[];
   range: DateRange;
   /** Free-text search over venue, notes, game name, stakes and tags. */
   query: string;
 }
 
 export const EMPTY_FILTER: SessionFilter = {
-  type: null,
-  game: null,
-  tableGame: null,
+  types: [],
+  games: [],
+  tableGames: [],
   venueType: null,
-  location: null,
-  tag: null,
+  locations: [],
+  tags: [],
+  stakes: [],
+  currencies: [],
+  weekdays: [],
+  tableSizes: [],
   range: 'ALL',
   query: '',
 };
 
-export const isFilterActive = (f: SessionFilter): boolean =>
-  f.type !== null || f.game !== null || f.tableGame !== null ||
-  f.venueType !== null || f.location !== null || f.tag !== null ||
-  f.range !== 'ALL' || f.query.trim() !== '';
+/** How many dimensions are constrained (drives the Filters badge). */
+export const activeFilterCount = (f: SessionFilter): number =>
+  (f.types.length > 0 ? 1 : 0) +
+  (f.games.length > 0 ? 1 : 0) +
+  (f.tableGames.length > 0 ? 1 : 0) +
+  (f.venueType !== null ? 1 : 0) +
+  (f.locations.length > 0 ? 1 : 0) +
+  (f.tags.length > 0 ? 1 : 0) +
+  (f.stakes.length > 0 ? 1 : 0) +
+  (f.currencies.length > 0 ? 1 : 0) +
+  (f.weekdays.length > 0 ? 1 : 0) +
+  (f.tableSizes.length > 0 ? 1 : 0) +
+  (f.range !== 'ALL' ? 1 : 0) +
+  (f.query.trim() !== '' ? 1 : 0);
+
+export const isFilterActive = (f: SessionFilter): boolean => activeFilterCount(f) > 0;
 
 export function rangeStart(range: DateRange, now: number): number | null {
   const d = new Date(now);
+  const day = 24 * 60 * 60 * 1000;
   switch (range) {
     case 'ALL':
       return null;
     case 'LAST_30':
-      return now - 30 * 24 * 60 * 60 * 1000;
+      return now - 30 * day;
+    case 'LAST_3M':
+      return new Date(d.getFullYear(), d.getMonth() - 3, d.getDate()).getTime();
+    case 'LAST_6M':
+      return new Date(d.getFullYear(), d.getMonth() - 6, d.getDate()).getTime();
+    case 'LAST_1Y':
+      return new Date(d.getFullYear() - 1, d.getMonth(), d.getDate()).getTime();
     case 'THIS_MONTH':
       return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
-    case 'THIS_YEAR':
+    case 'YTD':
       return new Date(d.getFullYear(), 0, 1).getTime();
   }
 }
+
+/** The stakes label a session is matched by (cash blinds or table min/max). */
+export const sessionStakesLabel = (s: Session): string =>
+  isTableSession(s) ? tableStakesLabel(s) : stakesLabel(s);
 
 function matches(s: Session, q: string): boolean {
   const needle = q.toLowerCase();
   const gameLabel = isTableSession(s)
     ? tableGameLabel(s.tableGame)
     : gameTypeLabel(s.gameType);
-  const stakes = isTableSession(s) ? tableStakesLabel(s) : stakesLabel(s);
   return (
     s.location.toLowerCase().includes(needle) ||
     s.notes.toLowerCase().includes(needle) ||
     gameLabel.toLowerCase().includes(needle) ||
-    stakes.toLowerCase().includes(needle) ||
+    sessionStakesLabel(s).toLowerCase().includes(needle) ||
     s.tags.some((t) => t.toLowerCase().includes(needle))
   );
 }
@@ -86,15 +125,27 @@ export function applyFilter(
 ): Session[] {
   const from = rangeStart(filter.range, now);
   const q = filter.query.trim();
-  return sessions.filter(
-    (s) =>
-      (filter.type === null || s.sessionType === filter.type) &&
-      (filter.game === null || (!isTableSession(s) && s.gameType === filter.game)) &&
-      (filter.tableGame === null || (isTableSession(s) && s.tableGame === filter.tableGame)) &&
-      (filter.venueType === null || s.venueType === filter.venueType) &&
-      (filter.location === null || s.location === filter.location) &&
-      (filter.tag === null || s.tags.includes(filter.tag)) &&
-      (from === null || s.startTime >= from) &&
-      (q === '' || matches(s, q)),
-  );
+  const wantsGames = filter.games.length > 0;
+  const wantsTableGames = filter.tableGames.length > 0;
+  return sessions.filter((s) => {
+    if (filter.types.length > 0 && !filter.types.includes(s.sessionType)) return false;
+    // Game selections span both disciplines: a session passes if it matches
+    // either selected list (or no game filter is set at all).
+    if (wantsGames || wantsTableGames) {
+      const gameHit = isTableSession(s)
+        ? wantsTableGames && filter.tableGames.includes(s.tableGame)
+        : wantsGames && filter.games.includes(s.gameType);
+      if (!gameHit) return false;
+    }
+    if (filter.venueType !== null && s.venueType !== filter.venueType) return false;
+    if (filter.locations.length > 0 && !filter.locations.includes(s.location)) return false;
+    if (filter.tags.length > 0 && !filter.tags.some((t) => s.tags.includes(t))) return false;
+    if (filter.stakes.length > 0 && !filter.stakes.includes(sessionStakesLabel(s))) return false;
+    if (filter.currencies.length > 0 && !filter.currencies.includes(s.currency)) return false;
+    if (filter.weekdays.length > 0 && !filter.weekdays.includes(mondayIndex(new Date(s.startTime)))) return false;
+    if (filter.tableSizes.length > 0 && !filter.tableSizes.includes(s.tableSize)) return false;
+    if (from !== null && s.startTime < from) return false;
+    if (q !== '' && !matches(s, q)) return false;
+    return true;
+  });
 }

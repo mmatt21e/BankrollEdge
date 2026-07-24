@@ -55,6 +55,7 @@ interface FormState {
   fieldSize: string;
   bountyPerBounty: string;
   bountyCount: string;
+  reentries: string;
   tableGame: TableGameType;
   tableMinBet: string;
   tableMaxBet: string;
@@ -104,6 +105,7 @@ function fromSession(s: Session): FormState {
     fieldSize: s.fieldSize > 0 ? String(s.fieldSize) : '',
     bountyPerBounty: numStr(s.bountyPerBounty),
     bountyCount: s.bountyCount > 0 ? String(s.bountyCount) : '',
+    reentries: s.reentries > 0 ? String(s.reentries) : '',
     tableGame: s.tableGame,
     tableMinBet: numStr(s.tableMinBet),
     tableMaxBet: numStr(s.tableMaxBet),
@@ -161,6 +163,7 @@ function toSession(form: FormState, id: number): Session {
     fieldSize: i(form.fieldSize),
     bountyPerBounty: f(form.bountyPerBounty),
     bountyCount: i(form.bountyCount),
+    reentries: i(form.reentries),
     tableGame: form.tableGame,
     tableMinBet: f(form.tableMinBet),
     tableMaxBet: f(form.tableMaxBet),
@@ -546,6 +549,7 @@ export default function EditorPage() {
               {intField('Finish position', 'position')}
               {intField('Field size', 'fieldSize')}
             </div>
+            {intField('Re-entries (extra bullets fired)', 'reentries')}
             <div className="row">
               {moneyField('Bounty per knockout', 'bountyPerBounty')}
               {intField('Bounties collected', 'bountyCount')}

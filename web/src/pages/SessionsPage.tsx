@@ -1,75 +1,44 @@
-// Sessions list, scoped to a discipline: the Sessions tab shows poker
-// (non-table) sessions, the Table Games tab shows table-game sessions. Search
-// and the advanced filters are shared; the primary chips and game options
-// follow the scope. Sessions are grouped by month with a net-profit subtotal.
+// Sessions list, scoped to a discipline: the Poker tab shows non-table
+// sessions, the Table tab shows table-game sessions. Search sits inline;
+// every other dimension lives in the full-screen Filters sheet. Sessions are
+// grouped by month with a net-profit subtotal.
+import { useState } from 'react';
 import { useAppState } from '../hooks/useAppState';
-import {
-  SESSION_TYPES,
-  SESSION_TYPE_LABELS,
-  Session,
-  GameType,
-  TableGameType,
-  pokerGameOptions,
-  tableGameOptions,
-  profit,
-} from '../models/types';
-import { DATE_RANGE_LABELS, DateRange, SessionFilter, applyFilter } from '../domain/filter';
+import { Session, profit } from '../models/types';
+import { SessionFilter, activeFilterCount, applyFilter } from '../domain/filter';
 import { computeStats, hourlyRate } from '../domain/stats';
 import { signedMoney, signedUnits, perHour } from '../domain/format';
-import {
-  FilterPanel,
-  MonthHeader,
-  SessionRow,
-  groupByMonth,
-  profitClass,
-} from '../components/common';
+import { MonthHeader, SessionRow, groupByMonth, profitClass } from '../components/common';
+import { FiltersSheet } from '../components/FiltersSheet';
 
 export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'TABLE' }) {
   const app = useAppState();
   const { filter } = app;
   const isTable = scope === 'TABLE';
   const currency = app.settings.currency;
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Restrict the list to this tab's discipline and neutralise filter fields
   // that belong to the other discipline, so poker/table filters never bleed.
   const inScope = (s: Session) => (isTable ? s.sessionType === 'TABLE' : s.sessionType !== 'TABLE');
+  const scoped = app.sessions.filter(inScope);
   const effectiveFilter: SessionFilter = {
     ...filter,
-    type: isTable ? null : filter.type === 'TABLE' ? null : filter.type,
-    game: isTable ? null : filter.game,
-    tableGame: isTable ? filter.tableGame : null,
+    types: isTable ? [] : filter.types.filter((t) => t !== 'TABLE'),
+    games: isTable ? [] : filter.games,
+    tableGames: isTable ? filter.tableGames : [],
   };
-  const list = applyFilter(effectiveFilter, app.sessions, Date.now()).filter(inScope);
+  const list = applyFilter(effectiveFilter, scoped, Date.now());
   const stats = computeStats(list);
-  const scopeTotal = app.sessions.filter(inScope).length;
+
+  // Badge counts everything except the query (the search box shows itself).
+  const filterCount = activeFilterCount({ ...effectiveFilter, query: '' });
 
   // On the Table tab, results show in units when that display is turned on.
   const unitDisplay =
     isTable && app.settings.showTableUnits && app.settings.tableUnitValue > 0
       ? app.settings.tableUnitValue
       : 0;
-
-  // Poker gets session-type chips (Cash / Tournament / …); table games have no
-  // sub-types, so the chips pick a table game (Blackjack / Craps / …) instead.
-  const pokerTypes = SESSION_TYPES.filter((t) => t !== 'TABLE');
-  const tableGames = tableGameOptions(app.settings, app.recordedTableGames);
-
-  const advancedCount =
-    (filter.venueType !== null ? 1 : 0) +
-    (filter.tag !== null ? 1 : 0) +
-    (filter.range !== 'ALL' ? 1 : 0) +
-    (!isTable && filter.game !== null ? 1 : 0) +
-    (filter.location !== null ? 1 : 0);
-
-  const clearAdvanced = () =>
-    app.setFilter({
-      ...filter,
-      venueType: null,
-      tag: null,
-      range: 'ALL',
-      game: null,
-      location: null,
-    });
 
   const months = groupByMonth(list, (s) => s.startTime, profit);
 
@@ -87,156 +56,45 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
         </div>
       </div>
 
-      <div className="field">
-        <label>
-          <span className="visually-hidden">Search sessions</span>
-          <input
-            type="search"
-            placeholder="Search venue, notes, game…"
-            value={filter.query}
-            onChange={(e) => app.setFilter({ ...filter, query: e.target.value })}
-          />
-        </label>
-      </div>
-
-      {isTable ? (
-        <div className="chips" role="group" aria-label="Table game filter">
-          <button
-            type="button"
-            className="chip"
-            aria-pressed={filter.tableGame === null}
-            onClick={() => app.setFilter({ ...filter, tableGame: null })}
-          >
-            All games
-          </button>
-          {tableGames.map((g) => (
-            <button
-              key={g.value}
-              type="button"
-              className="chip"
-              aria-pressed={filter.tableGame === g.value}
-              onClick={() =>
-                app.setFilter({
-                  ...filter,
-                  tableGame: (filter.tableGame === g.value ? null : g.value) as TableGameType | null,
-                })
-              }
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="chips" role="group" aria-label="Session type filter">
-          {/* A TABLE default type doesn't apply here, so treat it as "All". */}
-          {(() => {
-            const activeType = filter.type === 'TABLE' ? null : filter.type;
-            return (
-              <>
-                <button
-                  type="button"
-                  className="chip"
-                  aria-pressed={activeType === null}
-                  onClick={() => app.setFilter({ ...filter, type: null })}
-                >
-                  All types
-                </button>
-                {pokerTypes.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className="chip"
-                    aria-pressed={activeType === t}
-                    onClick={() =>
-                      app.setFilter({ ...filter, type: activeType === t ? null : t })
-                    }
-                  >
-                    {SESSION_TYPE_LABELS[t]}
-                  </button>
-                ))}
-              </>
-            );
-          })()}
-        </div>
-      )}
-
-      <FilterPanel activeCount={advancedCount} onClear={clearAdvanced}>
-        <div className="chips" role="group" aria-label="Date range filter">
-          {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
-            <button
-              key={r}
-              type="button"
-              className="chip"
-              aria-pressed={filter.range === r}
-              onClick={() => app.setFilter({ ...filter, range: r })}
-            >
-              {DATE_RANGE_LABELS[r]}
-            </button>
-          ))}
-        </div>
-
-        <div className="chips" role="group" aria-label="Live or online filter">
-          {(['LIVE', 'ONLINE'] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              className="chip"
-              aria-pressed={filter.venueType === v}
-              onClick={() =>
-                app.setFilter({ ...filter, venueType: filter.venueType === v ? null : v })
-              }
-            >
-              {v === 'LIVE' ? 'Live' : 'Online'}
-            </button>
-          ))}
-          {app.availableTags.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className="chip"
-              aria-pressed={filter.tag === t}
-              onClick={() => app.setFilter({ ...filter, tag: filter.tag === t ? null : t })}
-            >
-              #{t}
-            </button>
-          ))}
-        </div>
-
-        <div className="row">
-          {!isTable && (
-            <label className="field grow">
-              <span>Game</span>
-              <select
-                value={filter.game ?? ''}
-                onChange={(e) =>
-                  app.setFilter({ ...filter, game: (e.target.value || null) as GameType | null })
-                }
-              >
-                <option value="">Any game</option>
-                {pokerGameOptions(app.settings, app.recordedPokerGames).map((g) => (
-                  <option key={g.value} value={g.value}>{g.label}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="field grow">
-            <span>Venue</span>
-            <select
-              value={filter.location ?? ''}
-              onChange={(e) => app.setFilter({ ...filter, location: e.target.value || null })}
-            >
-              <option value="">Any venue</option>
-              {app.availableLocations.map((loc) => (
-                <option key={loc} value={loc}>{loc}</option>
-              ))}
-            </select>
+      <div className="row">
+        <div className="field grow">
+          <label>
+            <span className="visually-hidden">Search sessions</span>
+            <input
+              type="search"
+              placeholder="Search venue, notes, game…"
+              value={filter.query}
+              onChange={(e) => app.setFilter({ ...filter, query: e.target.value })}
+            />
           </label>
         </div>
-      </FilterPanel>
+        <button
+          type="button"
+          className="chip"
+          style={{ alignSelf: 'center' }}
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(true)}
+        >
+          Filters
+          {filterCount > 0 && <span className="chip-badge">{filterCount}</span>}
+        </button>
+      </div>
+
+      {filtersOpen && (
+        <FiltersSheet
+          sessions={scoped}
+          filter={effectiveFilter}
+          onApply={(next) => {
+            app.setFilter({ ...next, query: filter.query });
+            setFiltersOpen(false);
+          }}
+          onClose={() => setFiltersOpen(false)}
+        />
+      )}
 
       {!app.ready ? null : list.length === 0 ? (
         <p className="empty">
-          {scopeTotal === 0
+          {scoped.length === 0
             ? isTable
               ? 'No table-game sessions yet. Tap + to add one.'
               : 'No poker sessions yet. Tap + to add one.'

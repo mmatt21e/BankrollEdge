@@ -23,6 +23,8 @@ import HandNotesPage from '../pages/HandNotesPage';
 import BetsPage from '../pages/BetsPage';
 import BetEditorPage from '../pages/BetEditorPage';
 import MorePage from '../pages/MorePage';
+import DeepStatsPage from '../pages/DeepStatsPage';
+import StatsBreakdownPage from '../pages/StatsBreakdownPage';
 
 export const routes: RouteObject[] = [
   { path: '/', element: <StatsPage /> },
@@ -30,6 +32,8 @@ export const routes: RouteObject[] = [
   { path: '/tables', element: <SessionsPage scope="TABLE" /> },
   { path: '/bets', element: <BetsPage /> },
   { path: '/stats', element: <Navigate to="/" replace /> },
+  { path: '/stats/deep', element: <DeepStatsPage /> },
+  { path: '/stats/by/:dim', element: <StatsBreakdownPage /> },
   { path: '/tools', element: <ToolsPage /> },
   { path: '/more', element: <MorePage /> },
   { path: '/settings', element: <SettingsPage /> },

@@ -100,15 +100,31 @@ export interface Tile {
   className?: string;
 }
 
-export function StatTileGrid({ tiles }: { tiles: Tile[] }) {
+/** Grid of stat tiles. Pass `to` to make every tile tap through to a
+ *  drill-down page (e.g. the dashboard tiles → detailed statistics). */
+export function StatTileGrid({ tiles, to }: { tiles: Tile[]; to?: string }) {
+  const navigate = useNavigate();
   return (
     <div className="tile-grid">
-      {tiles.map((t) => (
-        <div className="tile" key={t.label}>
-          <div className="overline">{t.label}</div>
-          <div className={`value money ${t.className ?? ''}`}>{t.value}</div>
-        </div>
-      ))}
+      {tiles.map((t) =>
+        to ? (
+          <button
+            type="button"
+            className="tile btn-plain"
+            key={t.label}
+            onClick={() => navigate(to)}
+            aria-label={`${t.label}: ${t.value} — open detailed statistics`}
+          >
+            <div className="overline">{t.label}</div>
+            <div className={`value money ${t.className ?? ''}`}>{t.value}</div>
+          </button>
+        ) : (
+          <div className="tile" key={t.label}>
+            <div className="overline">{t.label}</div>
+            <div className={`value money ${t.className ?? ''}`}>{t.value}</div>
+          </div>
+        ),
+      )}
     </div>
   );
 }

@@ -27,8 +27,9 @@ const HEADER =
   'Date,Type,Game,Location,Stakes,DurationMinutes,BuyIn,RebuysAddons,CashOut,Tips,Profit,Position,FieldSize,Currency,Notes,' +
   'LiveOnline,AddOns,Rake,Expenses,HandsPlayed,TableSize,Tags,' +
   'TableGame,TableMinBet,TableMaxBet,UnitValue,UnitsMin,UnitsMax,' +
-  // v1.35 additions: bounty/knockout winnings (older importers ignore them).
-  'BountyPerBounty,BountyCount';
+  // v1.35+ additions (older importers ignore unknown columns): bounty
+  // winnings, then tournament re-entries.
+  'BountyPerBounty,BountyCount,Reentries';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -93,6 +94,7 @@ export function buildCsv(sessions: Session[]): string {
         s.unitsMax,
         s.bountyPerBounty,
         s.bountyCount,
+        s.reentries,
       ].join(','),
     );
   }
@@ -170,6 +172,7 @@ export function parseCsv(csv: string): ImportResult {
       unitsMax: num(row, 'unitsmax'),
       bountyPerBounty: num(row, 'bountyperbounty'),
       bountyCount: int(row, 'bountycount'),
+      reentries: int(row, 'reentries'),
     });
   }
   return { sessions, skippedRows: skipped };

@@ -178,6 +178,8 @@ export interface Session {
   bountyPerBounty: number;
   /** Number of bounties / knockouts collected (0 = none). */
   bountyCount: number;
+  /** Tournament re-entries beyond the first bullet (bullets = 1 + reentries). */
+  reentries: number;
 
   // Table-game fields (only meaningful when sessionType === 'TABLE').
   /** Which pit game was played. */
@@ -488,6 +490,7 @@ export function emptySession(now: number): Session {
     fieldSize: 0,
     bountyPerBounty: 0,
     bountyCount: 0,
+    reentries: 0,
     tableGame: 'BLACKJACK',
     tableMinBet: 0,
     tableMaxBet: 0,

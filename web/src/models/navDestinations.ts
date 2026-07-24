@@ -29,6 +29,7 @@ export const NAV_DESTINATIONS: NavDestination[] = [
   { key: 'table', route: '/tables', label: 'Table', emoji: '🎰', icon: 'tables', title: 'Table-game sessions', blurb: 'Blackjack, craps and other pit sessions.', gate: 'table', group: 'Tracking' },
   { key: 'sports', route: '/bets', label: 'Sports', emoji: '🏈', icon: 'bets', title: 'Sports bets', blurb: 'Open bets, settling and betting stats.', gate: 'sports', group: 'Tracking' },
   { key: 'bankroll', route: '/bankroll', label: 'Bankroll', emoji: '🏦', title: 'Manage bankroll', blurb: 'Deposits, withdrawals and balance history.', group: 'Tracking' },
+  { key: 'deepstats', route: '/stats/deep', label: 'Stats', emoji: '🔢', title: 'Detailed statistics', blurb: 'BB/100, ROI per bullet, and by-week/stake/venue breakdowns.', gate: 'session', group: 'Tracking' },
   { key: 'calendar', route: '/tools/calendar', label: 'Calendar', emoji: '📅', title: 'Poker calendar', blurb: 'Upcoming events with device-calendar reminders.', gate: 'poker', group: 'Tracking' },
   { key: 'tools', route: '/tools', label: 'Tools', emoji: '🧰', icon: 'tools', title: 'Tools hub', blurb: 'All poker tools on one screen.', gate: 'poker', group: 'Poker tools' },
   { key: 'clock', route: '/tools/clock', label: 'Clock', emoji: '⏱', title: 'Tournament clock', blurb: 'Blind levels, breaks and a full-screen display.', gate: 'poker', group: 'Poker tools' },

@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState } from '../hooks/useAppState';
-import { DATE_RANGE_LABELS, DateRange, rangeStart } from '../domain/filter';
+import { activeFilterCount, rangeStart } from '../domain/filter';
 import {
   Statistics,
   hourlyRate,
@@ -26,9 +26,10 @@ import {
   formatDate,
 } from '../domain/format';
 import { computeInsights } from '../domain/insights';
-import { Session, SportsBet, SessionType, VenueType, profit, stakesLabel } from '../models/types';
+import { Session, SportsBet, profit, stakesLabel } from '../models/types';
 import { BarChart, CumulativeProfitChart, DailyHeatmap } from '../components/charts';
 import { StatTileGrid, BreakdownList, SectionCard, SessionRow, profitClass } from '../components/common';
+import { FiltersSheet } from '../components/FiltersSheet';
 import { ClvCard, SportsBreakdownCards, SportsMonthlyCard } from '../components/SportsStats';
 import { LiveSessionCard } from '../components/LiveSessionCard';
 
@@ -60,31 +61,8 @@ export default function StatsPage() {
   }, [app.bets, filter.range]);
   const sportsStats = useMemo(() => computeBetStats(betsInRange), [betsInRange]);
 
-  const quickTypes: [SessionType, string][] = [
-    ...(settings.showPoker
-      ? ([
-          ['CASH', 'Cash'],
-          ['TOURNAMENT', 'Tournaments'],
-        ] as [SessionType, string][])
-      : []),
-    ...(settings.showTableGames ? ([['TABLE', 'Table games']] as [SessionType, string][]) : []),
-  ];
-
-  // Tapping any poker-side chip leaves sports mode and applies the filter.
-  const toggleType = (t: SessionType) => {
-    setDiscipline('POKER');
-    const next = !sports && filter.type === t ? null : t;
-    app.setFilter({
-      ...filter,
-      type: next,
-      game: next === 'TABLE' ? null : filter.game,
-      tableGame: next === 'TABLE' ? filter.tableGame : null,
-    });
-  };
-  const toggleVenue = (v: VenueType) => {
-    setDiscipline('POKER');
-    app.setFilter({ ...filter, venueType: !sports && filter.venueType === v ? null : v });
-  };
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterCount = activeFilterCount(filter);
 
   // Until the database has loaded, render an empty page rather than zeroed
   // balances that flash to the real numbers (or read as "my data is gone").
@@ -124,57 +102,21 @@ export default function StatsPage() {
 
       {settings.showSports && <OpenBetsCard />}
 
-      <div className="chips chips-wrap" role="group" aria-label="Date range">
-        {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
-          <button
-            key={r}
-            type="button"
-            className="chip"
-            aria-pressed={filter.range === r}
-            onClick={() => app.setFilter({ ...filter, range: r })}
-          >
-            {DATE_RANGE_LABELS[r]}
-          </button>
-        ))}
-      </div>
-
-      <div className="chips chips-wrap" role="group" aria-label="Quick filters">
+      <div className="chips chips-wrap" role="group" aria-label="Filters">
         {canSession && (
           <button
             type="button"
             className="chip"
-            aria-pressed={!sports && filter.type === null}
+            aria-expanded={filtersOpen}
             onClick={() => {
               setDiscipline('POKER');
-              app.setFilter({ ...filter, type: null, game: null, tableGame: null });
+              setFiltersOpen(true);
             }}
           >
-            All games
+            Filters
+            {filterCount > 0 && <span className="chip-badge">{filterCount}</span>}
           </button>
         )}
-        {quickTypes.map(([t, label]) => (
-          <button
-            key={t}
-            type="button"
-            className="chip"
-            aria-pressed={!sports && filter.type === t}
-            onClick={() => toggleType(t)}
-          >
-            {label}
-          </button>
-        ))}
-        {canSession &&
-          (['LIVE', 'ONLINE'] as VenueType[]).map((v) => (
-            <button
-              key={v}
-              type="button"
-              className="chip"
-              aria-pressed={!sports && filter.venueType === v}
-              onClick={() => toggleVenue(v)}
-            >
-              {v === 'LIVE' ? 'Live' : 'Online'}
-            </button>
-          ))}
         {settings.showSports && canSession && (
           <button
             type="button"
@@ -191,6 +133,18 @@ export default function StatsPage() {
           </button>
         )}
       </div>
+
+      {filtersOpen && (
+        <FiltersSheet
+          sessions={app.sessions}
+          filter={filter}
+          onApply={(next) => {
+            app.setFilter(next);
+            setFiltersOpen(false);
+          }}
+          onClose={() => setFiltersOpen(false)}
+        />
+      )}
 
       {settings.dashChart && (
         <section className="card col" style={{ gap: 8 }}>
@@ -233,6 +187,7 @@ export default function StatsPage() {
           />
         ) : (
           <StatTileGrid
+            to="/stats/deep"
             tiles={[
               { label: 'Per hour', value: perHour(hourlyRate(stats), currency), className: profitClass(hourlyRate(stats)) },
               { label: 'Win rate', value: percent(winRate(stats)) },
