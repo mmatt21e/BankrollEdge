@@ -19,6 +19,12 @@ import {
   guessBetMapping,
   applyBetMapping,
 } from '../domain/betImportMap';
+import {
+  IMPORT_PRESETS,
+  applyPreset,
+  detectPreset,
+  stripSentinel,
+} from '../domain/importPresets';
 import { betProfit } from '../domain/bets';
 import {
   SessionType,
@@ -73,7 +79,9 @@ export default function ImportPage() {
   /** Validates the text and, if it's usable, loads it. On any problem it sets
    *  a specific message and returns false. [source] names the origin for the
    *  message, e.g. '“trades.csv”' or 'the pasted text'. */
-  const load = (text: string, source: string): boolean => {
+  const load = (rawText: string, source: string): boolean => {
+    // Poker Bankroll Tracker exports lead with a sentinel line — drop it.
+    const text = stripSentinel(rawText);
     const problem = describeCsvProblem(text, source);
     if (problem) {
       setMessage(`Couldn't use ${source}: ${problem}.`);
@@ -93,8 +101,17 @@ export default function ImportPage() {
     setRaw(text);
     setHeaders(h);
     setRows(r);
-    setMapping(kind === 'bets' ? guessBetMapping(h) : guessMapping(h));
-    setMessage('');
+    // Recognized tracker exports get their preset applied automatically;
+    // everything stays adjustable in the mapper below.
+    const preset = kind === 'bets' ? null : detectPreset(h);
+    if (preset) {
+      setMapping(applyPreset(preset, h));
+      setDateFormat(preset.dateFormat);
+      setMessage(`Detected a ${preset.name} export — columns mapped automatically. Review and import.`);
+    } else {
+      setMapping(kind === 'bets' ? guessBetMapping(h) : guessMapping(h));
+      setMessage('');
+    }
     return true;
   };
 
@@ -253,6 +270,27 @@ export default function ImportPage() {
                 Detected {headers.length} columns and {rows.length} rows. We've guessed the matches
                 below — adjust any that are wrong. Anything left as “Not imported” is skipped.
               </p>
+
+              {kind === 'sessions' && (
+                <div className="chips chips-wrap" role="group" aria-label="Import presets">
+                  <span className="muted small" style={{ alignSelf: 'center' }}>Presets:</span>
+                  {IMPORT_PRESETS.map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      className="chip chip-small"
+                      title={p.blurb}
+                      onClick={() => {
+                        setMapping(applyPreset(p, headers));
+                        setDateFormat(p.dateFormat);
+                        setMessage(`${p.name} preset applied — review the mapping below.`);
+                      }}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="row">
                 <label className="field grow">
