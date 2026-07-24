@@ -1,14 +1,19 @@
 // Port of Android BankrollScreen: balance breakdown, deposit/withdraw form,
 // transaction history with delete.
 import { useState } from 'react';
-import { useAppState } from '../hooks/useAppState';
-import { signedAmount, Transaction } from '../models/types';
+import { useNavigate } from 'react-router-dom';
+import { useAppState, useStoreList } from '../hooks/useAppState';
+import { signedAmount, Transaction, Wallet } from '../models/types';
+import { walletStore } from '../storage/db';
 import { money, signedMoney, formatDate } from '../domain/format';
 import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../components/common';
 
 export default function BankrollPage() {
   const app = useAppState();
+  const navigate = useNavigate();
   const back = useBack('/settings');
+  const wallets = useStoreList<Wallet>(walletStore);
+  const walletTotal = wallets.items.reduce((a, w) => a + w.balance, 0);
   const currency = app.settings.currency;
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -55,6 +60,17 @@ export default function BankrollPage() {
               value={money(app.betStats.pendingStake, currency)}
               className="muted"
             />
+          )}
+          {walletTotal > 0 && (
+            <button
+              type="button"
+              className="btn-plain row-between"
+              onClick={() => navigate('/wallets')}
+              aria-label="Open casino balances"
+            >
+              <span className="muted">Casino cards & side rolls (not included) ›</span>
+              <span className="money muted" style={{ fontWeight: 600 }}>{money(walletTotal, currency)}</span>
+            </button>
           )}
         </section>
 

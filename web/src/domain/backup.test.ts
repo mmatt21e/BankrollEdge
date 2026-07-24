@@ -77,6 +77,12 @@ describe('backup', () => {
         { id: 1, kind: 'POKER' as const, smallBlind: 1, bigBlind: 2, minBet: 0, maxBet: 0 },
         { id: 2, kind: 'TABLE' as const, smallBlind: 0, bigBlind: 0, minBet: 25, maxBet: 5000 },
       ],
+      wallets: [
+        { id: 1, name: 'Caesars card', kind: 'CASINO' as const, balance: 250, currency: 'USD', notes: '', updatedAt: 1_700_000_000_000 },
+      ],
+      playerNotes: [
+        { id: 1, name: 'Rich', notes: 'overfolds rivers', updatedAt: 1_700_000_000_000 },
+      ],
       bets: [
         {
           ...emptyBet(1_700_000_222_000),
@@ -123,6 +129,11 @@ describe('backup', () => {
     expect(restored.stakes.find((s) => s.kind === 'POKER')?.bigBlind).toBe(2);
     expect(restored.stakes.find((s) => s.kind === 'TABLE')?.maxBet).toBe(5000);
 
+    // Wallets and player notes round-trip (ids re-assigned on restore).
+    expect(restored.wallets).toHaveLength(1);
+    expect(restored.wallets[0].balance).toBe(250);
+    expect(restored.playerNotes[0].notes).toBe('overfolds rivers');
+
     expect(restored.bets).toHaveLength(1);
     expect(restored.bets[0].id).toBe(0);
     expect(restored.bets[0].pick).toBe('Chiefs -3.5');
@@ -139,7 +150,7 @@ describe('backup', () => {
         ],
       },
       sessions: [], transactions: [], bets: [], handNotes: [], homeGames: [],
-      structures: [], events: [], venues: [], stakes: [],
+      structures: [], events: [], venues: [], stakes: [], wallets: [], playerNotes: [],
     };
     const restored = backupFromJson(backupToJson(backup, 1));
     expect(restored.settings.quickLinks).toEqual([
@@ -174,6 +185,8 @@ describe('backup', () => {
       events: [],
       venues: [],
       stakes: [],
+      wallets: [],
+      playerNotes: [],
     };
     const restored = backupFromJson(backupToJson(backup, 1));
     const s = restored.sessions[0];
@@ -265,6 +278,8 @@ describe('table game backup fields', () => {
       events: [],
       venues: [],
       stakes: [],
+      wallets: [],
+      playerNotes: [],
     };
     const restored = backupFromJson(backupToJson(backup, 1_700_000_000_000));
     const s = restored.sessions[0];

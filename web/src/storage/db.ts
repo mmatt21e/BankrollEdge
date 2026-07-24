@@ -7,17 +7,20 @@ import {
   CalendarEvent,
   HandNote,
   HomeGame,
+  PlayerNote,
   Session,
   SportsBet,
   StakePreset,
   Transaction,
   Venue,
+  Wallet,
 } from '../models/types';
 
 const DB_NAME = 'bankrolledge';
-// v4 adds the saved-venue and stakes-preset pick-lists; existing stores are
-// left untouched by the upgrade.
-const DB_VERSION = 4;
+// v4 adds the saved-venue and stakes-preset pick-lists; v5 adds wallets
+// (casino balances / extra bankroll pots) and player notes. Upgrades only
+// create missing stores — existing data is never touched.
+const DB_VERSION = 5;
 
 const ALL_STORES = [
   'sessions',
@@ -29,6 +32,8 @@ const ALL_STORES = [
   'bets',
   'venues',
   'stakes',
+  'wallets',
+  'playerNotes',
 ] as const;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -189,6 +194,8 @@ export const eventStore = makeStore<CalendarEvent>('events');
 export const betStore = makeStore<SportsBet>('bets');
 export const venueStore = makeStore<Venue>('venues');
 export const stakeStore = makeStore<StakePreset>('stakes');
+export const walletStore = makeStore<Wallet>('wallets');
+export const playerNoteStore = makeStore<PlayerNote>('playerNotes');
 
 // Back-compat facade used by useAppState.
 export const db = {

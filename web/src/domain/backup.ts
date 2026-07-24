@@ -10,8 +10,10 @@ import {
   CalendarEvent,
   HandNote,
   HomeGame,
+  PlayerNote,
   StakePreset,
   Venue,
+  Wallet,
   emptySession,
   normalizeSession,
   normalizeBet,
@@ -19,10 +21,11 @@ import {
 } from '../models/types';
 
 // v2 adds optional session fields plus the tool collections; v3 adds sports
-// bets and betting settings; v4 adds the saved venue and stakes pick-lists.
-// Older readers (including the Android app) ignore unknown keys, and this
-// reader treats missing collections as empty — both directions stay compatible.
-export const FORMAT_VERSION = 4;
+// bets and betting settings; v4 adds the saved venue and stakes pick-lists;
+// v5 adds wallets (casino balances) and player notes. Older readers
+// (including the Android app) ignore unknown keys, and this reader treats
+// missing collections as empty — both directions stay compatible.
+export const FORMAT_VERSION = 5;
 
 export interface Backup {
   settings: AppSettings;
@@ -35,6 +38,8 @@ export interface Backup {
   events: CalendarEvent[];
   venues: Venue[];
   stakes: StakePreset[];
+  wallets: Wallet[];
+  playerNotes: PlayerNote[];
 }
 
 export function backupToJson(backup: Backup, exportedAt: number): string {
@@ -56,6 +61,7 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
         customTableGames: backup.settings.customTableGames,
         hiddenTableGames: backup.settings.hiddenTableGames,
         quickLinks: backup.settings.quickLinks,
+        notepad: backup.settings.notepad,
       },
       sessions: backup.sessions.map(({ id: _id, ...rest }) => rest),
       transactions: backup.transactions.map(({ id: _id, ...rest }) => rest),
@@ -66,6 +72,8 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
       events: backup.events.map(({ id: _id, ...rest }) => rest),
       venues: backup.venues.map(({ id: _id, ...rest }) => rest),
       stakes: backup.stakes.map(({ id: _id, ...rest }) => rest),
+      wallets: backup.wallets.map(({ id: _id, ...rest }) => rest),
+      playerNotes: backup.playerNotes.map(({ id: _id, ...rest }) => rest),
     },
     null,
     2,
@@ -114,6 +122,7 @@ export function backupFromJson(json: string): Backup {
         emoji: str(l.emoji, '🔗'),
       }))
       .filter((l) => l.url !== ''),
+    notepad: str(s.notepad),
   };
 
   const sessions = (Array.isArray(root.sessions) ? root.sessions : []).map((raw) => {
@@ -219,6 +228,8 @@ export function backupFromJson(json: string): Backup {
     handNotes: collection<HandNote>('handNotes', ['tags']),
     homeGames: collection<HomeGame>('homeGames', ['players']),
     structures: collection<BlindStructure>('structures', ['levels']),
+    wallets: collection<Wallet>('wallets'),
+    playerNotes: collection<PlayerNote>('playerNotes'),
     events: collection<CalendarEvent>('events'),
     venues: collection<Venue>('venues'),
     stakes: collection<StakePreset>('stakes'),

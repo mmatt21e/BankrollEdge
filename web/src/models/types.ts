@@ -429,6 +429,8 @@ export interface AppSettings {
   navPins: string[];
   /** User-saved external links shown in the More hub; open in the browser. */
   quickLinks: QuickLink[];
+  /** Free-form quick notepad (More → Notepad). */
+  notepad: string;
 }
 
 /** A user-saved external link (their Pokerbase profile, a tournament
@@ -438,6 +440,27 @@ export interface QuickLink {
   name: string;
   url: string;
   emoji: string;
+}
+
+/** A named money pot outside the main bankroll: money loaded on casino
+ *  cards, or a separate side bankroll. Informational — wallet balances are
+ *  shown alongside (not inside) the tracked bankroll. */
+export interface Wallet {
+  id: number;
+  name: string;
+  kind: 'CASINO' | 'BANKROLL';
+  balance: number;
+  currency: string;
+  notes: string;
+  updatedAt: number;
+}
+
+/** Read on an opponent, keyed by however you know them. */
+export interface PlayerNote {
+  id: number;
+  name: string;
+  notes: string;
+  updatedAt: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -466,6 +489,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   tableUnitValue: 0,
   navPins: ['dashboard', 'poker', 'table', 'sports', 'settings'],
   quickLinks: [],
+  notepad: '',
 };
 
 export function emptySession(now: number): Session {

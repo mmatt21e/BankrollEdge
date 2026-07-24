@@ -43,26 +43,43 @@ export function saveTimerStart(startMillis: number): void {
   }
 }
 
-/** The in-progress session's setup (game, venue, stakes…), or null when idle. */
-export function loadActiveSession(): ActiveSession | null {
+const ACTIVE_LIST_KEY = 'bankrolledge_active_sessions';
+
+/** Backfills fields added after a draft was persisted. */
+function normalizeActive(parsed: ActiveSession): ActiveSession {
+  if (typeof parsed.rebuys !== 'number') parsed.rebuys = 0;
+  if (typeof parsed.bountyPerBounty !== 'number') parsed.bountyPerBounty = 0;
+  if (typeof parsed.bountyCount !== 'number') parsed.bountyCount = 0;
+  return parsed;
+}
+
+/** All in-progress sessions (several can run at once — e.g. a live game and
+ *  an online one). Migrates the legacy single-session key on first load. */
+export function loadActiveSessions(): ActiveSession[] {
   try {
-    const raw = localStorage.getItem(ACTIVE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ActiveSession;
-    // Default fields added after a draft may have been persisted.
-    if (typeof parsed.rebuys !== 'number') parsed.rebuys = 0;
-    if (typeof parsed.bountyPerBounty !== 'number') parsed.bountyPerBounty = 0;
-    if (typeof parsed.bountyCount !== 'number') parsed.bountyCount = 0;
-    return parsed;
+    const raw = localStorage.getItem(ACTIVE_LIST_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ActiveSession[];
+      return Array.isArray(parsed) ? parsed.map(normalizeActive) : [];
+    }
+    // Legacy single-session key → one-element list, then retire the old key.
+    const legacy = localStorage.getItem(ACTIVE_KEY);
+    if (legacy) {
+      const one = normalizeActive(JSON.parse(legacy) as ActiveSession);
+      saveActiveSessions([one]);
+      localStorage.removeItem(ACTIVE_KEY);
+      return [one];
+    }
+    return [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-export function saveActiveSession(session: ActiveSession | null): void {
+export function saveActiveSessions(sessions: ActiveSession[]): void {
   try {
-    if (session) localStorage.setItem(ACTIVE_KEY, JSON.stringify(session));
-    else localStorage.removeItem(ACTIVE_KEY);
+    if (sessions.length > 0) localStorage.setItem(ACTIVE_LIST_KEY, JSON.stringify(sessions));
+    else localStorage.removeItem(ACTIVE_LIST_KEY);
   } catch {
     // best-effort; see saveSettings
   }

@@ -20,38 +20,43 @@ import {
 } from '../models/types';
 import { ConfirmDialog, Dialog, MoneyInput } from './common';
 
+/** All running sessions plus the start action. Several sessions can run at
+ *  once — one card each, targeted by their startedAt handle. */
 export function LiveSessionCard() {
   const app = useAppState();
-  const navigate = useNavigate();
   const [setupOpen, setSetupOpen] = useState(false);
+  return (
+    <>
+      {app.activeSessions.map((active) => (
+        <RunningSessionCard key={active.startedAt} active={active} />
+      ))}
+      {/* Idle (or "start another"): a slim one-line action, not a full card.
+          Starting captures the setup up front so the details are recorded
+          from the moment you sit down. */}
+      <button type="button" className="live-start" onClick={() => setSetupOpen(true)}>
+        <span aria-hidden="true">▶</span>{' '}
+        {app.activeSessions.length > 0 ? 'Start another session' : 'Start live session'}
+      </button>
+      {/* Mounted per open so the form re-reads current defaults each time. */}
+      {setupOpen && (
+        <StartSessionDialog
+          onCancel={() => setSetupOpen(false)}
+          onStart={(setup) => {
+            app.startSession(setup);
+            setSetupOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function RunningSessionCard({ active }: { active: ActiveSession }) {
+  const app = useAppState();
+  const navigate = useNavigate();
   const [rebuyOpen, setRebuyOpen] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const active = app.activeSession;
-  const running = !!active;
-  const now = useNow(running);
-
-  // Idle: a slim one-line action, not a full card. Tapping it captures the
-  // session setup up front so the details are recorded from the moment you
-  // sit down.
-  if (!running || !active) {
-    return (
-      <>
-        <button type="button" className="live-start" onClick={() => setSetupOpen(true)}>
-          <span aria-hidden="true">▶</span> Start live session
-        </button>
-        {/* Mounted per open so the form re-reads current defaults each time. */}
-        {setupOpen && (
-          <StartSessionDialog
-            onCancel={() => setSetupOpen(false)}
-            onStart={(setup) => {
-              app.startSession(setup);
-              setSetupOpen(false);
-            }}
-          />
-        )}
-      </>
-    );
-  }
+  const now = useNow(true);
 
   const isTable = active.sessionType === 'TABLE';
   const isTournament = active.sessionType === 'TOURNAMENT' || active.sessionType === 'SNG';
@@ -66,7 +71,7 @@ export function LiveSessionCard() {
   const stopAndLog = () => {
     const minutes = Math.max(0, Math.floor((Date.now() - active.startedAt) / 60000));
     // The draft prefills the editor; it's cleared once the session is saved.
-    navigate(`/session/new?live=1&duration=${minutes}`);
+    navigate(`/session/new?live=${active.startedAt}&duration=${minutes}`);
   };
 
   return (
@@ -100,7 +105,7 @@ export function LiveSessionCard() {
               className="btn btn-outline"
               aria-label="Remove a bounty"
               disabled={active.bountyCount === 0}
-              onClick={() => app.adjustBounty(-1)}
+              onClick={() => app.adjustBounty(active.startedAt, -1)}
             >
               −
             </button>
@@ -108,7 +113,7 @@ export function LiveSessionCard() {
               type="button"
               className="btn btn-outline"
               aria-label="Add a bounty"
-              onClick={() => app.adjustBounty(1)}
+              onClick={() => app.adjustBounty(active.startedAt, 1)}
             >
               + Bounty
             </button>
@@ -132,7 +137,7 @@ export function LiveSessionCard() {
           currency={active.currency}
           onCancel={() => setRebuyOpen(false)}
           onAdd={(amount) => {
-            app.addRebuy(amount);
+            app.addRebuy(active.startedAt, amount);
             setRebuyOpen(false);
           }}
         />
@@ -145,7 +150,7 @@ export function LiveSessionCard() {
         danger
         onConfirm={() => {
           setConfirmDiscard(false);
-          app.clearSession();
+          app.clearSession(active.startedAt);
         }}
         onCancel={() => setConfirmDiscard(false)}
       />

@@ -42,8 +42,8 @@ import {
   saveSettings,
   loadTimerStart,
   saveTimerStart,
-  loadActiveSession,
-  saveActiveSession,
+  loadActiveSessions,
+  saveActiveSessions,
 } from '../storage/settings';
 
 export interface AppState {
@@ -73,9 +73,8 @@ export interface AppState {
   recordedTableGames: string[];
   /** Stakes presets present in the data (recorded or imported), distinct. */
   recordedStakes: StakePreset[];
-  timerStart: number; // 0 = not running (derived from activeSession)
-  /** The in-progress session's captured setup, or null when idle. */
-  activeSession: ActiveSession | null;
+  /** Every in-progress live session (several can run at once), newest last. */
+  activeSessions: ActiveSession[];
 
   saveSession(session: Session): Promise<void>;
   deleteSession(id: number): Promise<void>;
@@ -91,11 +90,12 @@ export interface AppState {
   updateSettings(patch: Partial<AppSettings>): void;
   setFilter(filter: SessionFilter): void;
   startSession(setup: Omit<ActiveSession, 'startedAt'>): void;
-  /** Adds a rebuy amount to the running session's draft. */
-  addRebuy(amount: number): void;
-  /** Changes the running session's bounty count by delta (clamped at 0). */
-  adjustBounty(delta: number): void;
-  clearSession(): void;
+  /** Adds a rebuy amount to one running session's draft. */
+  addRebuy(startedAt: number, amount: number): void;
+  /** Changes one running session's bounty count by delta (clamped at 0). */
+  adjustBounty(startedAt: number, delta: number): void;
+  /** Ends one running session without logging it. */
+  clearSession(startedAt: number): void;
   importSessions(sessions: Session[]): Promise<number>;
   /** 'replace' wipes current data first (atomically); 'merge' appends the
    *  backup's records to what's already here, keeping this device's settings. */
@@ -140,19 +140,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bets, setBets] = useState<SportsBet[]>([]);
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
-  const [activeSession, setActiveSession] = useState<ActiveSession | null>(() => {
-    const saved = loadActiveSession();
-    if (saved) return saved;
+  const [activeSessions, setActiveSessions] = useState<ActiveSession[]>(() => {
+    const saved = loadActiveSessions();
+    if (saved.length > 0) return saved;
     // Migrate a legacy timestamp-only running timer into a bare draft, then
     // retire the legacy key so a cleared session can't resurrect on refresh.
     const legacy = loadTimerStart();
     if (legacy > 0) {
-      const migrated = bareActiveSession(legacy, loadSettings());
-      saveActiveSession(migrated);
+      const migrated = [bareActiveSession(legacy, loadSettings())];
+      saveActiveSessions(migrated);
       saveTimerStart(0);
       return migrated;
     }
-    return null;
+    return [];
   });
   // The dashboard and session lists always open showing all games; the
   // default-session-type setting only seeds the type for a NEW session.
@@ -266,43 +266,56 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /** Begin a live session, capturing its setup now. Persisted so it survives
-   *  app restarts and can prefill the editor when the session ends. */
+   *  app restarts and can prefill the editor when the session ends. Several
+   *  sessions can run at once; startedAt is each one's unique handle. */
   const startSession = useCallback((setup: Omit<ActiveSession, 'startedAt'>) => {
-    const session: ActiveSession = { ...setup, startedAt: Date.now() };
-    saveActiveSession(session);
-    saveTimerStart(0); // never leave a stale legacy timer behind
-    setActiveSession(session);
+    setActiveSessions((prev) => {
+      let startedAt = Date.now();
+      while (prev.some((s) => s.startedAt === startedAt)) startedAt++;
+      const next = [...prev, { ...setup, startedAt }];
+      saveActiveSessions(next);
+      saveTimerStart(0); // never leave a stale legacy timer behind
+      return next;
+    });
   }, []);
 
-  /** Add a rebuy / re-entry to the in-progress session, accumulating its
+  const patchActive = useCallback(
+    (startedAt: number, patch: (s: ActiveSession) => ActiveSession) => {
+      setActiveSessions((prev) => {
+        const next = prev.map((s) => (s.startedAt === startedAt ? patch(s) : s));
+        saveActiveSessions(next);
+        return next;
+      });
+    },
+    [],
+  );
+
+  /** Add a rebuy / re-entry to an in-progress session, accumulating its
    *  amount so it prefills the editor when the session is logged. */
-  const addRebuy = useCallback((amount: number) => {
-    if (!(amount > 0)) return;
-    setActiveSession((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, rebuys: prev.rebuys + amount };
-      saveActiveSession(next);
-      return next;
-    });
-  }, []);
+  const addRebuy = useCallback(
+    (startedAt: number, amount: number) => {
+      if (!(amount > 0)) return;
+      patchActive(startedAt, (s) => ({ ...s, rebuys: s.rebuys + amount }));
+    },
+    [patchActive],
+  );
 
-  /** Change the running session's bounty count by delta (clamped at 0),
+  /** Change a running session's bounty count by delta (clamped at 0),
    *  for tournaments where you collect knockouts as you go. */
-  const adjustBounty = useCallback((delta: number) => {
-    setActiveSession((prev) => {
-      if (!prev) return prev;
-      const count = Math.max(0, prev.bountyCount + delta);
-      if (count === prev.bountyCount) return prev;
-      const next = { ...prev, bountyCount: count };
-      saveActiveSession(next);
+  const adjustBounty = useCallback(
+    (startedAt: number, delta: number) => {
+      patchActive(startedAt, (s) => ({ ...s, bountyCount: Math.max(0, s.bountyCount + delta) }));
+    },
+    [patchActive],
+  );
+
+  const clearSession = useCallback((startedAt: number) => {
+    setActiveSessions((prev) => {
+      const next = prev.filter((s) => s.startedAt !== startedAt);
+      saveActiveSessions(next);
+      saveTimerStart(0); // clear the legacy key too, so it can't resurrect
       return next;
     });
-  }, []);
-
-  const clearSession = useCallback(() => {
-    saveActiveSession(null);
-    saveTimerStart(0); // clear the legacy key too, so it can't resurrect
-    setActiveSession(null);
   }, []);
 
   /** CSV import: APPENDS to existing data. Returns the number imported.
@@ -350,6 +363,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             events: zeroed(backup.events),
             venues: zeroed(backup.venues),
             stakes: zeroed(backup.stakes),
+            wallets: zeroed(backup.wallets),
+            playerNotes: zeroed(backup.playerNotes),
           });
           // Only data-related settings roam in backups; display/feature
           // preferences (theme, tabs, dashboard cards) stay as this device
@@ -369,6 +384,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
               customTableGames: backup.settings.customTableGames,
               hiddenTableGames: backup.settings.hiddenTableGames,
               quickLinks: backup.settings.quickLinks,
+              notepad: backup.settings.notepad,
             };
             saveSettings(merged);
             return merged;
@@ -407,6 +423,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           saveAll('events', zero(backup.events)),
           saveAll('venues', zero(newVenues)),
           saveAll('stakes', zero(newStakes)),
+          saveAll('wallets', zero(backup.wallets)),
+          saveAll('playerNotes', zero(backup.playerNotes)),
         ]);
         setSessions((prev) =>
           [...prev, ...mergedSessions].sort((a, b) => b.startTime - a.startTime),
@@ -497,8 +515,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       // Distinct stakes present in the data — reuses the same harvest logic as
       // import, so recorded/imported stakes are pickable like venues and games.
       recordedStakes: harvestStakes(sessions, []),
-      timerStart: activeSession?.startedAt ?? 0,
-      activeSession,
+      activeSessions,
       saveSession,
       deleteSession,
       getSession: (id: number) => sessions.find((s) => s.id === id),
@@ -520,7 +537,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       clearData,
     };
   }, [
-    ready, loadError, sessions, transactions, bets, settings, filter, activeSession,
+    ready, loadError, sessions, transactions, bets, settings, filter, activeSessions,
     saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
     addTransaction, deleteTransaction,
     updateSettings, startSession, addRebuy, adjustBounty, clearSession, importSessions, restoreBackup, clearData,

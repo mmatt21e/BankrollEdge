@@ -25,6 +25,9 @@ import BetEditorPage from '../pages/BetEditorPage';
 import MorePage from '../pages/MorePage';
 import DeepStatsPage from '../pages/DeepStatsPage';
 import StatsBreakdownPage from '../pages/StatsBreakdownPage';
+import WalletsPage from '../pages/WalletsPage';
+import NotepadPage from '../pages/NotepadPage';
+import PlayerNotesPage from '../pages/PlayerNotesPage';
 
 export const routes: RouteObject[] = [
   { path: '/', element: <StatsPage /> },
@@ -48,6 +51,9 @@ export const routes: RouteObject[] = [
   { path: '/bet/new', element: <BetEditorPage /> },
   { path: '/bet/:id', element: <BetEditorPage /> },
   { path: '/bankroll', element: <BankrollPage /> },
+  { path: '/wallets', element: <WalletsPage /> },
+  { path: '/notepad', element: <NotepadPage /> },
+  { path: '/players', element: <PlayerNotesPage /> },
   { path: '/tools/clock', element: <ClockPage /> },
   { path: '/tools/home-games', element: <HomeGamesPage /> },
   { path: '/tools/payout', element: <PayoutPage /> },

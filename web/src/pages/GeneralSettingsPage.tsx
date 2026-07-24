@@ -12,9 +12,11 @@ import {
   eventStore,
   handNoteStore,
   homeGameStore,
+  playerNoteStore,
   stakeStore,
   structureStore,
   venueStore,
+  walletStore,
 } from '../storage/db';
 import {
   hasPin,
@@ -235,7 +237,7 @@ export default function GeneralSettingsPage() {
             className="btn btn-outline"
             onClick={async () => {
               // Gather the tool collections so the backup covers everything.
-              const [handNotes, homeGames, structures, events, venues, stakes] =
+              const [handNotes, homeGames, structures, events, venues, stakes, wallets, playerNotes] =
                 await Promise.all([
                   handNoteStore.list(),
                   homeGameStore.list(),
@@ -243,6 +245,8 @@ export default function GeneralSettingsPage() {
                   eventStore.list(),
                   venueStore.list(),
                   stakeStore.list(),
+                  walletStore.list(),
+                  playerNoteStore.list(),
                 ]);
               await exportFile(
                 'bankrolledge_backup.json',
@@ -258,6 +262,8 @@ export default function GeneralSettingsPage() {
                     events,
                     venues,
                     stakes,
+                    wallets,
+                    playerNotes,
                   },
                   Date.now(),
                 ),

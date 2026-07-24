@@ -216,7 +216,14 @@ export default function EditorPage() {
 
   // A live session that's being logged carries its captured setup (game,
   // venue, stakes, buy-in) in the active-session draft — prefill from it.
-  const draft = params.get('live') === '1' ? app.activeSession : null;
+  const liveParam = params.get('live');
+  // ?live=<startedAt> hands a specific running session's draft to the editor
+  // ('1' is the legacy single-session form — take the oldest one).
+  const draft = liveParam
+    ? liveParam === '1'
+      ? app.activeSessions[0] ?? null
+      : app.activeSessions.find((a) => String(a.startedAt) === liveParam) ?? null
+    : null;
   const [form, setForm] = useState<FormState>(() => {
     if (existing) return fromSession(existing);
     if (draft) {
@@ -310,7 +317,7 @@ export default function EditorPage() {
     try {
       await app.saveSession(toSession(form, sessionId));
       // The live session is now logged — retire its draft so the timer resets.
-      if (draft) app.clearSession();
+      if (draft) app.clearSession(draft.startedAt);
       goBack();
     } finally {
       setSaving(false);
