@@ -10,6 +10,7 @@ import {
   isTableSession,
   profit,
   stakesLabel,
+  straddleLabel,
   tableStakesLabel,
 } from '../models/types';
 import { GroupStat, groupHourlyRate } from '../domain/stats';
@@ -160,6 +161,7 @@ export function SessionRow({ session }: { session: Session }) {
         <span className="title">{title}</span>
         <span className="muted small">
           {formatDate(session.startTime)} • {session.location || '—'}
+          {straddleLabel(session) !== '' && ` • ${straddleLabel(session)}`}
         </span>
       </span>
       <span className="col" style={{ gap: 2, alignItems: 'flex-end' }}>

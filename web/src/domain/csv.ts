@@ -28,8 +28,8 @@ const HEADER =
   'LiveOnline,AddOns,Rake,Expenses,HandsPlayed,TableSize,Tags,' +
   'TableGame,TableMinBet,TableMaxBet,UnitValue,UnitsMin,UnitsMax,' +
   // v1.35+ additions (older importers ignore unknown columns): bounty
-  // winnings, then tournament re-entries.
-  'BountyPerBounty,BountyCount,Reentries';
+  // winnings, then tournament re-entries, then cash-game straddles.
+  'BountyPerBounty,BountyCount,Reentries,Straddle,StraddleMin,StraddleMax';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -95,6 +95,9 @@ export function buildCsv(sessions: Session[]): string {
         s.bountyPerBounty,
         s.bountyCount,
         s.reentries,
+        s.straddle === 'NONE' ? '' : s.straddle === 'MANDATORY' ? 'Mandatory' : 'Optional',
+        s.straddleMin,
+        s.straddleMax,
       ].join(','),
     );
   }
@@ -173,9 +176,18 @@ export function parseCsv(csv: string): ImportResult {
       bountyPerBounty: num(row, 'bountyperbounty'),
       bountyCount: int(row, 'bountycount'),
       reentries: int(row, 'reentries'),
+      straddle: parseStraddle(field(row, 'straddle')),
+      straddleMin: num(row, 'straddlemin'),
+      straddleMax: num(row, 'straddlemax'),
     });
   }
   return { sessions, skippedRows: skipped };
+}
+
+function parseStraddle(value: string): Session['straddle'] {
+  if (/mand/i.test(value)) return 'MANDATORY';
+  if (/opt/i.test(value) || /yes/i.test(value)) return 'OPTIONAL';
+  return 'NONE';
 }
 
 function parseType(value: string): SessionType {

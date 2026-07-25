@@ -147,6 +147,10 @@ export function backupFromJson(json: string): Backup {
       durationMinutes: num(o.durationMinutes),
       smallBlind: num(o.smallBlind),
       bigBlind: num(o.bigBlind),
+      // Missing/foreign values fall back to 'NONE' (no straddling).
+      straddle: (oneOf(str(o.straddle), ['OPTIONAL', 'MANDATORY']) || 'NONE') as Session['straddle'],
+      straddleMin: num(o.straddleMin),
+      straddleMax: num(o.straddleMax),
       buyIn: num(o.buyIn),
       rebuysAddons: num(o.rebuysAddons),
       addOns: num(o.addOns),

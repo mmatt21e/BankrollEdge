@@ -3,6 +3,8 @@
 // user data (and Android-app backups) remain fully compatible.
 
 export type SessionType = 'CASH' | 'TOURNAMENT' | 'SNG' | 'HOME' | 'TABLE' | 'OTHER';
+/** Straddling at the table: not in play, allowed, or required every hand. */
+export type StraddleMode = 'NONE' | 'OPTIONAL' | 'MANDATORY';
 /** Built-in key (NLH, PLO, …) or a user-added game name stored verbatim. */
 export type GameType = string;
 export type VenueType = 'LIVE' | 'ONLINE';
@@ -161,6 +163,12 @@ export interface Session {
   durationMinutes: number;
   smallBlind: number;
   bigBlind: number;
+  /** Whether straddles were in play (cash games; 'NONE' = no straddling). */
+  straddle: StraddleMode;
+  /** Straddle amount, or the low end when straddles varied (0 = not recorded). */
+  straddleMin: number;
+  /** High end of the straddle range (0 = a single fixed amount). */
+  straddleMax: number;
   buyIn: number;
   /** Rebuys / re-entries / top-ups. */
   rebuysAddons: number;
@@ -516,6 +524,9 @@ export function emptySession(now: number): Session {
     durationMinutes: 0,
     smallBlind: 0,
     bigBlind: 0,
+    straddle: 'NONE',
+    straddleMin: 0,
+    straddleMax: 0,
     buyIn: 0,
     rebuysAddons: 0,
     addOns: 0,
@@ -581,6 +592,16 @@ export const cashed = (s: Session): boolean => s.cashOut > 0;
 export function stakesLabel(s: Session): string {
   if (isTournamentStyle(s) || isTableSession(s) || s.bigBlind <= 0) return '';
   return `${s.smallBlind}/${s.bigBlind}`;
+}
+
+/** Straddle summary, e.g. "Optional straddle 10", "Mandatory straddle 10–25",
+ *  or "Optional straddle" when no amount was recorded ('' = no straddling). */
+export function straddleLabel(s: Session): string {
+  if (s.straddle === 'NONE') return '';
+  const mode = s.straddle === 'MANDATORY' ? 'Mandatory straddle' : 'Optional straddle';
+  if (s.straddleMin <= 0) return mode;
+  const range = s.straddleMax > s.straddleMin ? `${s.straddleMin}–${s.straddleMax}` : `${s.straddleMin}`;
+  return `${mode} ${range}`;
 }
 
 /** Table bet range, e.g. "10–1000", "10+", "up to 1000" ('' = not recorded). */

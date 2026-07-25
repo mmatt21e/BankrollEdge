@@ -16,6 +16,7 @@ import {
   AlcoholLevel,
   GameQuality,
   YesNo,
+  StraddleMode,
   StakePreset,
   SESSION_TYPES,
   SESSION_TYPE_LABELS,
@@ -44,6 +45,9 @@ interface FormState {
   minutes: string;
   smallBlind: string;
   bigBlind: string;
+  straddle: StraddleMode;
+  straddleMin: string;
+  straddleMax: string;
   buyIn: string;
   rebuysAddons: string;
   addOns: string;
@@ -94,6 +98,9 @@ function fromSession(s: Session): FormState {
     minutes: s.durationMinutes > 0 ? String(s.durationMinutes % 60) : '',
     smallBlind: numStr(s.smallBlind),
     bigBlind: numStr(s.bigBlind),
+    straddle: s.straddle,
+    straddleMin: numStr(s.straddleMin),
+    straddleMax: numStr(s.straddleMax),
     buyIn: numStr(s.buyIn),
     rebuysAddons: numStr(s.rebuysAddons),
     addOns: numStr(s.addOns),
@@ -152,6 +159,9 @@ function toSession(form: FormState, id: number): Session {
     durationMinutes: i(form.hours) * 60 + i(form.minutes),
     smallBlind: isTable ? 0 : f(form.smallBlind),
     bigBlind: isTable ? 0 : f(form.bigBlind),
+    straddle: isTable ? 'NONE' : form.straddle,
+    straddleMin: isTable || form.straddle === 'NONE' ? 0 : f(form.straddleMin),
+    straddleMax: isTable || form.straddle === 'NONE' ? 0 : f(form.straddleMax),
     buyIn: f(form.buyIn),
     rebuysAddons: f(form.rebuysAddons),
     addOns: f(form.addOns),
@@ -520,6 +530,43 @@ export default function EditorPage() {
               {moneyField('Small blind', 'smallBlind')}
               {moneyField('Big blind', 'bigBlind')}
             </div>
+
+            <div className="field">
+              <span>Straddle</span>
+              <div className="segmented" role="group" aria-label="Straddle">
+                {(
+                  [
+                    ['NONE', 'None'],
+                    ['OPTIONAL', 'Optional'],
+                    ['MANDATORY', 'Mandatory'],
+                  ] as [StraddleMode, string][]
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={form.straddle === value}
+                    onClick={() => set({ straddle: value })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {form.straddle !== 'NONE' && (
+              <>
+                <div className="row">
+                  {moneyField('Straddle amount', 'straddleMin')}
+                  {moneyField('Up to (if it varied)', 'straddleMax')}
+                </div>
+                <p className="muted small" style={{ margin: 0 }}>
+                  Enter one amount for a fixed straddle, or fill both for a range (e.g.{' '}
+                  {f(form.smallBlind) > 0 && f(form.bigBlind) > 0
+                    ? `${f(form.bigBlind) * 2}–${f(form.bigBlind) * 4}`
+                    : '10–20'}
+                  ).
+                </p>
+              </>
+            )}
           </>
         )}
 

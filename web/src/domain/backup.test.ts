@@ -195,6 +195,42 @@ describe('backup', () => {
     expect(profit(s)).toBeCloseTo(50, 9); // 3×50 bounties − 100 buy-in
   });
 
+  it('round-trips straddle fields and defaults foreign values to NONE', () => {
+    const backup = {
+      settings: { ...DEFAULT_SETTINGS },
+      sessions: [
+        {
+          ...emptySession(1_700_000_123_456),
+          id: 1,
+          straddle: 'MANDATORY' as const,
+          straddleMin: 10,
+          straddleMax: 25,
+        },
+      ],
+      transactions: [],
+      bets: [],
+      handNotes: [],
+      homeGames: [],
+      structures: [],
+      events: [],
+      venues: [],
+      stakes: [],
+      wallets: [],
+      playerNotes: [],
+    };
+    const restored = backupFromJson(backupToJson(backup, 1));
+    expect(restored.sessions[0].straddle).toBe('MANDATORY');
+    expect(restored.sessions[0].straddleMin).toBe(10);
+    expect(restored.sessions[0].straddleMax).toBe(25);
+
+    // A hand-edited or pre-straddle backup falls back to no straddling.
+    const tampered = JSON.parse(backupToJson(backup, 1));
+    tampered.sessions[0].straddle = 'SOMETIMES';
+    expect(backupFromJson(JSON.stringify(tampered)).sessions[0].straddle).toBe('NONE');
+    delete tampered.sessions[0].straddle;
+    expect(backupFromJson(JSON.stringify(tampered)).sessions[0].straddle).toBe('NONE');
+  });
+
   it('treats v1 backups (no collections) as empty collections', () => {
     const v1 = JSON.stringify({
       app: 'BankrollEdge',

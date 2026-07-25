@@ -104,6 +104,25 @@ describe('parseCsv', () => {
     expect(profit(s)).toBeCloseTo(50, 9); // 3×50 bounties − 100 buy-in
   });
 
+  it('round-trips straddle mode and amounts', () => {
+    const result = parseCsv(
+      buildCsv([
+        { ...emptySession(T0), straddle: 'OPTIONAL', straddleMin: 10, straddleMax: 25 },
+        { ...emptySession(T0 + 1_000_000), straddle: 'MANDATORY', straddleMin: 10 },
+        { ...emptySession(T0 + 2_000_000) },
+      ]),
+    );
+    expect(result.skippedRows).toBe(0);
+    const [optional, mandatory, none] = result.sessions;
+    expect(optional.straddle).toBe('OPTIONAL');
+    expect(optional.straddleMin).toBe(10);
+    expect(optional.straddleMax).toBe(25);
+    expect(mandatory.straddle).toBe('MANDATORY');
+    expect(mandatory.straddleMin).toBe(10);
+    expect(mandatory.straddleMax).toBe(0);
+    expect(none.straddle).toBe('NONE');
+  });
+
   it('skips unparseable rows instead of failing', () => {
     const csv = [
       'Date,Type,Game,Location,Stakes,DurationMinutes,BuyIn,RebuysAddons,CashOut,Tips,Profit,Position,FieldSize,Currency,Notes',
