@@ -25,7 +25,7 @@ import {
   hourLabel,
   formatDate,
 } from '../domain/format';
-import { computeInsights } from '../domain/insights';
+import { computeInsights, selectInsightWindow } from '../domain/insights';
 import { Session, SportsBet, profit, stakesLabel } from '../models/types';
 import { BarChart, CumulativeProfitChart, DailyHeatmap } from '../components/charts';
 import { StatTileGrid, BreakdownList, SectionCard, SessionRow, profitClass } from '../components/common';
@@ -362,14 +362,19 @@ function OpenBetsCard() {
   );
 }
 
-/** Top auto-generated insights from recent sessions. */
+/** Top auto-generated insights over the smallest recent window with enough
+ *  volume to be meaningful — old results don't drown out current form. */
 function Insights() {
   const app = useAppState();
-  const insights = computeInsights(app.sessions, app.settings.currency).slice(0, 3);
+  const window = selectInsightWindow(app.sessions, Date.now());
+  const insights = computeInsights(window.sessions, app.settings.currency).slice(0, 3);
   if (insights.length === 0) return null;
   return (
     <section className="col" aria-label="Insights">
-      <h2>Insights</h2>
+      <div className="row-between" style={{ alignItems: 'baseline' }}>
+        <h2>Insights</h2>
+        <span className="muted small">Based on {window.label}</span>
+      </div>
       {insights.map((ins) => (
         <div key={ins.id} className={`insight ${ins.tone}`}>
           {ins.text}

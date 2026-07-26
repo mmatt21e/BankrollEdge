@@ -20,6 +20,45 @@ export interface Insight {
 const MIN_SESSIONS = 3;
 const MIN_HOURS = 5;
 
+/** Enough recent volume for the insight comparisons to mean something. */
+export const INSIGHT_TARGET_SESSIONS = 20;
+
+const DAY = 86_400_000;
+/** Time windows tried smallest-first; the first with enough sessions wins. */
+const TIME_WINDOWS: { days: number; label: string }[] = [
+  { days: 7, label: 'the last 7 days' },
+  { days: 14, label: 'the last 2 weeks' },
+  { days: 30, label: 'the last 30 days' },
+  { days: 60, label: 'the last 2 months' },
+  { days: 90, label: 'the last 3 months' },
+  { days: 180, label: 'the last 6 months' },
+  { days: 365, label: 'the last 12 months' },
+];
+
+/** Picks the recent slice insights should run over: the smallest recent
+ *  window of days/weeks/months holding enough sessions to be valuable, else
+ *  the last N sessions regardless of age, else everything there is. The
+ *  label says exactly what was used. */
+export function selectInsightWindow(
+  sessions: Session[],
+  now: number,
+): { sessions: Session[]; label: string } {
+  for (const w of TIME_WINDOWS) {
+    const cutoff = now - w.days * DAY;
+    const inWindow = sessions.filter((s) => s.startTime >= cutoff);
+    if (inWindow.length >= INSIGHT_TARGET_SESSIONS) {
+      return { sessions: inWindow, label: `${w.label} (${inWindow.length} sessions)` };
+    }
+  }
+  if (sessions.length > INSIGHT_TARGET_SESSIONS) {
+    const recent = [...sessions]
+      .sort((a, b) => b.startTime - a.startTime)
+      .slice(0, INSIGHT_TARGET_SESSIONS);
+    return { sessions: recent, label: `your last ${INSIGHT_TARGET_SESSIONS} sessions` };
+  }
+  return { sessions, label: `all ${sessions.length} sessions` };
+}
+
 export function computeInsights(sessions: Session[], currency: string): Insight[] {
   const out: Insight[] = [];
   if (sessions.length < MIN_SESSIONS) return out;
