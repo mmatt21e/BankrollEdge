@@ -7,6 +7,7 @@ import { useAppState, useNow } from '../hooks/useAppState';
 import { money, elapsedClock, formatDateTime } from '../domain/format';
 import {
   ActiveSession,
+  PendingDrive,
   SessionType,
   GameType,
   TableGameType,
@@ -20,13 +21,17 @@ import {
 } from '../models/types';
 import { ConfirmDialog, Dialog, MoneyInput } from './common';
 
-/** All running sessions plus the start action. Several sessions can run at
- *  once — one card each, targeted by their startedAt handle. */
+/** All running sessions plus the start actions. Several sessions can run at
+ *  once — one card each, targeted by their startedAt handle. A drive to the
+ *  venue can be clocked before any session exists; starting a session
+ *  consumes it as travel time. */
 export function LiveSessionCard() {
   const app = useAppState();
   const [setupOpen, setSetupOpen] = useState(false);
+  const [driveOpen, setDriveOpen] = useState(false);
   return (
     <>
+      {app.pendingDrive && <DriveCard drive={app.pendingDrive} onStartSession={() => setSetupOpen(true)} />}
       {app.activeSessions.map((active) => (
         <RunningSessionCard key={active.startedAt} active={active} />
       ))}
@@ -37,6 +42,11 @@ export function LiveSessionCard() {
         <span aria-hidden="true">▶</span>{' '}
         {app.activeSessions.length > 0 ? 'Start another session' : 'Start live session'}
       </button>
+      {!app.pendingDrive && (
+        <button type="button" className="live-start" onClick={() => setDriveOpen(true)}>
+          <span aria-hidden="true">🚗</span> Start drive to the venue
+        </button>
+      )}
       {/* Mounted per open so the form re-reads current defaults each time. */}
       {setupOpen && (
         <StartSessionDialog
@@ -47,7 +57,99 @@ export function LiveSessionCard() {
           }}
         />
       )}
+      {driveOpen && (
+        <StartDriveDialog
+          onCancel={() => setDriveOpen(false)}
+          onStart={(location) => {
+            app.startDrive(location);
+            setDriveOpen(false);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+/** The drive-in-progress (or arrived) card. The clock runs until "I've
+ *  arrived" freezes it; starting a session then records it as travel. */
+function DriveCard({ drive, onStartSession }: { drive: PendingDrive; onStartSession: () => void }) {
+  const app = useAppState();
+  const now = useNow(true);
+  const driving = drive.arrivedAt === 0;
+  const elapsed = (driving ? now : drive.arrivedAt) - drive.startedAt;
+  const minutes = Math.max(0, Math.round(elapsed / 60000));
+  return (
+    <section className="card col" style={{ background: 'var(--primary-container)' }}>
+      <div className="overline">{driving ? 'Driving to the venue' : 'Arrived'}</div>
+      <div className="money" style={{ fontSize: '2rem', fontWeight: 700 }} role="timer">
+        {elapsedClock(elapsed)}
+      </div>
+      {drive.location !== '' && <div style={{ fontWeight: 600 }}>{drive.location}</div>}
+      <p className="muted small" style={{ margin: 0 }}>
+        {driving
+          ? 'Tap “I’ve arrived” when you get there, then start your session as usual.'
+          : `${minutes} min drive recorded — it's doubled for the round trip when you log the session.`}
+      </p>
+      <div className="row">
+        <button type="button" className="btn btn-outline grow" onClick={app.cancelDrive}>
+          Cancel drive
+        </button>
+        {driving ? (
+          <button type="button" className="btn grow" onClick={app.markArrived}>
+            I've arrived
+          </button>
+        ) : (
+          <button type="button" className="btn grow" onClick={onStartSession}>
+            ▶ Start session
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Asks where you're driving (optional) and starts the drive clock.
+ *  Render only while open. */
+function StartDriveDialog({
+  onCancel,
+  onStart,
+}: {
+  onCancel: () => void;
+  onStart: (location: string) => void;
+}) {
+  const app = useAppState();
+  const [location, setLocation] = useState('');
+  return (
+    <Dialog label="Start drive" onClose={onCancel}>
+      <h2>Start drive</h2>
+      <p className="muted" style={{ margin: 0 }}>
+        Clocks your travel to the venue. When you start a session after arriving, the drive is
+        recorded as travel time and doubled to estimate the round trip.
+      </p>
+      <label className="field">
+        <span>Destination (optional)</span>
+        <input
+          type="text"
+          list="drive-venue-options"
+          value={location}
+          placeholder="e.g. Bellagio"
+          onChange={(e) => setLocation(e.target.value)}
+        />
+        <datalist id="drive-venue-options">
+          {app.availableLocations.map((loc) => (
+            <option key={loc} value={loc} />
+          ))}
+        </datalist>
+      </label>
+      <div className="actions">
+        <button type="button" className="btn btn-outline" onClick={onCancel}>
+          Cancel
+        </button>
+        <button type="button" className="btn" onClick={() => onStart(location)}>
+          🚗 Start drive
+        </button>
+      </div>
+    </Dialog>
   );
 }
 
@@ -81,7 +183,10 @@ function RunningSessionCard({ active }: { active: ActiveSession }) {
         {elapsedClock(now - active.startedAt)}
       </div>
       {summary && <div style={{ fontWeight: 600 }}>{summary}</div>}
-      <div className="muted">Started {formatDateTime(active.startedAt)}</div>
+      <div className="muted">
+        Started {formatDateTime(active.startedAt)}
+        {active.travelOneWayMinutes > 0 && <> · {active.travelOneWayMinutes} min drive</>}
+      </div>
       {(active.buyIn > 0 || active.rebuys > 0) && (
         <div className="muted">
           Buy-in {money(active.buyIn, active.currency)}
@@ -214,7 +319,7 @@ function StartSessionDialog({
   onStart,
 }: {
   onCancel: () => void;
-  onStart: (setup: Omit<ActiveSession, 'startedAt'>) => void;
+  onStart: (setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>) => void;
 }) {
   const app = useAppState();
   const { settings } = app;
@@ -228,7 +333,8 @@ function StartSessionDialog({
     gameType: 'NLH',
     tableGame: 'BLACKJACK',
     venueType: 'LIVE',
-    location: '',
+    // Arriving from a tracked drive carries its destination in.
+    location: app.pendingDrive?.location ?? '',
     smallBlind: '',
     bigBlind: '',
     buyIn: '',

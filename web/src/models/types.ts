@@ -85,7 +85,18 @@ export interface ActiveSession {
   bountyPerBounty: number;
   /** Number of bounties collected so far while the session is live. */
   bountyCount: number;
+  /** Minutes spent driving to the venue before this session started
+   *  (0 = not tracked). Doubled into the round-trip estimate at log time. */
+  travelOneWayMinutes: number;
   currency: string;
+}
+
+/** A drive to the venue that's underway (or done) before any session starts.
+ *  arrivedAt freezes the clock; 0 = still driving. */
+export interface PendingDrive {
+  startedAt: number;
+  arrivedAt: number;
+  location: string;
 }
 
 /** Appends any recorded/imported values not already present, so game types
@@ -161,6 +172,9 @@ export interface Session {
   location: string;
   startTime: number; // epoch millis
   durationMinutes: number;
+  /** Round-trip travel time in minutes (0 = none). Kept separate from play
+   *  time; folded into hourly rates only when the user opts in. */
+  travelMinutes: number;
   smallBlind: number;
   bigBlind: number;
   /** Whether straddles were in play (cash games; 'NONE' = no straddling). */
@@ -443,6 +457,8 @@ export interface AppSettings {
   savedRanges: SavedRange[];
   /** Playing-card rendering: classic red/black or four-color deck. */
   deckColors: 'TWO' | 'FOUR';
+  /** Fold recorded travel time into hours and hourly rates on stats screens. */
+  travelInHourly: boolean;
 }
 
 /** A user-saved external link (their Pokerbase profile, a tournament
@@ -511,6 +527,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notepad: '',
   savedRanges: [],
   deckColors: 'TWO',
+  travelInHourly: false,
 };
 
 export function emptySession(now: number): Session {
@@ -522,6 +539,7 @@ export function emptySession(now: number): Session {
     location: '',
     startTime: now,
     durationMinutes: 0,
+    travelMinutes: 0,
     smallBlind: 0,
     bigBlind: 0,
     straddle: 'NONE',

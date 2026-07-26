@@ -205,6 +205,7 @@ describe('backup', () => {
           straddle: 'MANDATORY' as const,
           straddleMin: 10,
           straddleMax: 25,
+          travelMinutes: 45,
         },
       ],
       transactions: [],
@@ -222,6 +223,7 @@ describe('backup', () => {
     expect(restored.sessions[0].straddle).toBe('MANDATORY');
     expect(restored.sessions[0].straddleMin).toBe(10);
     expect(restored.sessions[0].straddleMax).toBe(25);
+    expect(restored.sessions[0].travelMinutes).toBe(45);
 
     // A hand-edited or pre-straddle backup falls back to no straddling.
     const tampered = JSON.parse(backupToJson(backup, 1));

@@ -63,6 +63,7 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
         quickLinks: backup.settings.quickLinks,
         notepad: backup.settings.notepad,
         savedRanges: backup.settings.savedRanges,
+        travelInHourly: backup.settings.travelInHourly,
       },
       sessions: backup.sessions.map(({ id: _id, ...rest }) => rest),
       transactions: backup.transactions.map(({ id: _id, ...rest }) => rest),
@@ -112,6 +113,7 @@ export function backupFromJson(json: string): Backup {
     hiddenPokerGames: strArray(s.hiddenPokerGames),
     customTableGames: strArray(s.customTableGames),
     hiddenTableGames: strArray(s.hiddenTableGames),
+    travelInHourly: s.travelInHourly === true,
     // Quick links are user-created content, so they roam with backups
     // (unlike display/nav preferences, which stay device-local).
     quickLinks: (Array.isArray(s.quickLinks) ? s.quickLinks : [])
@@ -145,6 +147,7 @@ export function backupFromJson(json: string): Backup {
       location: str(o.location),
       startTime: num(o.startTime),
       durationMinutes: num(o.durationMinutes),
+      travelMinutes: num(o.travelMinutes),
       smallBlind: num(o.smallBlind),
       bigBlind: num(o.bigBlind),
       // Missing/foreign values fall back to 'NONE' (no straddling).

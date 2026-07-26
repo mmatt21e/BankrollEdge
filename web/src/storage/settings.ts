@@ -1,6 +1,6 @@
 // localStorage persistence for settings + live-timer start — the PWA
 // equivalent of Android SharedPreferences. Nothing here is sensitive.
-import { ActiveSession, AppSettings, DEFAULT_SETTINGS } from '../models/types';
+import { ActiveSession, AppSettings, DEFAULT_SETTINGS, PendingDrive } from '../models/types';
 
 const SETTINGS_KEY = 'bankrolledge_settings';
 const TIMER_KEY = 'bankrolledge_timer_start';
@@ -50,6 +50,7 @@ function normalizeActive(parsed: ActiveSession): ActiveSession {
   if (typeof parsed.rebuys !== 'number') parsed.rebuys = 0;
   if (typeof parsed.bountyPerBounty !== 'number') parsed.bountyPerBounty = 0;
   if (typeof parsed.bountyCount !== 'number') parsed.bountyCount = 0;
+  if (typeof parsed.travelOneWayMinutes !== 'number') parsed.travelOneWayMinutes = 0;
   return parsed;
 }
 
@@ -80,6 +81,35 @@ export function saveActiveSessions(sessions: ActiveSession[]): void {
   try {
     if (sessions.length > 0) localStorage.setItem(ACTIVE_LIST_KEY, JSON.stringify(sessions));
     else localStorage.removeItem(ACTIVE_LIST_KEY);
+  } catch {
+    // best-effort; see saveSettings
+  }
+}
+
+const DRIVE_KEY = 'bankrolledge_pending_drive';
+
+/** The drive-to-the-venue that's underway (or arrived), if any. Survives app
+ *  restarts so closing the app mid-drive doesn't lose the clock. */
+export function loadPendingDrive(): PendingDrive | null {
+  try {
+    const raw = localStorage.getItem(DRIVE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PendingDrive>;
+    if (typeof parsed.startedAt !== 'number' || !(parsed.startedAt > 0)) return null;
+    return {
+      startedAt: parsed.startedAt,
+      arrivedAt: typeof parsed.arrivedAt === 'number' && parsed.arrivedAt > 0 ? parsed.arrivedAt : 0,
+      location: typeof parsed.location === 'string' ? parsed.location : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function savePendingDrive(drive: PendingDrive | null): void {
+  try {
+    if (drive) localStorage.setItem(DRIVE_KEY, JSON.stringify(drive));
+    else localStorage.removeItem(DRIVE_KEY);
   } catch {
     // best-effort; see saveSettings
   }

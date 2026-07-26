@@ -1,6 +1,6 @@
 // Port of Android StatsCalculatorTest + VarianceStatsTest — same expectations.
 import { describe, it, expect } from 'vitest';
-import { computeStats, hourlyRate, roi, winRate, itmRate, bankrollOf } from './stats';
+import { computeStats, hourlyRate, roi, winRate, itmRate, bankrollOf, withTravelTime } from './stats';
 import { Session, emptySession } from '../models/types';
 
 const T0 = 1_700_000_000_000;
@@ -167,6 +167,16 @@ describe('variance stats', () => {
     const stats = computeStats([cash(100, 175, { startTime: eightPm })]);
     expect(stats.hourlyProfit[20]).toBeCloseTo(75, 9);
     expect(stats.hourlyProfit[19]).toBe(0);
+  });
+
+  it('folds travel time into hourly rates only when opted in', () => {
+    // +100 in 1h of play plus a 60-min round trip.
+    const s = cash(100, 200, { travelMinutes: 60 });
+    expect(hourlyRate(computeStats(withTravelTime([s], false)))).toBeCloseTo(100, 9);
+    expect(hourlyRate(computeStats(withTravelTime([s], true)))).toBeCloseTo(50, 9);
+    expect(computeStats(withTravelTime([s], true)).totalHours).toBeCloseTo(2, 9);
+    // The original session object is never mutated.
+    expect(s.durationMinutes).toBe(60);
   });
 
   it('profit buckets cover wins and losses with outliers clamped', () => {

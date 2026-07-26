@@ -146,6 +146,17 @@ const EMPTY: Statistics = {
 };
 
 
+/** When the user opts in (Settings → Display → Statistics), recorded
+ *  round-trip travel time counts as time invested: hours totals and hourly
+ *  rates on stats screens divide by play + travel. Apply this before any
+ *  stats computation; session rows and durations elsewhere stay play-only. */
+export const withTravelTime = (sessions: Session[], includeTravel: boolean): Session[] =>
+  includeTravel
+    ? sessions.map((s) =>
+        s.travelMinutes > 0 ? { ...s, durationMinutes: s.durationMinutes + s.travelMinutes } : s,
+      )
+    : sessions;
+
 export function computeStats(sessions: Session[]): Statistics {
   if (sessions.length === 0) return { ...EMPTY, hourlyProfit: new Array(24).fill(0) };
 

@@ -36,6 +36,7 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   { label: 'Theme', page: 'Display', route: '/settings/display', section: 'theme', keywords: ['dark', 'light', 'system', 'appearance', 'mode', 'color'] },
   { label: 'Card deck colors', page: 'Display', route: '/settings/display', section: 'deck', keywords: ['four', 'two', '4-color', '2-color', 'suits', 'diamonds', 'clubs', 'cards'], gate: 'poker' },
   { label: 'Dashboard cards', page: 'Display', route: '/settings/display', section: 'dash', keywords: ['chart', 'tiles', 'heatmap', 'calendar', 'snapshot', 'home', 'profit graph'] },
+  { label: 'Travel time in hourly rates', page: 'Display', route: '/settings/display', section: 'stats', keywords: ['drive', 'driving', 'commute', 'travel', '$/hr', 'per hour', 'statistics', 'rate'] },
 
   // Poker
   { label: 'Default session type', page: 'Poker', route: '/settings/poker', section: 'default-type', keywords: ['cash', 'tournament', 'preselect', 'new session'], gate: 'poker' },

@@ -104,6 +104,12 @@ describe('parseCsv', () => {
     expect(profit(s)).toBeCloseTo(50, 9); // 3×50 bounties − 100 buy-in
   });
 
+  it('round-trips travel minutes', () => {
+    const result = parseCsv(buildCsv([{ ...emptySession(T0), travelMinutes: 90 }]));
+    expect(result.skippedRows).toBe(0);
+    expect(result.sessions[0].travelMinutes).toBe(90);
+  });
+
   it('round-trips straddle mode and amounts', () => {
     const result = parseCsv(
       buildCsv([

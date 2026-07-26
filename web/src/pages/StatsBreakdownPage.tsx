@@ -9,6 +9,7 @@ import {
   breakdownBy,
 } from '../domain/deepStats';
 import { isTournamentStyle } from '../models/types';
+import { withTravelTime } from '../domain/stats';
 import { BreakdownList, TopBar, useBack } from '../components/common';
 
 export default function StatsBreakdownPage() {
@@ -26,7 +27,10 @@ export default function StatsBreakdownPage() {
     if (scope === 'tournament') return isTournamentStyle(s);
     return true;
   });
-  const groups = breakdownBy(meta.key as BreakdownDim, sessions);
+  const groups = breakdownBy(
+    meta.key as BreakdownDim,
+    withTravelTime(sessions, app.settings.travelInHourly),
+  );
   const scopeLabel =
     scope === 'cash' ? 'cash games' : scope === 'tournament' ? 'tournaments' : 'all games';
 

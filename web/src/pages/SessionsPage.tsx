@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useAppState } from '../hooks/useAppState';
 import { Session, profit } from '../models/types';
 import { SessionFilter, activeFilterCount, applyFilter } from '../domain/filter';
-import { computeStats, hourlyRate } from '../domain/stats';
+import { computeStats, hourlyRate, withTravelTime } from '../domain/stats';
 import { signedMoney, signedUnits, perHour } from '../domain/format';
 import { MonthHeader, SessionRow, groupByMonth, profitClass } from '../components/common';
 import { FiltersSheet } from '../components/FiltersSheet';
@@ -29,7 +29,8 @@ export default function SessionsPage({ scope = 'POKER' }: { scope?: 'POKER' | 'T
     tableGames: isTable ? filter.tableGames : [],
   };
   const list = applyFilter(effectiveFilter, scoped, Date.now());
-  const stats = computeStats(list);
+  // Rows keep play-time durations; only the header stats fold travel in.
+  const stats = computeStats(withTravelTime(list, app.settings.travelInHourly));
 
   // Badge counts everything except the query (the search box shows itself).
   const filterCount = activeFilterCount({ ...effectiveFilter, query: '' });

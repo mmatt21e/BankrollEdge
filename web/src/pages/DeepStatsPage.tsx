@@ -10,7 +10,7 @@ import {
   computeCashDeep,
   computeTournamentDeep,
 } from '../domain/deepStats';
-import { avgProfit, hourlyRate, winRate } from '../domain/stats';
+import { avgProfit, hourlyRate, winRate, withTravelTime } from '../domain/stats';
 import { money, percent, perHour, signedMoney } from '../domain/format';
 import { StatTileGrid, TopBar, profitClass, useBack } from '../components/common';
 import { FiltersSheet } from '../components/FiltersSheet';
@@ -25,7 +25,7 @@ export default function DeepStatsPage() {
   const [scope, setScope] = useState<Scope>('ALL');
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const sessions = app.filteredSessions;
+  const sessions = withTravelTime(app.filteredSessions, app.settings.travelInHourly);
   const all = app.filteredStats;
   const cash = computeCashDeep(sessions);
   const tourney = computeTournamentDeep(sessions);

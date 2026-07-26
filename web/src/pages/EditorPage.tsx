@@ -43,6 +43,7 @@ interface FormState {
   time: string; // HH:mm
   hours: string;
   minutes: string;
+  travelMinutes: string;
   smallBlind: string;
   bigBlind: string;
   straddle: StraddleMode;
@@ -96,6 +97,7 @@ function fromSession(s: Session): FormState {
     time: toTimeInput(s.startTime),
     hours: s.durationMinutes > 0 ? String(Math.floor(s.durationMinutes / 60)) : '',
     minutes: s.durationMinutes > 0 ? String(s.durationMinutes % 60) : '',
+    travelMinutes: s.travelMinutes > 0 ? String(s.travelMinutes) : '',
     smallBlind: numStr(s.smallBlind),
     bigBlind: numStr(s.bigBlind),
     straddle: s.straddle,
@@ -157,6 +159,7 @@ function toSession(form: FormState, id: number): Session {
     location: form.location.trim(),
     startTime: new Date(y, (mo || 1) - 1, d || 1, h || 0, mi || 0).getTime(),
     durationMinutes: i(form.hours) * 60 + i(form.minutes),
+    travelMinutes: i(form.travelMinutes),
     smallBlind: isTable ? 0 : f(form.smallBlind),
     bigBlind: isTable ? 0 : f(form.bigBlind),
     straddle: isTable ? 'NONE' : form.straddle,
@@ -241,6 +244,8 @@ export default function EditorPage() {
       return fromSession({
         ...emptySession(draft.startedAt),
         durationMinutes: duration,
+        // A tracked drive to the venue is doubled to estimate the round trip.
+        travelMinutes: draft.travelOneWayMinutes * 2,
         sessionType: draft.sessionType,
         gameType: draft.gameType,
         tableGame: draft.tableGame,
@@ -626,7 +631,7 @@ export default function EditorPage() {
         </details>
 
         <details className="card">
-          <summary>More details (tags, hands, table size)</summary>
+          <summary>More details (tags, hands, travel time)</summary>
           <div className="col" style={{ marginTop: 10 }}>
             <label className="field">
               <span>Tags (comma-separated, e.g. "deepstack, friday")</span>
@@ -636,6 +641,11 @@ export default function EditorPage() {
               {intField('Hands played', 'handsPlayed')}
               {intField('Table size', 'tableSize')}
             </div>
+            {intField('Travel time (round trip, minutes)', 'travelMinutes')}
+            <p className="muted small" style={{ margin: 0 }}>
+              Time spent getting to and from the venue. Counted in hourly rates only if you
+              turn that on in Settings → Display → Statistics.
+            </p>
           </div>
         </details>
 

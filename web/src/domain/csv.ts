@@ -28,8 +28,9 @@ const HEADER =
   'LiveOnline,AddOns,Rake,Expenses,HandsPlayed,TableSize,Tags,' +
   'TableGame,TableMinBet,TableMaxBet,UnitValue,UnitsMin,UnitsMax,' +
   // v1.35+ additions (older importers ignore unknown columns): bounty
-  // winnings, then tournament re-entries, then cash-game straddles.
-  'BountyPerBounty,BountyCount,Reentries,Straddle,StraddleMin,StraddleMax';
+  // winnings, then tournament re-entries, then cash-game straddles, then
+  // round-trip travel time.
+  'BountyPerBounty,BountyCount,Reentries,Straddle,StraddleMin,StraddleMax,TravelMinutes';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -98,6 +99,7 @@ export function buildCsv(sessions: Session[]): string {
         s.straddle === 'NONE' ? '' : s.straddle === 'MANDATORY' ? 'Mandatory' : 'Optional',
         s.straddleMin,
         s.straddleMax,
+        s.travelMinutes,
       ].join(','),
     );
   }
@@ -179,6 +181,7 @@ export function parseCsv(csv: string): ImportResult {
       straddle: parseStraddle(field(row, 'straddle')),
       straddleMin: num(row, 'straddlemin'),
       straddleMax: num(row, 'straddlemax'),
+      travelMinutes: int(row, 'travelminutes'),
     });
   }
   return { sessions, skippedRows: skipped };
