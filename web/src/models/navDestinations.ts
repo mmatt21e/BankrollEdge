@@ -32,6 +32,7 @@ export const NAV_DESTINATIONS: NavDestination[] = [
   { key: 'deepstats', route: '/stats/deep', label: 'Stats', emoji: '🔢', title: 'Detailed statistics', blurb: 'BB/100, ROI per bullet, and by-week/stake/venue breakdowns.', gate: 'session', group: 'Analysis' },
   { key: 'calendar', route: '/tools/calendar', label: 'Calendar', emoji: '📅', title: 'Poker calendar', blurb: 'Upcoming events with device-calendar reminders.', gate: 'poker', group: 'Tracking' },
   { key: 'wallets', route: '/wallets', label: 'Wallets', emoji: '💳', title: 'Casino balances', blurb: 'Money on casino cards and side bankrolls.', group: 'Tracking' },
+  { key: 'travel', route: '/travel', label: 'Travel', emoji: '🚗', title: 'Travel log', blurb: 'Drives not tied to a session, plus overall travel totals.', gate: 'session', group: 'Tracking' },
   { key: 'notepad', route: '/notepad', label: 'Notepad', emoji: '📝', title: 'Notepad', blurb: 'A quick place to write things down.', group: 'App' },
   { key: 'players', route: '/players', label: 'Players', emoji: '🧑‍🤝‍🧑', title: 'Player notes', blurb: 'Reads on opponents, searchable.', gate: 'poker', group: 'Poker tools' },
   { key: 'odds', route: '/tools/odds', label: 'Odds', emoji: '🎯', title: 'Odds calculator', blurb: "Equity for Hold'em and Omaha (incl. Hi/Lo), with ranges.", gate: 'poker', group: 'Poker tools' },

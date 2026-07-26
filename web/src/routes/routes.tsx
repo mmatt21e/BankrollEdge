@@ -30,6 +30,7 @@ import MorePage from '../pages/MorePage';
 import DeepStatsPage from '../pages/DeepStatsPage';
 import StatsBreakdownPage from '../pages/StatsBreakdownPage';
 import WalletsPage from '../pages/WalletsPage';
+import TravelLogPage from '../pages/TravelLogPage';
 import OddsPage from '../pages/OddsPage';
 import MRatioPage from '../pages/MRatioPage';
 import ReportPage from '../pages/ReportPage';
@@ -67,6 +68,7 @@ export const routes: RouteObject[] = [
   { path: '/bet/:id', element: <BetEditorPage /> },
   { path: '/bankroll', element: <BankrollPage /> },
   { path: '/wallets', element: <WalletsPage /> },
+  { path: '/travel', element: <TravelLogPage /> },
   { path: '/notepad', element: <NotepadPage /> },
   { path: '/report', element: <ReportPage /> },
   { path: '/players', element: <PlayerNotesPage /> },

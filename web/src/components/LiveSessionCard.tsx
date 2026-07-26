@@ -75,6 +75,9 @@ export function LiveSessionCard() {
         <AttachTravelDialog
           drive={app.pendingDrive}
           onChoose={(attach) => {
+            // Declining files the drive in the Travel log as overall travel,
+            // so it never prompts again.
+            if (!attach) app.logDriveUnattached();
             app.startSession(pendingSetup, attach);
             setPendingSetup(null);
           }}
@@ -161,8 +164,8 @@ function AttachTravelDialog({
           Start without travel
         </button>
         <p className="muted small" style={{ margin: 0 }}>
-          "Without travel" keeps the drive on the dashboard for another session (or cancel it
-          there).
+          "Without travel" saves the drive to your Travel log as overall travel instead — you
+          won't be asked about it again. You can still edit any session's travel by hand.
         </p>
       </div>
       <div className="actions">

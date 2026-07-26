@@ -195,6 +195,34 @@ describe('backup', () => {
     expect(profit(s)).toBeCloseTo(50, 9); // 3×50 bounties − 100 buy-in
   });
 
+  it('round-trips the travel log and drops malformed entries', () => {
+    const backup = {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        travelLog: [{ id: 7, time: 1_700_000_000_000, minutes: 35, location: 'Bellagio' }],
+      },
+      sessions: [],
+      transactions: [],
+      bets: [],
+      handNotes: [],
+      homeGames: [],
+      structures: [],
+      events: [],
+      venues: [],
+      stakes: [],
+      wallets: [],
+      playerNotes: [],
+    };
+    const restored = backupFromJson(backupToJson(backup, 1));
+    expect(restored.settings.travelLog).toEqual([
+      { id: 1, time: 1_700_000_000_000, minutes: 35, location: 'Bellagio' }, // id re-assigned
+    ]);
+
+    const tampered = JSON.parse(backupToJson(backup, 1));
+    tampered.settings.travelLog = ['junk', { minutes: 10 }, { time: 5, minutes: 0 }];
+    expect(backupFromJson(JSON.stringify(tampered)).settings.travelLog).toEqual([]);
+  });
+
   it('round-trips straddle fields and defaults foreign values to NONE', () => {
     const backup = {
       settings: { ...DEFAULT_SETTINGS },

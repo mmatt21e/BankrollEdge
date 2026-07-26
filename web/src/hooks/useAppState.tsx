@@ -105,6 +105,9 @@ export interface AppState {
   /** Freeze the drive clock on arrival; the next session started picks it up. */
   markArrived(): void;
   cancelDrive(): void;
+  /** The user declined to tie the drive to a session: move it to the Travel
+   *  log as overall travel and stop asking about it. */
+  logDriveUnattached(): void;
   /** Adds a rebuy amount to one running session's draft. */
   addRebuy(startedAt: number, amount: number): void;
   /** Changes one running session's bounty count by delta (clamped at 0). */
@@ -327,6 +330,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     savePendingDrive(null);
     setPendingDrive(null);
   }, []);
+
+  const logDriveUnattached = useCallback(() => {
+    if (!pendingDrive) return;
+    const end = pendingDrive.arrivedAt > 0 ? pendingDrive.arrivedAt : Date.now();
+    const minutes = Math.max(1, Math.round((end - pendingDrive.startedAt) / 60000));
+    setSettings((prev) => {
+      const entry = {
+        id: Math.max(0, ...prev.travelLog.map((t) => t.id)) + 1,
+        time: pendingDrive.startedAt,
+        minutes,
+        location: pendingDrive.location,
+      };
+      const next = { ...prev, travelLog: [...prev.travelLog, entry] };
+      saveSettings(next);
+      return next;
+    });
+    savePendingDrive(null);
+    setPendingDrive(null);
+  }, [pendingDrive]);
 
   const patchActive = useCallback(
     (startedAt: number, patch: (s: ActiveSession) => ActiveSession) => {
@@ -584,6 +606,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       startDrive,
       markArrived,
       cancelDrive,
+      logDriveUnattached,
       addRebuy,
       adjustBounty,
       clearSession,
@@ -595,7 +618,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     ready, loadError, sessions, transactions, bets, settings, filter, activeSessions, pendingDrive,
     saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
     addTransaction, deleteTransaction,
-    updateSettings, startSession, startDrive, markArrived, cancelDrive,
+    updateSettings, startSession, startDrive, markArrived, cancelDrive, logDriveUnattached,
     addRebuy, adjustBounty, clearSession, importSessions, restoreBackup, clearData,
   ]);
 

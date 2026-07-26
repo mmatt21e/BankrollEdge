@@ -64,6 +64,7 @@ export function backupToJson(backup: Backup, exportedAt: number): string {
         notepad: backup.settings.notepad,
         savedRanges: backup.settings.savedRanges,
         travelInHourly: backup.settings.travelInHourly,
+        travelLog: backup.settings.travelLog,
       },
       sessions: backup.sessions.map(({ id: _id, ...rest }) => rest),
       transactions: backup.transactions.map(({ id: _id, ...rest }) => rest),
@@ -126,6 +127,17 @@ export function backupFromJson(json: string): Backup {
       }))
       .filter((l) => l.url !== ''),
     notepad: str(s.notepad),
+    // Unattached drives are user data like quick links: shape-checked,
+    // ids re-assigned, malformed entries dropped.
+    travelLog: (Array.isArray(s.travelLog) ? s.travelLog : [])
+      .filter((t): t is Record<string, unknown> => typeof t === 'object' && t !== null)
+      .map((t, i) => ({
+        id: i + 1,
+        time: num(t.time),
+        minutes: num(t.minutes),
+        location: str(t.location),
+      }))
+      .filter((t) => t.time > 0 && t.minutes > 0),
     savedRanges: (Array.isArray(s.savedRanges) ? s.savedRanges : [])
       .filter((r): r is Record<string, unknown> => typeof r === 'object' && r !== null)
       .map((r, i) => ({ id: i + 1, name: str(r.name), cells: strArray(r.cells) }))

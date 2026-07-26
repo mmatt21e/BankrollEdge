@@ -99,6 +99,16 @@ export interface PendingDrive {
   location: string;
 }
 
+/** A recorded drive the user chose NOT to tie to a session — kept as overall
+ *  travel in the Travel log rather than counted against any session. */
+export interface TravelEntry {
+  id: number;
+  /** When the drive started (epoch millis). */
+  time: number;
+  minutes: number;
+  location: string;
+}
+
 /** Appends any recorded/imported values not already present, so game types
  *  that came in from a data import always appear (even if not configured or
  *  the built-in was hidden). */
@@ -459,6 +469,9 @@ export interface AppSettings {
   deckColors: 'TWO' | 'FOUR';
   /** Fold recorded travel time into hours and hourly rates on stats screens. */
   travelInHourly: boolean;
+  /** Drives recorded without a session (declined at the attach prompt or
+   *  added by hand). User data — roams with backups. */
+  travelLog: TravelEntry[];
 }
 
 /** A user-saved external link (their Pokerbase profile, a tournament
@@ -528,6 +541,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   savedRanges: [],
   deckColors: 'TWO',
   travelInHourly: false,
+  travelLog: [],
 };
 
 export function emptySession(now: number): Session {
