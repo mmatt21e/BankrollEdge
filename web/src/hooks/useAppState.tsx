@@ -94,8 +94,12 @@ export interface AppState {
   deleteTransaction(id: number): Promise<void>;
   updateSettings(patch: Partial<AppSettings>): void;
   setFilter(filter: SessionFilter): void;
-  /** Begins a live session; any pending drive is consumed as its travel time. */
-  startSession(setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>): void;
+  /** Begins a live session. attachDrive ties any pending drive to it as
+   *  travel time; false leaves the drive pending on the dashboard. */
+  startSession(
+    setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>,
+    attachDrive?: boolean,
+  ): void;
   /** Start the drive-to-the-venue clock (before any session exists). */
   startDrive(location: string): void;
   /** Freeze the drive clock on arrival; the next session started picks it up. */
@@ -282,11 +286,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
    *  app restarts and can prefill the editor when the session ends. Several
    *  sessions can run at once; startedAt is each one's unique handle. */
   const startSession = useCallback(
-    (setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>) => {
-      // A pending drive ends here: its elapsed time becomes this session's
-      // one-way travel (doubled into the round-trip estimate at log time).
+    (setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>, attachDrive = true) => {
+      // A pending drive ends here (when the user ties it to this session):
+      // its elapsed time becomes the session's one-way travel.
       let travelOneWayMinutes = 0;
-      if (pendingDrive) {
+      if (pendingDrive && attachDrive) {
         const end = pendingDrive.arrivedAt > 0 ? pendingDrive.arrivedAt : Date.now();
         travelOneWayMinutes = Math.max(0, Math.round((end - pendingDrive.startedAt) / 60000));
         savePendingDrive(null);

@@ -1,7 +1,7 @@
 // Live-session card for the dashboard: start a session (capturing its setup
 // up front), watch the running clock, add rebuys / bounties, then stop & log.
 // Moved out of the old Play screen when it merged into the Dashboard.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useNow } from '../hooks/useAppState';
 import { money, elapsedClock, formatDateTime } from '../domain/format';
@@ -29,6 +29,17 @@ export function LiveSessionCard() {
   const app = useAppState();
   const [setupOpen, setSetupOpen] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
+  // Setup captured but waiting on the "tie your drive to this session?" answer.
+  const [pendingSetup, setPendingSetup] =
+    useState<Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'> | null>(null);
+  // If the drive disappears while the question is up (cancelled elsewhere),
+  // start the session without travel rather than stranding the setup.
+  useEffect(() => {
+    if (pendingSetup && !app.pendingDrive) {
+      app.startSession(pendingSetup);
+      setPendingSetup(null);
+    }
+  }, [pendingSetup, app]);
   return (
     <>
       {app.pendingDrive && <DriveCard drive={app.pendingDrive} onStartSession={() => setSetupOpen(true)} />}
@@ -52,9 +63,22 @@ export function LiveSessionCard() {
         <StartSessionDialog
           onCancel={() => setSetupOpen(false)}
           onStart={(setup) => {
-            app.startSession(setup);
             setSetupOpen(false);
+            // A recorded drive exists: ask whether it belongs to this session
+            // instead of silently attaching it.
+            if (app.pendingDrive) setPendingSetup(setup);
+            else app.startSession(setup);
           }}
+        />
+      )}
+      {pendingSetup && app.pendingDrive && (
+        <AttachTravelDialog
+          drive={app.pendingDrive}
+          onChoose={(attach) => {
+            app.startSession(pendingSetup, attach);
+            setPendingSetup(null);
+          }}
+          onCancel={() => setPendingSetup(null)}
         />
       )}
       {driveOpen && (
@@ -88,7 +112,7 @@ function DriveCard({ drive, onStartSession }: { drive: PendingDrive; onStartSess
       <p className="muted small" style={{ margin: 0 }}>
         {driving
           ? 'Tap “I’ve arrived” when you get there, then start your session as usual.'
-          : `${minutes} min drive recorded — it's doubled for the round trip when you log the session.`}
+          : `${minutes} min drive recorded — you'll be asked to tie it to your next session, and whether to count the round trip when you log it.`}
       </p>
       <div className="row">
         <button type="button" className="btn btn-outline grow" onClick={app.cancelDrive}>
@@ -108,6 +132,48 @@ function DriveCard({ drive, onStartSession }: { drive: PendingDrive; onStartSess
   );
 }
 
+/** "You drove here — does that trip belong to this session?" Attaching
+ *  records it as travel; declining leaves the drive on the dashboard.
+ *  Render only while open. */
+function AttachTravelDialog({
+  drive,
+  onChoose,
+  onCancel,
+}: {
+  drive: PendingDrive;
+  onChoose: (attach: boolean) => void;
+  onCancel: () => void;
+}) {
+  const end = drive.arrivedAt > 0 ? drive.arrivedAt : Date.now();
+  const minutes = Math.max(0, Math.round((end - drive.startedAt) / 60000));
+  return (
+    <Dialog label="Tie travel to this session" role="alertdialog" onClose={onCancel}>
+      <h2>Tie your drive to this session?</h2>
+      <p className="muted" style={{ margin: 0 }}>
+        You recorded a {minutes} min drive{drive.location ? ` to ${drive.location}` : ''}. Attach
+        it to this session as travel time?
+      </p>
+      <div className="col" style={{ gap: 8 }}>
+        <button type="button" className="btn" onClick={() => onChoose(true)}>
+          Attach {minutes} min drive
+        </button>
+        <button type="button" className="btn btn-outline" onClick={() => onChoose(false)}>
+          Start without travel
+        </button>
+        <p className="muted small" style={{ margin: 0 }}>
+          "Without travel" keeps the drive on the dashboard for another session (or cancel it
+          there).
+        </p>
+      </div>
+      <div className="actions">
+        <button type="button" className="btn btn-outline" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </Dialog>
+  );
+}
+
 /** Asks where you're driving (optional) and starts the drive clock.
  *  Render only while open. */
 function StartDriveDialog({
@@ -123,8 +189,9 @@ function StartDriveDialog({
     <Dialog label="Start drive" onClose={onCancel}>
       <h2>Start drive</h2>
       <p className="muted" style={{ margin: 0 }}>
-        Clocks your travel to the venue. When you start a session after arriving, the drive is
-        recorded as travel time and doubled to estimate the round trip.
+        Clocks your travel to the venue. When you start a session after arriving, you'll be
+        asked to tie the drive to it — and when you log the session, whether to count the
+        round trip or just one way.
       </p>
       <label className="field">
         <span>Destination (optional)</span>
@@ -158,6 +225,7 @@ function RunningSessionCard({ active }: { active: ActiveSession }) {
   const navigate = useNavigate();
   const [rebuyOpen, setRebuyOpen] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [travelPrompt, setTravelPrompt] = useState(false);
   const now = useNow(true);
 
   const isTable = active.sessionType === 'TABLE';
@@ -170,10 +238,18 @@ function RunningSessionCard({ active }: { active: ActiveSession }) {
   const summary = [gameLabel, stakes, active.location].filter(Boolean).join(' · ');
   const bountyTotal = active.bountyPerBounty * active.bountyCount;
 
-  const stopAndLog = () => {
+  /** travelMinutes null = no explicit choice (editor uses its own default). */
+  const finishLog = (travelMinutes: number | null) => {
     const minutes = Math.max(0, Math.floor((Date.now() - active.startedAt) / 60000));
+    const travel = travelMinutes !== null ? `&travel=${travelMinutes}` : '';
     // The draft prefills the editor; it's cleared once the session is saved.
-    navigate(`/session/new?live=${active.startedAt}&duration=${minutes}`);
+    navigate(`/session/new?live=${active.startedAt}&duration=${minutes}${travel}`);
+  };
+
+  const stopAndLog = () => {
+    // A tracked drive needs one answer first: round trip or one-way?
+    if (active.travelOneWayMinutes > 0) setTravelPrompt(true);
+    else finishLog(null);
   };
 
   return (
@@ -246,6 +322,42 @@ function RunningSessionCard({ active }: { active: ActiveSession }) {
             setRebuyOpen(false);
           }}
         />
+      )}
+      {travelPrompt && (
+        <Dialog label="Travel for this session" role="alertdialog" onClose={() => setTravelPrompt(false)}>
+          <h2>Travel for this session</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            You recorded a {active.travelOneWayMinutes} min drive here. Count the return trip
+            too, or just the drive there?
+          </p>
+          <div className="col" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setTravelPrompt(false);
+                finishLog(active.travelOneWayMinutes * 2);
+              }}
+            >
+              Round trip ({active.travelOneWayMinutes * 2} min)
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => {
+                setTravelPrompt(false);
+                finishLog(active.travelOneWayMinutes);
+              }}
+            >
+              One way only ({active.travelOneWayMinutes} min)
+            </button>
+          </div>
+          <div className="actions">
+            <button type="button" className="btn btn-outline" onClick={() => setTravelPrompt(false)}>
+              Cancel
+            </button>
+          </div>
+        </Dialog>
       )}
       <ConfirmDialog
         open={confirmDiscard}

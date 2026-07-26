@@ -241,11 +241,16 @@ export default function EditorPage() {
     if (existing) return fromSession(existing);
     if (draft) {
       const duration = Number(params.get('duration')) || 0;
+      // ?travel= carries the user's round-trip-vs-one-way answer from the
+      // stop prompt; without it, a tracked drive defaults to the round trip.
+      const travelParam = params.get('travel');
       return fromSession({
         ...emptySession(draft.startedAt),
         durationMinutes: duration,
-        // A tracked drive to the venue is doubled to estimate the round trip.
-        travelMinutes: draft.travelOneWayMinutes * 2,
+        travelMinutes:
+          travelParam !== null
+            ? Math.max(0, Number.parseInt(travelParam, 10) || 0)
+            : draft.travelOneWayMinutes * 2,
         sessionType: draft.sessionType,
         gameType: draft.gameType,
         tableGame: draft.tableGame,
