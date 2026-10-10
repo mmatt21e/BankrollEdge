@@ -7,36 +7,24 @@ import { useAppState, useNow } from '../hooks/useAppState';
 import { money, elapsedClock, formatDateTime } from '../domain/format';
 import {
   ActiveSession,
-  SessionType,
-  GameType,
-  TableGameType,
-  VenueType,
-  SESSION_TYPES,
-  SESSION_TYPE_LABELS,
   gameTypeLabel,
   tableGameLabel,
-  pokerGameOptions,
-  tableGameOptions,
 } from '../models/types';
 import { ConfirmDialog, Dialog, MoneyInput } from './common';
-import { CommuteInput } from './CommuteInput';
-import { activeCommuteMinutes, parseCommuteMinutes } from '../domain/commute';
+import { activeCommuteMinutes } from '../domain/commute';
+import { useSessionEntry } from '../hooks/useSessionEntry';
 
 /** Session timers track play only. Commute is entered manually. */
 export function LiveSessionCard() {
   const app = useAppState();
-  const [setupOpen, setSetupOpen] = useState(false);
+  const openSessionEntry = useSessionEntry();
   return (
     <>
       {app.activeSessions.map((active) => <RunningSessionCard key={active.startedAt} active={active} />)}
-      <button type="button" className="live-start" onClick={() => setSetupOpen(true)}>
+      <button type="button" className="live-start" data-session-add="dashboard" onClick={() => openSessionEntry('dashboard', 'dashboard')}>
         <span aria-hidden="true">▶</span>{' '}
-        {app.activeSessions.length > 0 ? 'Start another session' : 'Start live session'}
+        {app.activeSessions.length > 0 ? 'Add another session' : 'Add session'}
       </button>
-      {setupOpen && <StartSessionDialog onCancel={() => setSetupOpen(false)} onStart={(setup) => {
-        app.startSession(setup);
-        setSetupOpen(false);
-      }} />}
     </>
   );
 }
@@ -184,218 +172,6 @@ function RebuyDialog({
         </button>
         <button type="button" className="btn" disabled={!valid} onClick={() => onAdd(value)}>
           Add
-        </button>
-      </div>
-    </Dialog>
-  );
-}
-
-interface SetupState {
-  sessionType: SessionType;
-  gameType: GameType;
-  tableGame: TableGameType;
-  venueType: VenueType;
-  location: string;
-  smallBlind: string;
-  bigBlind: string;
-  buyIn: string;
-  bountyPerBounty: string;
-  travelMinutes: string;
-}
-
-/** Captures the session's setup the moment it starts, so game, venue, stakes
- *  and buy-in are recorded up front rather than reconstructed at stop time.
- *  Render only while open. */
-function StartSessionDialog({
-  onCancel,
-  onStart,
-}: {
-  onCancel: () => void;
-  onStart: (setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>) => void;
-}) {
-  const app = useAppState();
-  const { settings } = app;
-  const [form, setForm] = useState<SetupState>(() => ({
-    sessionType:
-      settings.defaultSessionType !== 'ALL'
-        ? settings.defaultSessionType
-        : settings.showPoker
-          ? 'CASH'
-          : 'TABLE',
-    gameType: 'NLH',
-    tableGame: 'BLACKJACK',
-    venueType: 'LIVE',
-    location: '',
-    smallBlind: '',
-    bigBlind: '',
-    buyIn: '',
-    bountyPerBounty: '',
-    travelMinutes: '',
-  }));
-  const starting = useRef(false);
-  const [error, setError] = useState('');
-  const commute = parseCommuteMinutes(form.travelMinutes);
-
-  const set = (patch: Partial<SetupState>) => setForm((prev) => ({ ...prev, ...patch }));
-  const num = (v: string) => {
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-  const isTable = form.sessionType === 'TABLE';
-  const isTournament = form.sessionType === 'TOURNAMENT' || form.sessionType === 'SNG';
-  const pokerGames = pokerGameOptions(settings, app.recordedPokerGames);
-  const tableGames = tableGameOptions(settings, app.recordedTableGames);
-
-  const start = () => {
-    if (starting.current || commute === null) return;
-    starting.current = true;
-    try {
-      onStart({
-        sessionType: form.sessionType,
-        gameType: form.gameType,
-        tableGame: form.tableGame,
-        venueType: form.venueType,
-        location: form.location.trim(),
-        smallBlind: isTable || isTournament ? 0 : num(form.smallBlind),
-        bigBlind: isTable || isTournament ? 0 : num(form.bigBlind),
-        buyIn: num(form.buyIn),
-        rebuys: 0,
-        bountyPerBounty: isTournament ? num(form.bountyPerBounty) : 0,
-        bountyCount: 0,
-        currency: settings.currency,
-        travelMinutes: commute,
-      });
-    } catch (err) {
-      starting.current = false;
-      setError((err as Error).message);
-    }
-  };
-
-  return (
-    <Dialog label="Start live session" onClose={onCancel}>
-      <h2>Start live session</h2>
-      {error && <p role="alert">{error}</p>}
-
-        <label className="field">
-          <span>Session type</span>
-          <select
-            value={form.sessionType}
-            onChange={(e) => set({ sessionType: e.target.value as SessionType })}
-          >
-            {SESSION_TYPES.filter(
-              (t) =>
-                t === form.sessionType ||
-                (t === 'TABLE' ? settings.showTableGames : settings.showPoker),
-            ).map((t) => (
-              <option key={t} value={t}>{SESSION_TYPE_LABELS[t]}</option>
-            ))}
-          </select>
-        </label>
-
-        <div className="segmented" role="group" aria-label="Live or online">
-          {(['LIVE', 'ONLINE'] as VenueType[]).map((v) => (
-            <button
-              key={v}
-              type="button"
-              aria-pressed={form.venueType === v}
-              onClick={() => set({ venueType: v })}
-            >
-              {v === 'LIVE' ? 'Live' : 'Online'}
-            </button>
-          ))}
-        </div>
-
-        {isTable ? (
-          <label className="field">
-            <span>Table game</span>
-            <select
-              value={form.tableGame}
-              onChange={(e) => set({ tableGame: e.target.value as TableGameType })}
-            >
-              {tableGames.map((g) => (
-                <option key={g.value} value={g.value}>{g.label}</option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <label className="field">
-            <span>Game</span>
-            <select
-              value={form.gameType}
-              onChange={(e) => set({ gameType: e.target.value as GameType })}
-            >
-              {pokerGames.map((g) => (
-                <option key={g.value} value={g.value}>{g.label}</option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        <label className="field">
-          <span>Venue / location</span>
-          <input
-            type="text"
-            list="live-venue-options"
-            value={form.location}
-            placeholder="e.g. Bellagio"
-            onChange={(e) => set({ location: e.target.value })}
-          />
-          <datalist id="live-venue-options">
-            {app.availableLocations.map((loc) => (
-              <option key={loc} value={loc} />
-            ))}
-          </datalist>
-        </label>
-
-        <CommuteInput value={form.travelMinutes} onChange={(travelMinutes) => set({ travelMinutes })} />
-
-        {!isTable && !isTournament && (
-          <div className="row">
-            <label className="field grow">
-              <span>Small blind</span>
-              <MoneyInput
-                currency={settings.currency}
-                value={form.smallBlind}
-                onChange={(v) => set({ smallBlind: v })}
-              />
-            </label>
-            <label className="field grow">
-              <span>Big blind</span>
-              <MoneyInput
-                currency={settings.currency}
-                value={form.bigBlind}
-                onChange={(v) => set({ bigBlind: v })}
-              />
-            </label>
-          </div>
-        )}
-
-        <label className="field">
-          <span>Buy-in</span>
-          <MoneyInput
-            currency={settings.currency}
-            value={form.buyIn}
-            onChange={(v) => set({ buyIn: v })}
-          />
-        </label>
-
-        {isTournament && (
-          <label className="field">
-            <span>Bounty per knockout (optional)</span>
-            <MoneyInput
-              currency={settings.currency}
-              value={form.bountyPerBounty}
-              onChange={(v) => set({ bountyPerBounty: v })}
-            />
-          </label>
-        )}
-
-      <div className="actions">
-        <button type="button" className="btn btn-outline" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="btn" disabled={commute === null} onClick={start}>
-          ▶ Start
         </button>
       </div>
     </Dialog>

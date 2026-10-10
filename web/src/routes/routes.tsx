@@ -15,6 +15,7 @@ import PrivacySettingsPage from '../pages/PrivacySettingsPage';
 import AboutSettingsPage from '../pages/AboutSettingsPage';
 import ImportPage from '../pages/ImportPage';
 import EditorPage from '../pages/EditorPage';
+import NewSessionPage from '../pages/NewSessionPage';
 import BankrollPage from '../pages/BankrollPage';
 import ClockPage from '../pages/ClockPage';
 import HomeGamesPage from '../pages/HomeGamesPage';
@@ -62,7 +63,7 @@ export const routes: RouteObject[] = [
   { path: '/settings/privacy', element: <PrivacySettingsPage /> },
   { path: '/settings/about', element: <AboutSettingsPage /> },
   { path: '/settings/import', element: <ImportPage /> },
-  { path: '/session/new', element: <EditorPage /> },
+  { path: '/session/new', element: <NewSessionPage /> },
   { path: '/session/:id', element: <EditorPage /> },
   { path: '/bet/new', element: <BetEditorPage /> },
   { path: '/bet/:id', element: <BetEditorPage /> },

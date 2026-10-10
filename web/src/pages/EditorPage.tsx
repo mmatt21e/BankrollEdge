@@ -35,6 +35,7 @@ import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../comp
 import { StakesPicker, VenuePicker } from '../components/pickers';
 import { CommuteInput } from '../components/CommuteInput';
 import { activeCommuteMinutes, mergeSessionEdits, parseCommuteMinutes } from '../domain/commute';
+import { sessionEntryDefaults } from '../domain/sessionEntry';
 
 interface FormState {
   sessionType: SessionType;
@@ -203,7 +204,7 @@ function toSession(form: FormState, id: number): Session {
 }
 
 /** Never mount form state before the saved record has finished loading. */
-export default function EditorPage() {
+export default function EditorPage({ onSaved }: { onSaved?: () => void } = {}) {
   const app = useAppState();
   const { id } = useParams();
   const [params] = useSearchParams();
@@ -213,12 +214,12 @@ export default function EditorPage() {
   if (!app.ready) message = 'Loading session…';
   else if (app.loadError) message = 'Your data could not be loaded. Reload before editing a session.';
   else if (id && (!Number.isSafeInteger(Number(id)) || Number(id) <= 0 || !app.getSession(Number(id)))) message = 'Session not found. No changes have been made.';
-  else if (live && (!draft || app.sessions.some((s) => s.sourceLiveStartedAt === draft.startedAt))) message = 'This live session is no longer active. Check your saved sessions.';
+  else if (params.has('live') && (!draft || app.sessions.some((s) => s.sourceLiveStartedAt === draft.startedAt))) message = 'This live session is no longer active. Check your saved sessions.';
   if (message) return <main className="page"><p role="status">{message}</p><Link to="/">Back to dashboard</Link></main>;
-  return <SessionEditor key={`${id ?? 'new'}:${params.toString()}`} />;
+  return <SessionEditor key={`${id ?? 'new'}:${params.toString()}`} onSaved={onSaved} />;
 }
 
-function SessionEditor() {
+function SessionEditor({ onSaved }: { onSaved?: () => void }) {
   const app = useAppState();
   const { id } = useParams();
   const [params] = useSearchParams();
@@ -283,25 +284,7 @@ function SessionEditor() {
         currency: draft.currency,
       });
     }
-    const start = Number(params.get('start')) || Date.now();
-    const duration = Number(params.get('duration')) || 0;
-    // The Sessions/Tables tabs pass ?type= so their + opens the right discipline.
-    const typeParam = params.get('type');
-    const forcedType = SESSION_TYPES.includes(typeParam as SessionType)
-      ? (typeParam as SessionType)
-      : null;
-    return fromSession({
-      ...emptySession(start),
-      durationMinutes: duration,
-      currency: app.settings.currency,
-      sessionType:
-        forcedType ??
-        (app.settings.defaultSessionType !== 'ALL'
-          ? app.settings.defaultSessionType
-          : app.settings.showPoker
-            ? 'CASH'
-            : 'TABLE'),
-    });
+    return fromSession(sessionEntryDefaults(params, app.settings, Date.now()));
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Guards against double-taps on Save — each submit of a new session would
@@ -366,7 +349,8 @@ function SessionEditor() {
         : edited);
       // The live session is now logged — retire its draft so the timer resets.
       if (draft) app.clearSession(draft.startedAt);
-      goBack();
+      if (onSaved) onSaved();
+      else goBack();
     } catch (err) {
       submitting.current = false;
       setSaveError(`Could not save the session: ${(err as Error).message}`);
@@ -446,7 +430,7 @@ function SessionEditor() {
   return (
     <>
       <TopBar
-        title={isEditing ? 'Edit session' : 'New session'}
+        title={isEditing ? 'Edit session' : draft ? 'Finish live session' : 'Record a previous session'}
         onBack={onBack}
         action={
           isEditing ? (
@@ -471,6 +455,7 @@ function SessionEditor() {
         <label className="field">
           <span>Session type</span>
           <select
+            autoFocus={!isEditing && !draft}
             value={form.sessionType}
             onChange={(e) => set({ sessionType: e.target.value as SessionType })}
           >

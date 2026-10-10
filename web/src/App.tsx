@@ -5,12 +5,14 @@ import { NavBar } from './components/common';
 import { PinLock } from './components/PinLock';
 import { useAppState, useOnline } from './hooks/useAppState';
 import { hasPin, loadHideBalances } from './storage/settings';
+import { useSessionEntry } from './hooks/useSessionEntry';
 
 export default function App() {
   const element = useRoutes(routes);
   const location = useLocation();
   const navigate = useNavigate();
   const online = useOnline();
+  const openSessionEntry = useSessionEntry();
   const { settings, loadError } = useAppState();
   const [locked, setLocked] = useState(hasPin);
 
@@ -42,19 +44,6 @@ export default function App() {
     (onTables && settings.showTableGames) ||
     (onBets && settings.showSports);
 
-  // The Table + adds a table session; the Poker + adds a poker session
-  // (respecting the user's default poker type). Dashboard/other tabs use defaults.
-  const pokerDefault =
-    settings.defaultSessionType !== 'ALL' && settings.defaultSessionType !== 'TABLE'
-      ? settings.defaultSessionType
-      : 'CASH';
-  const fabTarget = fabAddsBet
-    ? '/bet/new'
-    : onTables
-      ? '/session/new?type=TABLE'
-      : onSessions
-        ? `/session/new?type=${pokerDefault}`
-        : '/session/new';
   const fabLabel = fabAddsBet ? 'Add bet' : onTables ? 'Add table session' : 'Add session';
 
   return (
@@ -76,7 +65,8 @@ export default function App() {
           type="button"
           className="fab"
           aria-label={fabLabel}
-          onClick={() => navigate(fabTarget)}
+          data-session-add={fabAddsBet ? undefined : 'fab'}
+          onClick={() => fabAddsBet ? navigate('/bet/new') : openSessionEntry(onTables ? 'table' : onSessions ? 'poker' : 'dashboard', 'fab')}
         >
           +
         </button>
