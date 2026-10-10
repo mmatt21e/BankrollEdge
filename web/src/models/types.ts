@@ -85,14 +85,15 @@ export interface ActiveSession {
   bountyPerBounty: number;
   /** Number of bounties collected so far while the session is live. */
   bountyCount: number;
-  /** Minutes spent driving to the venue before this session started
-   *  (0 = not tracked). Doubled into the round-trip estimate at log time. */
+  /** Legacy outbound duration, retained when resuming older drafts. */
   travelOneWayMinutes: number;
+  /** Manually entered total commute; absent only in legacy active drafts. */
+  travelMinutes?: number;
   currency: string;
 }
 
-/** A drive to the venue that's underway (or done) before any session starts.
- *  arrivedAt freezes the clock; 0 = still driving. */
+/** Legacy drive timer, read only to recover records from older versions.
+ *  arrivedAt freezes the clock; 0 meant still driving. */
 export interface PendingDrive {
   startedAt: number;
   arrivedAt: number;
@@ -103,6 +104,8 @@ export interface PendingDrive {
  *  travel in the Travel log rather than counted against any session. */
 export interface TravelEntry {
   id: number;
+  /** Identifies a recovered legacy timer so interrupted migration is idempotent. */
+  legacyDriveStartedAt?: number;
   /** When the drive started (epoch millis). */
   time: number;
   minutes: number;
@@ -174,6 +177,8 @@ export const GAME_QUALITY_LABELS: Record<Exclude<GameQuality, ''>, string> = {
 };
 
 export interface Session {
+  /** Identifies a finished live draft across interrupted saves/reloads. */
+  sourceLiveStartedAt?: number;
   id: number; // 0 = unsaved
   sessionType: SessionType;
   gameType: GameType;
@@ -182,7 +187,7 @@ export interface Session {
   location: string;
   startTime: number; // epoch millis
   durationMinutes: number;
-  /** Round-trip travel time in minutes (0 = none). Kept separate from play
+  /** Total commute time in minutes (0 = none). Kept separate from play
    *  time; folded into hourly rates only when the user opts in. */
   travelMinutes: number;
   smallBlind: number;

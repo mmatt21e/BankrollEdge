@@ -1,13 +1,12 @@
 // Live-session card for the dashboard: start a session (capturing its setup
 // up front), watch the running clock, add rebuys / bounties, then stop & log.
 // Moved out of the old Play screen when it merged into the Dashboard.
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppState, useNow } from '../hooks/useAppState';
 import { money, elapsedClock, formatDateTime } from '../domain/format';
 import {
   ActiveSession,
-  PendingDrive,
   SessionType,
   GameType,
   TableGameType,
@@ -20,206 +19,25 @@ import {
   tableGameOptions,
 } from '../models/types';
 import { ConfirmDialog, Dialog, MoneyInput } from './common';
+import { CommuteInput } from './CommuteInput';
+import { activeCommuteMinutes, parseCommuteMinutes } from '../domain/commute';
 
-/** All running sessions plus the start actions. Several sessions can run at
- *  once — one card each, targeted by their startedAt handle. A drive to the
- *  venue can be clocked before any session exists; starting a session
- *  consumes it as travel time. */
+/** Session timers track play only. Commute is entered manually. */
 export function LiveSessionCard() {
   const app = useAppState();
   const [setupOpen, setSetupOpen] = useState(false);
-  const [driveOpen, setDriveOpen] = useState(false);
-  // Setup captured but waiting on the "tie your drive to this session?" answer.
-  const [pendingSetup, setPendingSetup] =
-    useState<Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'> | null>(null);
-  // If the drive disappears while the question is up (cancelled elsewhere),
-  // start the session without travel rather than stranding the setup.
-  useEffect(() => {
-    if (pendingSetup && !app.pendingDrive) {
-      app.startSession(pendingSetup);
-      setPendingSetup(null);
-    }
-  }, [pendingSetup, app]);
   return (
     <>
-      {app.pendingDrive && <DriveCard drive={app.pendingDrive} onStartSession={() => setSetupOpen(true)} />}
-      {app.activeSessions.map((active) => (
-        <RunningSessionCard key={active.startedAt} active={active} />
-      ))}
-      {/* Idle (or "start another"): a slim one-line action, not a full card.
-          Starting captures the setup up front so the details are recorded
-          from the moment you sit down. */}
+      {app.activeSessions.map((active) => <RunningSessionCard key={active.startedAt} active={active} />)}
       <button type="button" className="live-start" onClick={() => setSetupOpen(true)}>
         <span aria-hidden="true">▶</span>{' '}
         {app.activeSessions.length > 0 ? 'Start another session' : 'Start live session'}
       </button>
-      {!app.pendingDrive && (
-        <button type="button" className="live-start" onClick={() => setDriveOpen(true)}>
-          <span aria-hidden="true">🚗</span> Start drive to the venue
-        </button>
-      )}
-      {/* Mounted per open so the form re-reads current defaults each time. */}
-      {setupOpen && (
-        <StartSessionDialog
-          onCancel={() => setSetupOpen(false)}
-          onStart={(setup) => {
-            setSetupOpen(false);
-            // A recorded drive exists: ask whether it belongs to this session
-            // instead of silently attaching it.
-            if (app.pendingDrive) setPendingSetup(setup);
-            else app.startSession(setup);
-          }}
-        />
-      )}
-      {pendingSetup && app.pendingDrive && (
-        <AttachTravelDialog
-          drive={app.pendingDrive}
-          onChoose={(attach) => {
-            // Declining files the drive in the Travel log as overall travel,
-            // so it never prompts again.
-            if (!attach) app.logDriveUnattached();
-            app.startSession(pendingSetup, attach);
-            setPendingSetup(null);
-          }}
-          onCancel={() => setPendingSetup(null)}
-        />
-      )}
-      {driveOpen && (
-        <StartDriveDialog
-          onCancel={() => setDriveOpen(false)}
-          onStart={(location) => {
-            app.startDrive(location);
-            setDriveOpen(false);
-          }}
-        />
-      )}
+      {setupOpen && <StartSessionDialog onCancel={() => setSetupOpen(false)} onStart={(setup) => {
+        app.startSession(setup);
+        setSetupOpen(false);
+      }} />}
     </>
-  );
-}
-
-/** The drive-in-progress (or arrived) card. The clock runs until "I've
- *  arrived" freezes it; starting a session then records it as travel. */
-function DriveCard({ drive, onStartSession }: { drive: PendingDrive; onStartSession: () => void }) {
-  const app = useAppState();
-  const now = useNow(true);
-  const driving = drive.arrivedAt === 0;
-  const elapsed = (driving ? now : drive.arrivedAt) - drive.startedAt;
-  const minutes = Math.max(0, Math.round(elapsed / 60000));
-  return (
-    <section className="card col" style={{ background: 'var(--primary-container)' }}>
-      <div className="overline">{driving ? 'Driving to the venue' : 'Arrived'}</div>
-      <div className="money" style={{ fontSize: '2rem', fontWeight: 700 }} role="timer">
-        {elapsedClock(elapsed)}
-      </div>
-      {drive.location !== '' && <div style={{ fontWeight: 600 }}>{drive.location}</div>}
-      <p className="muted small" style={{ margin: 0 }}>
-        {driving
-          ? 'Tap “I’ve arrived” when you get there, then start your session as usual.'
-          : `${minutes} min drive recorded — you'll be asked to tie it to your next session, and whether to count the round trip when you log it.`}
-      </p>
-      <div className="row">
-        <button type="button" className="btn btn-outline grow" onClick={app.cancelDrive}>
-          Cancel drive
-        </button>
-        {driving ? (
-          <button type="button" className="btn grow" onClick={app.markArrived}>
-            I've arrived
-          </button>
-        ) : (
-          <button type="button" className="btn grow" onClick={onStartSession}>
-            ▶ Start session
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/** "You drove here — does that trip belong to this session?" Attaching
- *  records it as travel; declining leaves the drive on the dashboard.
- *  Render only while open. */
-function AttachTravelDialog({
-  drive,
-  onChoose,
-  onCancel,
-}: {
-  drive: PendingDrive;
-  onChoose: (attach: boolean) => void;
-  onCancel: () => void;
-}) {
-  const end = drive.arrivedAt > 0 ? drive.arrivedAt : Date.now();
-  const minutes = Math.max(0, Math.round((end - drive.startedAt) / 60000));
-  return (
-    <Dialog label="Tie travel to this session" role="alertdialog" onClose={onCancel}>
-      <h2>Tie your drive to this session?</h2>
-      <p className="muted" style={{ margin: 0 }}>
-        You recorded a {minutes} min drive{drive.location ? ` to ${drive.location}` : ''}. Attach
-        it to this session as travel time?
-      </p>
-      <div className="col" style={{ gap: 8 }}>
-        <button type="button" className="btn" onClick={() => onChoose(true)}>
-          Attach {minutes} min drive
-        </button>
-        <button type="button" className="btn btn-outline" onClick={() => onChoose(false)}>
-          Start without travel
-        </button>
-        <p className="muted small" style={{ margin: 0 }}>
-          "Without travel" saves the drive to your Travel log as overall travel instead — you
-          won't be asked about it again. You can still edit any session's travel by hand.
-        </p>
-      </div>
-      <div className="actions">
-        <button type="button" className="btn btn-outline" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </Dialog>
-  );
-}
-
-/** Asks where you're driving (optional) and starts the drive clock.
- *  Render only while open. */
-function StartDriveDialog({
-  onCancel,
-  onStart,
-}: {
-  onCancel: () => void;
-  onStart: (location: string) => void;
-}) {
-  const app = useAppState();
-  const [location, setLocation] = useState('');
-  return (
-    <Dialog label="Start drive" onClose={onCancel}>
-      <h2>Start drive</h2>
-      <p className="muted" style={{ margin: 0 }}>
-        Clocks your travel to the venue. When you start a session after arriving, you'll be
-        asked to tie the drive to it — and when you log the session, whether to count the
-        round trip or just one way.
-      </p>
-      <label className="field">
-        <span>Destination (optional)</span>
-        <input
-          type="text"
-          list="drive-venue-options"
-          value={location}
-          placeholder="e.g. Bellagio"
-          onChange={(e) => setLocation(e.target.value)}
-        />
-        <datalist id="drive-venue-options">
-          {app.availableLocations.map((loc) => (
-            <option key={loc} value={loc} />
-          ))}
-        </datalist>
-      </label>
-      <div className="actions">
-        <button type="button" className="btn btn-outline" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="button" className="btn" onClick={() => onStart(location)}>
-          🚗 Start drive
-        </button>
-      </div>
-    </Dialog>
   );
 }
 
@@ -228,7 +46,7 @@ function RunningSessionCard({ active }: { active: ActiveSession }) {
   const navigate = useNavigate();
   const [rebuyOpen, setRebuyOpen] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [travelPrompt, setTravelPrompt] = useState(false);
+  const finishing = useRef(false);
   const now = useNow(true);
 
   const isTable = active.sessionType === 'TABLE';
@@ -241,18 +59,12 @@ function RunningSessionCard({ active }: { active: ActiveSession }) {
   const summary = [gameLabel, stakes, active.location].filter(Boolean).join(' · ');
   const bountyTotal = active.bountyPerBounty * active.bountyCount;
 
-  /** travelMinutes null = no explicit choice (editor uses its own default). */
-  const finishLog = (travelMinutes: number | null) => {
-    const minutes = Math.max(0, Math.floor((Date.now() - active.startedAt) / 60000));
-    const travel = travelMinutes !== null ? `&travel=${travelMinutes}` : '';
-    // The draft prefills the editor; it's cleared once the session is saved.
-    navigate(`/session/new?live=${active.startedAt}&duration=${minutes}${travel}`);
-  };
-
   const stopAndLog = () => {
-    // A tracked drive needs one answer first: round trip or one-way?
-    if (active.travelOneWayMinutes > 0) setTravelPrompt(true);
-    else finishLog(null);
+    if (finishing.current) return;
+    finishing.current = true;
+    const minutes = Math.max(0, Math.floor((Date.now() - active.startedAt) / 60000));
+    // The editor keeps commute editable, separately from elapsed play time.
+    navigate(`/session/new?live=${active.startedAt}&duration=${minutes}`);
   };
 
   return (
@@ -264,7 +76,7 @@ function RunningSessionCard({ active }: { active: ActiveSession }) {
       {summary && <div style={{ fontWeight: 600 }}>{summary}</div>}
       <div className="muted">
         Started {formatDateTime(active.startedAt)}
-        {active.travelOneWayMinutes > 0 && <> · {active.travelOneWayMinutes} min drive</>}
+        {activeCommuteMinutes(active) > 0 && <> · Commute: {activeCommuteMinutes(active)} min</>}
       </div>
       {(active.buyIn > 0 || active.rebuys > 0) && (
         <div className="muted">
@@ -325,42 +137,6 @@ function RunningSessionCard({ active }: { active: ActiveSession }) {
             setRebuyOpen(false);
           }}
         />
-      )}
-      {travelPrompt && (
-        <Dialog label="Travel for this session" role="alertdialog" onClose={() => setTravelPrompt(false)}>
-          <h2>Travel for this session</h2>
-          <p className="muted" style={{ margin: 0 }}>
-            You recorded a {active.travelOneWayMinutes} min drive here. Count the return trip
-            too, or just the drive there?
-          </p>
-          <div className="col" style={{ gap: 8 }}>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setTravelPrompt(false);
-                finishLog(active.travelOneWayMinutes * 2);
-              }}
-            >
-              Round trip ({active.travelOneWayMinutes * 2} min)
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => {
-                setTravelPrompt(false);
-                finishLog(active.travelOneWayMinutes);
-              }}
-            >
-              One way only ({active.travelOneWayMinutes} min)
-            </button>
-          </div>
-          <div className="actions">
-            <button type="button" className="btn btn-outline" onClick={() => setTravelPrompt(false)}>
-              Cancel
-            </button>
-          </div>
-        </Dialog>
       )}
       <ConfirmDialog
         open={confirmDiscard}
@@ -424,6 +200,7 @@ interface SetupState {
   bigBlind: string;
   buyIn: string;
   bountyPerBounty: string;
+  travelMinutes: string;
 }
 
 /** Captures the session's setup the moment it starts, so game, venue, stakes
@@ -448,13 +225,16 @@ function StartSessionDialog({
     gameType: 'NLH',
     tableGame: 'BLACKJACK',
     venueType: 'LIVE',
-    // Arriving from a tracked drive carries its destination in.
-    location: app.pendingDrive?.location ?? '',
+    location: '',
     smallBlind: '',
     bigBlind: '',
     buyIn: '',
     bountyPerBounty: '',
+    travelMinutes: '',
   }));
+  const starting = useRef(false);
+  const [error, setError] = useState('');
+  const commute = parseCommuteMinutes(form.travelMinutes);
 
   const set = (patch: Partial<SetupState>) => setForm((prev) => ({ ...prev, ...patch }));
   const num = (v: string) => {
@@ -467,25 +247,34 @@ function StartSessionDialog({
   const tableGames = tableGameOptions(settings, app.recordedTableGames);
 
   const start = () => {
-    onStart({
-      sessionType: form.sessionType,
-      gameType: form.gameType,
-      tableGame: form.tableGame,
-      venueType: form.venueType,
-      location: form.location.trim(),
-      smallBlind: isTable || isTournament ? 0 : num(form.smallBlind),
-      bigBlind: isTable || isTournament ? 0 : num(form.bigBlind),
-      buyIn: num(form.buyIn),
-      rebuys: 0,
-      bountyPerBounty: isTournament ? num(form.bountyPerBounty) : 0,
-      bountyCount: 0,
-      currency: settings.currency,
-    });
+    if (starting.current || commute === null) return;
+    starting.current = true;
+    try {
+      onStart({
+        sessionType: form.sessionType,
+        gameType: form.gameType,
+        tableGame: form.tableGame,
+        venueType: form.venueType,
+        location: form.location.trim(),
+        smallBlind: isTable || isTournament ? 0 : num(form.smallBlind),
+        bigBlind: isTable || isTournament ? 0 : num(form.bigBlind),
+        buyIn: num(form.buyIn),
+        rebuys: 0,
+        bountyPerBounty: isTournament ? num(form.bountyPerBounty) : 0,
+        bountyCount: 0,
+        currency: settings.currency,
+        travelMinutes: commute,
+      });
+    } catch (err) {
+      starting.current = false;
+      setError((err as Error).message);
+    }
   };
 
   return (
     <Dialog label="Start live session" onClose={onCancel}>
       <h2>Start live session</h2>
+      {error && <p role="alert">{error}</p>}
 
         <label className="field">
           <span>Session type</span>
@@ -558,6 +347,8 @@ function StartSessionDialog({
           </datalist>
         </label>
 
+        <CommuteInput value={form.travelMinutes} onChange={(travelMinutes) => set({ travelMinutes })} />
+
         {!isTable && !isTournament && (
           <div className="row">
             <label className="field grow">
@@ -603,7 +394,7 @@ function StartSessionDialog({
         <button type="button" className="btn btn-outline" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="btn" onClick={start}>
+        <button type="button" className="btn" disabled={commute === null} onClick={start}>
           ▶ Start
         </button>
       </div>

@@ -356,7 +356,7 @@ export default function ImportPage() {
                   <p className="muted" style={{ margin: 0 }}>
                     <strong>{built.count}</strong> {noun} will be imported
                     {built.skipped > 0 && (
-                      <> · <span className="neg">{built.skipped} skipped</span> (unreadable date)</>
+                      <> · <span className="neg">{built.skipped} skipped</span> ({kind === 'bets' ? 'unreadable date' : 'invalid date or commute minutes'})</>
                     )}
                     .
                   </p>

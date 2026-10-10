@@ -33,6 +33,8 @@ import { money, signedMoney, signedUnits, toDateInput, toTimeInput } from '../do
 import { stakeStore, venueStore } from '../storage/db';
 import { ConfirmDialog, MoneyInput, TopBar, profitClass, useBack } from '../components/common';
 import { StakesPicker, VenuePicker } from '../components/pickers';
+import { CommuteInput } from '../components/CommuteInput';
+import { activeCommuteMinutes, mergeSessionEdits, parseCommuteMinutes } from '../domain/commute';
 
 interface FormState {
   sessionType: SessionType;
@@ -159,7 +161,7 @@ function toSession(form: FormState, id: number): Session {
     location: form.location.trim(),
     startTime: new Date(y, (mo || 1) - 1, d || 1, h || 0, mi || 0).getTime(),
     durationMinutes: i(form.hours) * 60 + i(form.minutes),
-    travelMinutes: i(form.travelMinutes),
+    travelMinutes: parseCommuteMinutes(form.travelMinutes) ?? 0,
     smallBlind: isTable ? 0 : f(form.smallBlind),
     bigBlind: isTable ? 0 : f(form.bigBlind),
     straddle: isTable ? 'NONE' : form.straddle,
@@ -200,7 +202,23 @@ function toSession(form: FormState, id: number): Session {
   };
 }
 
+/** Never mount form state before the saved record has finished loading. */
 export default function EditorPage() {
+  const app = useAppState();
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  const live = params.get('live');
+  const draft = live === '1' ? app.activeSessions[0] : app.activeSessions.find((s) => String(s.startedAt) === live);
+  let message = '';
+  if (!app.ready) message = 'Loading session…';
+  else if (app.loadError) message = 'Your data could not be loaded. Reload before editing a session.';
+  else if (id && (!Number.isSafeInteger(Number(id)) || Number(id) <= 0 || !app.getSession(Number(id)))) message = 'Session not found. No changes have been made.';
+  else if (live && (!draft || app.sessions.some((s) => s.sourceLiveStartedAt === draft.startedAt))) message = 'This live session is no longer active. Check your saved sessions.';
+  if (message) return <main className="page"><p role="status">{message}</p><Link to="/">Back to dashboard</Link></main>;
+  return <SessionEditor key={`${id ?? 'new'}:${params.toString()}`} />;
+}
+
+function SessionEditor() {
   const app = useAppState();
   const { id } = useParams();
   const [params] = useSearchParams();
@@ -241,16 +259,16 @@ export default function EditorPage() {
     if (existing) return fromSession(existing);
     if (draft) {
       const duration = Number(params.get('duration')) || 0;
-      // ?travel= carries the user's round-trip-vs-one-way answer from the
-      // stop prompt; without it, a tracked drive defaults to the round trip.
+      // Keep legacy finish links valid, but never double an outbound draft
+      // automatically. The total commute remains editable before saving.
       const travelParam = params.get('travel');
       return fromSession({
         ...emptySession(draft.startedAt),
         durationMinutes: duration,
         travelMinutes:
           travelParam !== null
-            ? Math.max(0, Number.parseInt(travelParam, 10) || 0)
-            : draft.travelOneWayMinutes * 2,
+            ? parseCommuteMinutes(travelParam) ?? activeCommuteMinutes(draft)
+            : activeCommuteMinutes(draft),
         sessionType: draft.sessionType,
         gameType: draft.gameType,
         tableGame: draft.tableGame,
@@ -289,6 +307,11 @@ export default function EditorPage() {
   // Guards against double-taps on Save — each submit of a new session would
   // otherwise insert a duplicate record.
   const [saving, setSaving] = useState(false);
+  const submitting = useRef(false);
+  const [saveError, setSaveError] = useState('');
+  const original = useRef(existing);
+  const initialValues = useRef(toSession(form, sessionId));
+  const validCommute = parseCommuteMinutes(form.travelMinutes) !== null;
   // Back protection: leaving with unsaved edits asks first.
   const [confirmLeave, setConfirmLeave] = useState(false);
   const initialForm = useRef(JSON.stringify(form));
@@ -332,14 +355,21 @@ export default function EditorPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (saving) return;
+    if (submitting.current || !validCommute) return;
+    submitting.current = true;
     setSaving(true);
+    setSaveError('');
     try {
-      await app.saveSession(toSession(form, sessionId));
+      const edited = { ...toSession(form, sessionId), ...(draft ? { sourceLiveStartedAt: draft.startedAt } : {}) };
+      await app.saveSession(original.current
+        ? mergeSessionEdits(original.current, initialValues.current, edited)
+        : edited);
       // The live session is now logged — retire its draft so the timer resets.
       if (draft) app.clearSession(draft.startedAt);
       goBack();
-    } finally {
+    } catch (err) {
+      submitting.current = false;
+      setSaveError(`Could not save the session: ${(err as Error).message}`);
       setSaving(false);
     }
   };
@@ -521,6 +551,11 @@ export default function EditorPage() {
           {intField('Minutes', 'minutes')}
         </div>
 
+        <CommuteInput value={form.travelMinutes} onChange={(travelMinutes) => set({ travelMinutes })} />
+        {draft && draft.travelMinutes === undefined && draft.travelOneWayMinutes > 0 && (
+          <p className="muted small">Your previously recorded {draft.travelOneWayMinutes} min outbound drive is preserved. Adjust the total above if you want to include a return trip.</p>
+        )}
+
         {!isTournament && !isTable && (
           <>
             <label className="field">
@@ -636,7 +671,7 @@ export default function EditorPage() {
         </details>
 
         <details className="card">
-          <summary>More details (tags, hands, travel time)</summary>
+          <summary>More details (tags, hands)</summary>
           <div className="col" style={{ marginTop: 10 }}>
             <label className="field">
               <span>Tags (comma-separated, e.g. "deepstack, friday")</span>
@@ -646,11 +681,6 @@ export default function EditorPage() {
               {intField('Hands played', 'handsPlayed')}
               {intField('Table size', 'tableSize')}
             </div>
-            {intField('Travel time (round trip, minutes)', 'travelMinutes')}
-            <p className="muted small" style={{ margin: 0 }}>
-              Time spent getting to and from the venue. Counted in hourly rates only if you
-              turn that on in Settings → Display → Statistics.
-            </p>
           </div>
         </details>
 
@@ -736,7 +766,8 @@ export default function EditorPage() {
           </span>
         </div>
 
-        <button type="submit" className="btn btn-block" disabled={saving}>
+        {saveError && <p role="alert">{saveError}</p>}
+        <button type="submit" className="btn btn-block" disabled={saving || !validCommute}>
           {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Add session'}
         </button>
       </form>

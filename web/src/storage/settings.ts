@@ -9,9 +9,8 @@ const ACTIVE_KEY = 'bankrolledge_active_session';
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    const parsed = raw ? JSON.parse(raw) as Partial<AppSettings> : {};
+    return recoverLegacyDrive({ ...DEFAULT_SETTINGS, ...parsed });
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -67,8 +66,9 @@ export function loadActiveSessions(): ActiveSession[] {
     const legacy = localStorage.getItem(ACTIVE_KEY);
     if (legacy) {
       const one = normalizeActive(JSON.parse(legacy) as ActiveSession);
-      saveActiveSessions([one]);
-      localStorage.removeItem(ACTIVE_KEY);
+      if (saveActiveSessions([one])) {
+        try { localStorage.removeItem(ACTIVE_KEY); } catch { /* The new list is already durable. */ }
+      }
       return [one];
     }
     return [];
@@ -77,20 +77,20 @@ export function loadActiveSessions(): ActiveSession[] {
   }
 }
 
-export function saveActiveSessions(sessions: ActiveSession[]): void {
+export function saveActiveSessions(sessions: ActiveSession[]): boolean {
   try {
     if (sessions.length > 0) localStorage.setItem(ACTIVE_LIST_KEY, JSON.stringify(sessions));
     else localStorage.removeItem(ACTIVE_LIST_KEY);
+    return true;
   } catch {
-    // best-effort; see saveSettings
+    return false;
   }
 }
 
 const DRIVE_KEY = 'bankrolledge_pending_drive';
 
-/** The drive-to-the-venue that's underway (or arrived), if any. Survives app
- *  restarts so closing the app mid-drive doesn't lose the clock. */
-export function loadPendingDrive(): PendingDrive | null {
+/** Read the old timer only for recovery; no new drive timers are created. */
+function loadPendingDrive(): PendingDrive | null {
   try {
     const raw = localStorage.getItem(DRIVE_KEY);
     if (!raw) return null;
@@ -106,13 +106,42 @@ export function loadPendingDrive(): PendingDrive | null {
   }
 }
 
-export function savePendingDrive(drive: PendingDrive | null): void {
+function savePendingDrive(drive: PendingDrive | null): boolean {
   try {
     if (drive) localStorage.setItem(DRIVE_KEY, JSON.stringify(drive));
     else localStorage.removeItem(DRIVE_KEY);
+    return true;
   } catch {
-    // best-effort; see saveSettings
+    return false;
   }
+}
+
+/** Freeze a legacy running drive once, then archive it without altering any
+ *  session or hourly-rate preference. Retain the original key on write failure.
+ *  The provenance marker prevents duplicates if removing that key fails. */
+function recoverLegacyDrive(settings: AppSettings): AppSettings {
+  const oldDrive = loadPendingDrive();
+  if (!oldDrive) return settings;
+  const drive = oldDrive.arrivedAt > 0 ? oldDrive : { ...oldDrive, arrivedAt: Date.now() };
+  if (!Number.isFinite(drive.startedAt) || !Number.isFinite(drive.arrivedAt)) return settings;
+  if (oldDrive.arrivedAt === 0 && !savePendingDrive(drive)) return settings;
+  const entries = settings.travelLog;
+  if (!Array.isArray(entries)) return settings;
+  if (entries.some((entry) => entry.legacyDriveStartedAt === drive.startedAt)) {
+    savePendingDrive(null);
+    return settings;
+  }
+  const entry = {
+    id: Math.max(0, ...entries.map((item) => item.id)) + 1,
+    time: drive.startedAt,
+    minutes: Math.max(0, Math.round((drive.arrivedAt - drive.startedAt) / 60000)),
+    location: drive.location,
+    legacyDriveStartedAt: drive.startedAt,
+  };
+  const next = { ...settings, travelLog: [...entries, entry] };
+  if (!saveSettings(next)) return settings;
+  savePendingDrive(null);
+  return next;
 }
 
 // --- Privacy controls (device-local by design; never included in backups) ---

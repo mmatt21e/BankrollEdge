@@ -67,7 +67,7 @@ export default function DisplaySettingsPage() {
         <SectionCard id="stats" title="Statistics">
           <ToggleRow
             label="Count travel time in hourly rates"
-            hint="Recorded round-trip travel is added to the time side of $/hr and hours totals on stats screens. Session durations themselves stay play-time only."
+            hint="Recorded total commute is added to the time side of $/hr and hours totals on stats screens. Session durations themselves stay play-time only."
             checked={s.travelInHourly}
             onChange={(v) => app.updateSettings({ travelInHourly: v })}
           />

@@ -39,16 +39,15 @@ export default function TravelLogPage() {
             </span>
           </div>
           <p className="muted small" style={{ margin: 0 }}>
-            Session travel is edited on each session. Drives you chose not to tie to a session
-            live here as overall travel — they don't affect any session's stats.
+            Enter commute when starting, finishing or editing a session. Previously recorded
+            standalone drives are preserved here and do not affect session statistics.
           </p>
         </SectionCard>
 
         <SectionCard title="Unattached drives">
           {entries.length === 0 && (
             <p className="muted small" style={{ margin: 0 }}>
-              No unattached drives yet. Declining the “tie your drive to this session?” prompt
-              files the drive here.
+              No standalone travel recorded. You can add travel here without tying it to a session.
             </p>
           )}
           {entries.map((t) => (
@@ -56,6 +55,7 @@ export default function TravelLogPage() {
               <span className="grow col" style={{ gap: 2 }}>
                 <span className="title">{duration(t.minutes)}{t.location ? ` · ${t.location}` : ''}</span>
                 <span className="muted small">{formatDate(t.time)}</span>
+                {t.legacyDriveStartedAt !== undefined && <span className="muted small">Recovered from the old drive timer. Review the minutes if needed.</span>}
               </span>
               <button
                 type="button"

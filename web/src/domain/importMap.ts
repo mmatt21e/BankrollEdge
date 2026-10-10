@@ -17,6 +17,7 @@ import {
   normalizeSession,
 } from '../models/types';
 import { tokenize, parseIso } from './csv';
+import { parseCommuteMinutes } from './commute';
 
 export type MapFieldKey =
   | 'date'
@@ -29,6 +30,7 @@ export type MapFieldKey =
   | 'bigBlind'
   | 'durationMinutes'
   | 'durationHours'
+  | 'travelMinutes'
   | 'buyIn'
   | 'rebuysAddons'
   | 'cashOut'
@@ -71,6 +73,7 @@ export const MAP_FIELDS: MapField[] = [
   { key: 'tips', label: 'Tips / tokes', group: 'Money', synonyms: ['tips', 'tip', 'toke', 'tokes', 'gratuity'] },
   { key: 'expenses', label: 'Expenses', group: 'Money', synonyms: ['expenses', 'expense', 'costs', 'travel', 'fees'] },
   { key: 'durationMinutes', label: 'Duration (minutes)', group: 'Game details', synonyms: ['durationminutes', 'minutes', 'mins', 'durationmin', 'minsplayed'] },
+  { key: 'travelMinutes', label: 'Commute (total minutes)', group: 'Game details', hint: 'Separate from play time; include the return trip only if recorded.', synonyms: ['travelminutes', 'commuteminutes', 'traveltimeminutes', 'commutetimeminutes'] },
   { key: 'durationHours', label: 'Duration (hours)', group: 'Game details', synonyms: ['durationhours', 'hours', 'duration', 'hrs', 'hoursplayed', 'length', 'time', 'timeplayed'] },
   { key: 'position', label: 'Finish position', group: 'Game details', synonyms: ['position', 'place', 'finish', 'finished', 'rank', 'placing'] },
   { key: 'fieldSize', label: 'Field size', group: 'Game details', synonyms: ['fieldsize', 'entrants', 'field', 'runners', 'entries', 'players'] },
@@ -259,7 +262,7 @@ function parseGameFuzzy(value: string): GameType {
 }
 
 /** Turns rows into Sessions using [mapping]. Rows with an unparseable/empty
- *  date are skipped and counted. Imported sessions get fresh ids on save. */
+ *  date or an invalid mapped commute are skipped and counted. Imported sessions get fresh ids on save. */
 export function applyMapping(
   rows: string[][],
   mapping: ColumnMapping,
@@ -284,6 +287,9 @@ export function applyMapping(
       skipped++;
       continue;
     }
+
+    const travelMinutes = parseCommuteMinutes(has('travelMinutes') ? cell(row, 'travelMinutes') : '');
+    if (travelMinutes === null) { skipped++; continue; }
 
     // Stakes: a combined column and/or separate SB/BB columns.
     let smallBlind = 0;
@@ -338,6 +344,7 @@ export function applyMapping(
         smallBlind,
         bigBlind,
         durationMinutes,
+        travelMinutes,
         buyIn,
         rebuysAddons,
         cashOut,

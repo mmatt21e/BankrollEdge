@@ -136,8 +136,9 @@ export function backupFromJson(json: string): Backup {
         time: num(t.time),
         minutes: num(t.minutes),
         location: str(t.location),
+        ...(num(t.legacyDriveStartedAt) > 0 ? { legacyDriveStartedAt: num(t.legacyDriveStartedAt) } : {}),
       }))
-      .filter((t) => t.time > 0 && t.minutes > 0),
+      .filter((t) => t.time > 0 && (t.minutes > 0 || (t.minutes === 0 && t.legacyDriveStartedAt !== undefined))),
     savedRanges: (Array.isArray(s.savedRanges) ? s.savedRanges : [])
       .filter((r): r is Record<string, unknown> => typeof r === 'object' && r !== null)
       .map((r, i) => ({ id: i + 1, name: str(r.name), cells: strArray(r.cells) }))
@@ -160,6 +161,7 @@ export function backupFromJson(json: string): Backup {
       startTime: num(o.startTime),
       durationMinutes: num(o.durationMinutes),
       travelMinutes: num(o.travelMinutes),
+      ...(num(o.sourceLiveStartedAt) > 0 ? { sourceLiveStartedAt: num(o.sourceLiveStartedAt) } : {}),
       smallBlind: num(o.smallBlind),
       bigBlind: num(o.bigBlind),
       // Missing/foreign values fall back to 'NONE' (no straddling).

@@ -14,7 +14,6 @@ import {
   ActiveSession,
   AppSettings,
   BetStatus,
-  PendingDrive,
   Session,
   SportsBet,
   Transaction,
@@ -45,8 +44,6 @@ import {
   saveTimerStart,
   loadActiveSessions,
   saveActiveSessions,
-  loadPendingDrive,
-  savePendingDrive,
 } from '../storage/settings';
 
 export interface AppState {
@@ -78,8 +75,6 @@ export interface AppState {
   recordedStakes: StakePreset[];
   /** Every in-progress live session (several can run at once), newest last. */
   activeSessions: ActiveSession[];
-  /** The drive to the venue that's underway or arrived (null = none). */
-  pendingDrive: PendingDrive | null;
 
   saveSession(session: Session): Promise<void>;
   deleteSession(id: number): Promise<void>;
@@ -94,20 +89,8 @@ export interface AppState {
   deleteTransaction(id: number): Promise<void>;
   updateSettings(patch: Partial<AppSettings>): void;
   setFilter(filter: SessionFilter): void;
-  /** Begins a live session. attachDrive ties any pending drive to it as
-   *  travel time; false leaves the drive pending on the dashboard. */
-  startSession(
-    setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>,
-    attachDrive?: boolean,
-  ): void;
-  /** Start the drive-to-the-venue clock (before any session exists). */
-  startDrive(location: string): void;
-  /** Freeze the drive clock on arrival; the next session started picks it up. */
-  markArrived(): void;
-  cancelDrive(): void;
-  /** The user declined to tie the drive to a session: move it to the Travel
-   *  log as overall travel and stop asking about it. */
-  logDriveUnattached(): void;
+  /** Begins a live session with optional manually entered total commute. */
+  startSession(setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>): void;
   /** Adds a rebuy amount to one running session's draft. */
   addRebuy(startedAt: number, amount: number): void;
   /** Changes one running session's bounty count by delta (clamped at 0). */
@@ -167,13 +150,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const legacy = loadTimerStart();
     if (legacy > 0) {
       const migrated = [bareActiveSession(legacy, loadSettings())];
-      saveActiveSessions(migrated);
-      saveTimerStart(0);
+      if (saveActiveSessions(migrated)) saveTimerStart(0);
       return migrated;
     }
     return [];
   });
-  const [pendingDrive, setPendingDrive] = useState<PendingDrive | null>(loadPendingDrive);
   // The dashboard and session lists always open showing all games; the
   // default-session-type setting only seeds the type for a NEW session.
   const [filter, setFilter] = useState<SessionFilter>(() => ({ ...EMPTY_FILTER }));
@@ -185,6 +166,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         // normalizeSession/normalizeBet fill newer-version defaults into old records.
         const normalized = s.map(normalizeSession).sort((a, b) => b.startTime - a.startTime);
         setSessions(normalized);
+        // A committed session wins over an interrupted draft cleanup. This
+        // avoids re-logging the same draft after a crash or localStorage failure.
+        setActiveSessions((prev) => {
+          const next = prev.filter((draft) => !normalized.some((s) => s.sourceLiveStartedAt === draft.startedAt));
+          if (next.length === prev.length) return prev;
+          saveActiveSessions(next);
+          return next;
+        });
         setTransactions(t.sort((a, b) => b.time - a.time));
         setBets(b.map(normalizeBet).sort((a, z) => z.placedAt - a.placedAt));
         // Backfill the managed pick-lists from ALL existing sessions, so venues,
@@ -289,66 +278,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
    *  app restarts and can prefill the editor when the session ends. Several
    *  sessions can run at once; startedAt is each one's unique handle. */
   const startSession = useCallback(
-    (setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>, attachDrive = true) => {
-      // A pending drive ends here (when the user ties it to this session):
-      // its elapsed time becomes the session's one-way travel.
-      let travelOneWayMinutes = 0;
-      if (pendingDrive && attachDrive) {
-        const end = pendingDrive.arrivedAt > 0 ? pendingDrive.arrivedAt : Date.now();
-        travelOneWayMinutes = Math.max(0, Math.round((end - pendingDrive.startedAt) / 60000));
-        savePendingDrive(null);
-        setPendingDrive(null);
-      }
-      setActiveSessions((prev) => {
-        let startedAt = Date.now();
-        while (prev.some((s) => s.startedAt === startedAt)) startedAt++;
-        const next = [...prev, { ...setup, startedAt, travelOneWayMinutes }];
-        saveActiveSessions(next);
-        saveTimerStart(0); // never leave a stale legacy timer behind
-        return next;
-      });
+    (setup: Omit<ActiveSession, 'startedAt' | 'travelOneWayMinutes'>) => {
+      let startedAt = Date.now();
+      while (activeSessions.some((session) => session.startedAt === startedAt)) startedAt++;
+      const next = [...activeSessions, { ...setup, startedAt, travelOneWayMinutes: 0 }];
+      if (!saveActiveSessions(next)) throw new Error('Could not save the live session. Check browser storage and try again.');
+      setActiveSessions(next);
+      saveTimerStart(0);
     },
-    [pendingDrive],
+    [activeSessions],
   );
-
-  const startDrive = useCallback((location: string) => {
-    const drive: PendingDrive = { startedAt: Date.now(), arrivedAt: 0, location: location.trim() };
-    savePendingDrive(drive);
-    setPendingDrive(drive);
-  }, []);
-
-  const markArrived = useCallback(() => {
-    setPendingDrive((prev) => {
-      if (!prev || prev.arrivedAt > 0) return prev;
-      const next = { ...prev, arrivedAt: Date.now() };
-      savePendingDrive(next);
-      return next;
-    });
-  }, []);
-
-  const cancelDrive = useCallback(() => {
-    savePendingDrive(null);
-    setPendingDrive(null);
-  }, []);
-
-  const logDriveUnattached = useCallback(() => {
-    if (!pendingDrive) return;
-    const end = pendingDrive.arrivedAt > 0 ? pendingDrive.arrivedAt : Date.now();
-    const minutes = Math.max(1, Math.round((end - pendingDrive.startedAt) / 60000));
-    setSettings((prev) => {
-      const entry = {
-        id: Math.max(0, ...prev.travelLog.map((t) => t.id)) + 1,
-        time: pendingDrive.startedAt,
-        minutes,
-        location: pendingDrive.location,
-      };
-      const next = { ...prev, travelLog: [...prev.travelLog, entry] };
-      saveSettings(next);
-      return next;
-    });
-    savePendingDrive(null);
-    setPendingDrive(null);
-  }, [pendingDrive]);
 
   const patchActive = useCallback(
     (startedAt: number, patch: (s: ActiveSession) => ActiveSession) => {
@@ -589,7 +528,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       // import, so recorded/imported stakes are pickable like venues and games.
       recordedStakes: harvestStakes(sessions, []),
       activeSessions,
-      pendingDrive,
       saveSession,
       deleteSession,
       getSession: (id: number) => sessions.find((s) => s.id === id),
@@ -603,10 +541,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateSettings,
       setFilter,
       startSession,
-      startDrive,
-      markArrived,
-      cancelDrive,
-      logDriveUnattached,
       addRebuy,
       adjustBounty,
       clearSession,
@@ -615,10 +549,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       clearData,
     };
   }, [
-    ready, loadError, sessions, transactions, bets, settings, filter, activeSessions, pendingDrive,
+    ready, loadError, sessions, transactions, bets, settings, filter, activeSessions,
     saveSession, deleteSession, saveBet, deleteBet, settleBet, importBets,
     addTransaction, deleteTransaction,
-    updateSettings, startSession, startDrive, markArrived, cancelDrive, logDriveUnattached,
+    updateSettings, startSession,
     addRebuy, adjustBounty, clearSession, importSessions, restoreBackup, clearData,
   ]);
 
